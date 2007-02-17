@@ -1,0 +1,76 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix : <http://metacognition.info/ontologies/ReteVocabulary.owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#>.
+@prefix rdfg: <http://www.w3.org/2004/03/trix/rdfg-1/>.
+
+<> a owl:Ontology;
+   rdfs:label "Rete Network RDF Vocabulary";
+   rdfs:comment "An Vocabulary for Persisting a RETE Network";
+   rdfs:isDefinedBy <http://www.w3.org/2002/07/owl>.
+
+:ReteNetwork a owl:Class;
+             rdfs:label "Rete Network";
+			 rdfs:comment "A named N3 rule graph which has been used to compile the Rete network";		
+             rdfs:subClassOf rdfg:Graph.
+             
+:AlphaNode a owl:Class;
+           rdfs:label "Rete Alpha Node"
+           rdfs:subClassOf 
+           [ a owl:Restriction;
+		  	   owl:onProperty :alphaNodeTest;
+		  	   owl:cardinality "1"^^xsd:int ];
+
+:BetaNode a owl:Class;
+          rdfs:label "Rete Beta Node".          
+
+:BetaNode owl:disjointWith :AlphaNode.
+:ReteNetwork owl:disjointWith :AlphaNode.
+:ReteNetwork owl:disjointWith :BetaNode.
+
+:TerminalNode a owl:Class;
+              owl:intersectionOf ( 
+                  [ a owl:Restriction;
+                      owl:onProperty :producesFor;
+                      owl:cardinality "1"^^xsd:int ] 
+                  [ a owl:Restriction;
+                      owl:onProperty :ruleConsequent;
+                      owl:cardinality "1"^^xsd:int ]                      
+                  :BetaNode
+              );
+              rdfs:label "Rete Terminal Node";
+
+:ReteNode owl:unionOf (:AlphaNode :BetaNode);
+          rdfs:label "Rete Node".
+
+:producesFor a owl:ObjectProperty;
+               rdfs:label "Parent Network";
+               rdfs:comment "Associates a terminal node with it's parent Rete network";
+               rdfs:domain :TerminalNode;
+               rdfs:range :ReteNetwork.
+
+:alphaNodeTest a owl:ObjectProperty;
+               rdfs:label "Alpha Node Pattern";
+               rdfs:comment "The alpha node test is a triple pattern in the rule LHS";
+               rdfs:domain :AlphaNode;
+               rdfs:range rdf:Statement.
+
+:leftInputOf a owl:ObjectProperty;
+             rdfs:label "Feeds left node";
+             rdfs:comment "Relates a rete node with the beta node whose left memory it feeds";
+             rdfs:domain :ReteNode;
+             rdfs:range :BetaNode.
+
+:rightInputOf a owl:ObjectProperty;
+              rdfs:label "Feeds right node";
+              rdfs:comment "Relates a rete node with the beta node whose right memory it feeds";
+              rdfs:domain :ReteNode;
+              rdfs:range :BetaNode.
+
+:ruleConsequent a owl:ObjectProperty;
+                rdfs:label "Production Consequent";
+                rdfs:comment "Associates a list of triple patterns (from the rule RHS) with the terminal node of the network";
+                rdfs:domain :TerminalNode;
+                rdfs:range rdf:List.

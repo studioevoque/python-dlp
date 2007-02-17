@@ -3,15 +3,24 @@ Semantic Web Ontology generating software library
 
 = Introduction =
 
-Takes Markdown / SKOS / DC / OBI / OWL-RDF-XML and generates an XHTML document which is a GRDDL source document with Manchester OWL syntax documentation of the terms in the ontology.
+Takes as input:
+
+  * [http://daringfireball.net/projects/markdown/syntax Markdown]
+  * [http://www.w3.org/TR/swbp-skos-core-spec SKOS]
+  * [http://dublincore.org/documents/dces/ Dublin Core]
+  * [http://obi.sourceforge.net/ OBI]
+  * [http://www.w3.org/TR/owl-ref/ OWL - RDF/XML]
+
+.. and generates an XHTML document which is a GRDDL source document with Manchester OWL syntax documentation of 
+the terms in the ontology.  The ontology (expressed as OWL) is a GRDDL result of the source document
 
 
 = Details =
 
 Uses:
-  * Sparta
-  * RDFLib
-  * 4Suite
-  * Amara
+  * [http://www.mnot.net/sw/sparta/ Sparta] (a modified version)
+  * [http://rdflib.net RDFLib]
+  * [http://4suite.org 4Suite]
+  * [http://cheeseshop.python.org/pypi/Amara/ Amara]
 
 Used to generate [http://metacognition.info/ontologies/pomr.html Problem-oriented Medical Record Ontology]

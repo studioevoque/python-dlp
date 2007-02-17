@@ -26,9 +26,7 @@ The production memory is a set of productions (i.e., rules). A production is spe
 
 === Roadmap & Limitations ===
 
-FuXi currently implements production capabilities for a limited subset of Notation 3.  In particular built-ins
- are not implemented as they have a significant impact on the efficiency of a RETE network (which was really 
-only intended for pattern matching).  Robert's thesis includes algorithms / heuristics for implementing support for:
+FuXi currently implements production capabilities for a limited subset of Notation 3.  In particular built-ins are not implemented as they have a significant impact on the efficiency of a RETE network (which was really only intended for pattern matching). Robert's thesis includes algorithms / heuristics for implementing support for:
 
   * Negation 
   * Non-equality tests (read: built-in support)

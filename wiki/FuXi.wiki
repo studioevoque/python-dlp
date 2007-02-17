@@ -16,17 +16,13 @@ It relies on Charles Forgy's Rete algorithm [4] for the many pattern/many object
 
     Production Matching for Large Learning Systems.
 
-Robert's thesis describes a modification of the original Rete algorithm that (amongst other things) limits 
-the fact syntax (referred to as Working Memory Elements) to 3-item tuples (which corresponds quite nicely with
- the RDF abstract syntax).  The thesis also describes methods for using hash tables to improve efficiency of 
-alpha nodes and beta nodes.  
+Robert's thesis describes a modification of the original Rete algorithm that (amongst other things) limits the fact syntax (referred to as Working Memory Elements) to 3-item tuples (which corresponds quite nicely with the RDF abstract syntax).  The thesis also describes methods for using hash tables to improve efficiency of alpha nodes and beta nodes.  
 
 An introductory description from the above:
 
     Rete (usually pronounced either "REET" or "REE-tee," from the Latin word for "network") deals with a production memory (PM) and a working memory (WM). Each of these may change gradually over time. The working memory is a set of items which (in most systems) represent facts about the system's current situation - the state of the external world and/or the internal problem-solving state of the system itself. Each item in WM is called a working memory element,or a WME.
 
-The production memory is a set of productions (i.e., rules). A production is specified as a set of conditions,
- collectively called the left-hand side (LHS), and a set of actions, collectively called the right-hand side (RHS).
+The production memory is a set of productions (i.e., rules). A production is specified as a set of conditions, collectively called the left-hand side (LHS), and a set of actions, collectively called the right-hand side (RHS).
 
 === Roadmap & Limitations ===
 

@@ -8,4 +8,4 @@ FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 
 
 = Details =
 
-  * http://cvs.4suite.org/viewcvs/Fuxi/
+  * FuXi is now [http://python-dlp.googlecode.com/svn/trunk/fuxi/ part] of the python-dlp SVN source tree

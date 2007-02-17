@@ -1,0 +1,15 @@
+#labels Phase-Requirements
+Semantic Web Ontology generating software library
+
+= Introduction =
+
+Takes Markdown / SKOS / DC / OBI / OWL-RDF-XML and generates an XHTML document which is a GRDDL source document with Manchester OWL syntax documentation of the terms in the ontology.
+
+
+= Details =
+
+Uses:
+  * Sparta
+  * RDFLib
+  * 4Suite
+  * Amara

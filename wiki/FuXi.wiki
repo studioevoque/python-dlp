@@ -38,3 +38,35 @@ only intended for pattern matching).  Robert's thesis includes algorithms / heur
   * Non-equality tests (read: built-in support)
   * Live addition/removal of rules
   * Support for removal of triples / WMEs
+
+=== Command-line Program ===
+
+Command-line help:
+
+{{{
+chimezie@laptop:~/workspace/python-dlp/fuxi$ python Fuxi.py 
+Fuxi.py [--help] [--stdin] [--ruleFacts] [--output=<'conflict' or 'n3' or 'xml'>] [--input-format=<'n3' or 'xml'>] [--ns=prefix=namespaceUri] [--graphviz-out=<file.out>] --facts=<facts1.n3,facts2.n3,..> --rules=<rule1.n3,rule2.n3>
+Output:
+        The --output option determines whether to serialize the inferred triples to STDOUT or to print a summary of the
+        conflict set (from the RETE network)
+Rule Facts:
+        The --ruleFacts switch determines whether or not to attempt to parse initial facts from the rule graph
+RETE network diagram:
+        The graphviz-out option is a filename to write a graphviz diagram of the RETE network to
+Input format
+        The --input-format option determines the format of the RDF document(s) specified by --facts
+Namespace bindings:
+        The --ns option adds a prefix to namespace binding and is used by both the generated RETE network diagram and the serialization (if specified by --out)
+}}}
+
+
+=== Example of GRDDL-based Reasoning ===
+
+{{{
+chimezie@laptop:~/workspace/python-dlp/fuxi$ python GRDDL.py --zone=http http://metacognition.info/ontologies/pomr.html | python Fuxi.py --stdin --input-format=xml --rules=test/pD-rules.n3 
+Time to build production rule (RDFLib): 0.097156047821 seconds
+Time to calculate closure on working memory: 6095.22485733 m seconds
+
+  ... snip closure output ...
+
+}}}

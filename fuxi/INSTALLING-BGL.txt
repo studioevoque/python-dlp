@@ -1,0 +1,23 @@
+<boost_source>/more/getting_started.html#Preparation
+<boost_source>/tools/build/jam_src/index.html#building_bjam
+chimezie@Zion:/tmp/boost_1_33_1$ find . -name build.sh
+./tools/build/jam_src/build.sh
+chimezie@Zion:/tmp/boost_1_33_1/tools/build/jam_src$ ./build.sh
+.. snip build ..
+[MKDIR] bin.linuxx86
+[COMPILE] bin.linuxx86/bjam
+chimezie@Zion:/tmp/boost_1_33_1/tools/build/jam_src$ cd /tmp/bgl-python-0.9/
+chimezie@Zion:/tmp/bgl-python-0.9$ export BOOST_ROOT=/tmp/boost_1_33_1/
+chimezie@Zion:/tmp/bgl-python-0.9$ bjam
+.. snip build ..
+
+From bgl-python README:
+
+    In the "python" subdirectory there will be a file "libboostpython.EXT"
+    (EXT is the extension used for shared libraries on your platform). You
+    should copy that file some place where your dynamic linker can find
+    it, so set your LD_LIBRARY_PATH equivalent to include the python
+    subdirectory.
+
+chimezie@Zion:/tmp/bgl-python-0.9$ cp python/libboost_python.so* /usr/local/lib/
+chimezie@Zion:/tmp/bgl-python-0.9$ cp -R python/* /usr/lib/python2.4/site-packages/

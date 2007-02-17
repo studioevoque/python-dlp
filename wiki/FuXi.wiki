@@ -56,6 +56,8 @@ Namespace bindings:
 
 === Example of GRDDL-based Reasoning ===
 
+Uses GRDDL Working Group's GRDDL.py [http://homer.w3.org/~connolly/projects/grddl-client/ implementation]
+
 {{{
 chimezie@laptop:~/workspace/python-dlp/fuxi$ python GRDDL.py --zone=http http://metacognition.info/ontologies/pomr.html | python Fuxi.py --stdin --input-format=xml --rules=test/pD-rules.n3 
 Time to build production rule (RDFLib): 0.097156047821 seconds

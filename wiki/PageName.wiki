@@ -1,6 +1,6 @@
 FOAFVisualizer
 
-See: [ source]
+See: [http://python-dlp.googlecode.com/svn/trunk/foaf-visualize/FOAFVisualize.py source]
 
 = Introduction =
 

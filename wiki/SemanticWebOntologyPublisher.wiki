@@ -1,6 +1,8 @@
 #labels Phase-Requirements
 Semantic Web Ontology generating software library
 
+[http://python-dlp.googlecode.com/svn/trunk/swop.png]
+
 = Introduction =
 
 Takes as input:
@@ -24,3 +26,4 @@ Uses:
   * [http://cheeseshop.python.org/pypi/Amara/ Amara]
 
 Used to generate [http://metacognition.info/ontologies/pomr.html Problem-oriented Medical Record Ontology]
+

@@ -38,7 +38,7 @@ FuXi currently implements production capabilities for a limited subset of Notati
 Command-line help:
 
 {{{
-USAGE: Fuxi.py [options] factFile1 factFile2 ...
+USAGE: Fuxi [options] factFile1 factFile2 ...
 Options:
   --closure                  If present, the inferred triples are serialized 
                              along with the original triples if asked for. Otherwise

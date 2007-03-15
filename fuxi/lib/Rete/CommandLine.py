@@ -35,7 +35,8 @@ Options:
   --help
   --input-format=<FORMAT>    Determines the format of the RDF document(s) which
                              serve as the initial facts for the RETE network.
-                             One of 'n3','trix', 'nt', or 'rdfa'
+                             One of 'xml','n3','trix', 'nt', or 'rdfa'.  The default
+                             is 'xml'.
                              
   --optimize                 Suggest inefficiencies in the ruleset and exit
                      
@@ -112,15 +113,15 @@ def main():
     factGraph = Graph(store) 
     factGraph.namespace_manager = namespace_manager
     for fileN in ruleGraphs:
-        ruleGraph.parse(open(fileN),format='n3')
+        ruleGraph.parse(fileN,format='n3')
         if useRuleFacts:
-            factGraph.parse(open(fileN),format='n3')
+            factGraph.parse(fileN,format='n3')
     if optimize:
         ruleStore.optimizeRules()
         sys.exit(1)
     if factGraphs:
         for fileN in factGraphs:
-            factGraph.parse(open(fileN),format=factFormat)
+            factGraph.parse(fileN,format=factFormat)
     if stdIn:
         factGraph.parse(sys.stdin,format=factFormat)
     workingMemory = generateTokenSet(factGraph)
@@ -140,10 +141,9 @@ def main():
             print "\t\t%s instanciations"%network.instanciations[termNode]
     else:        
         if closure:
+            #FIXME: The code below *should* work
             cGraph = network.closureGraph(factGraph)
             cGraph.namespace_manager = namespace_manager
-            for g in cGraph.graphs:
-                g.namespace_manager = namespace_manager
             print cGraph.serialize(destination=None, format=outMode, base=None)
         else:
             print network.inferredFacts.serialize(destination=None, format=outMode, base=None)            

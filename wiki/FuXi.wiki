@@ -38,31 +38,38 @@ FuXi currently implements production capabilities for a limited subset of Notati
 Command-line help:
 
 {{{
-chimezie@laptop:~/workspace/python-dlp/fuxi$ python Fuxi.py 
-Fuxi.py [--help] [--stdin] [--ruleFacts] [--output=<'conflict' or 'n3' or 'xml'>] [--input-format=<'n3' or 'xml'>] [--ns=prefix=namespaceUri] [--graphviz-out=<file.out>] --facts=<facts1.n3,facts2.n3,..> --rules=<rule1.n3,rule2.n3>
-Output:
-        The --output option determines whether to serialize the inferred triples to STDOUT or to print a summary of the
-        conflict set (from the RETE network)
-Rule Facts:
-        The --ruleFacts switch determines whether or not to attempt to parse initial facts from the rule graph
-RETE network diagram:
-        The graphviz-out option is a filename to write a graphviz diagram of the RETE network to
-Input format
-        The --input-format option determines the format of the RDF document(s) specified by --facts
-Namespace bindings:
-        The --ns option adds a prefix to namespace binding and is used by both the generated RETE network diagram and the serialization (if specified by --out)
-}}}
-
-
-=== Example of GRDDL-based Reasoning ===
-
-Uses GRDDL Working Group's GRDDL.py [http://homer.w3.org/~connolly/projects/grddl-client/ implementation]
-
-{{{
-chimezie@laptop:~/workspace/python-dlp/fuxi$ python GRDDL.py --zone=http http://metacognition.info/ontologies/pomr.html | python Fuxi.py --stdin --input-format=xml --rules=test/pD-rules.n3 
-Time to build production rule (RDFLib): 0.097156047821 seconds
-Time to calculate closure on working memory: 6095.22485733 m seconds
-
-  ... snip closure output ...
-
+USAGE: Fuxi.py [options] factFile1 factFile2 ...
+Options:
+  --closure                  If present, the inferred triples are serialized 
+                             along with the original triples if asked for. Otherwise
+                             (the default behavior), only the inferred triples
+                             are serialized
+                             
+  --output=OUT               Determines whether to serialize the inferred triples
+                             to STDOUT using the specified RDF syntax ('xml','pretty-xml',
+                             'nt','turtle',or 'n3') or to print a summary of the conflict set 
+                             (from the RETE network) if the value of this option is
+                             'conflict'
+  --help
+  --input-format=<FORMAT>    Determines the format of the RDF document(s) which
+                             serve as the initial facts for the RETE network.
+                             One of 'n3','trix', 'nt', or 'rdfa'
+                             
+  --optimize                 Suggest inefficiencies in the ruleset and exit
+                     
+  --stdin                    Parse STDIN as an RDF graph to contribute to the
+                             initial facts for the RETE network using the 
+                             specified format
+                             
+  --ns=PREFIX=NSURI          Register a namespace binding (QName prefix to a 
+                             base URI).  This can be used more than once
+                             
+  --graphviz-out=<FILE>      A filename to write a graphviz diagram of the RETE
+                             network to
+  
+  --rules=FILE1,FILE2,..     The Notation 3 documents to use as rulesets for the
+                             RETE network
+                             
+  ---ruleFacts               Determines whether or not to attempt to parse 
+                             initial facts from the rule graph.  Default by default
 }}}

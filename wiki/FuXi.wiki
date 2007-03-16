@@ -33,6 +33,17 @@ FuXi currently implements production capabilities for a limited subset of Notati
   * Live addition/removal of rules
   * Support for removal of triples / WMEs
 
+=== Installation ===
+
+Fuxi is now setuptools integrated and can be installed via:
+
+{{{
+wget http://peak.telecommunity.com/dist/ez_setup.py
+python ez_setup.py
+ez_easy_install fuxi
+Fuxi
+}}}
+
 === Command-line Program ===
 
 Command-line help:

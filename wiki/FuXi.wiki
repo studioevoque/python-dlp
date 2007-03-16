@@ -40,7 +40,7 @@ Fuxi is now setuptools integrated and can be installed via:
 {{{
 wget http://peak.telecommunity.com/dist/ez_setup.py
 python ez_setup.py
-ez_easy_install fuxi
+easy_install fuxi
 Fuxi
 }}}
 

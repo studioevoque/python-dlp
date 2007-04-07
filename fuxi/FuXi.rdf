@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rdf:RDF xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://usefulinc.com/ns/doap#">
     <Project>
+        <rdf:seeAlso rdf:resource="http://rdflib.net"/>
+        <category rdf:resource="http://rdflib.net/projects#using_rdflib"/>
         <name>FuXi</name>
-        <homepage rdf:resource="http://metacognition.info/FuXi/index.html"/>
+        <homepage rdf:resource="http://code.google.com/p/python-dlp/wiki/FuXi"/>
         <created>2005-05-29</created>
         <description xml:lang="en">FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 3 Description Logic Programming. It is implemented as a companion to RDFLib – which it requires for its various RDF processing.</description>
         
@@ -10,38 +12,19 @@
             forward-chaining inferencing
             expert system for RDFLib Notation 3 Graphs
         </shortdesc>
-            
         <release>
             <Version>
                 <name>beta</name>
-                <created>2006-01-01</created>
-                <revision>1.0b</revision>
+                <created>2007-03-15</created>
+                <revision>0.86b.dev-r24</revision>
             </Version>
-        </release>
-        <release>
-            <Version>
-                <name>release-candidate 1</name>
-                <created>2006-09-16</created>
-                <revision>1.0-rc1</revision>
-            </Version>
-        </release>
-        <release>
-            <Version>
-                <name>release-candidate 2</name>
-                <created>2006-10-31</created>
-                <revision>1.0-rc2</revision>
-            </Version><Version>
-                <name>release-candidate 3</name>
-                <created>2006-12-08</created>
-                <revision>1.0-rc3</revision>
-            </Version>
-        </release>
-        <wiki rdf:resource="http://copia.ogbuji.net/blog/keyword/n3"/>
+        </release>        
+        <wiki rdf:resource="http://code.google.com/p/python-dlp/wiki/FuXi"/>
         <programming-language xml:lang="en-US" rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Python</programming-language> 
         <programming-language xml:lang="en-US" rdf:datatype="http://www.w3.org/2001/XMLSchema#string">N3</programming-language> 
         <programming-language xml:lang="en-US" rdf:datatype="http://www.w3.org/2001/XMLSchema#string">DLP</programming-language> 
-        <download-page rdf:resource="http://metacognition.info/FuXi/fuxi-latest.zip"/>
-        <license rdf:resource="http://usefulinc.com/doap/licenses/mit"/>
+        <download-page rdf:resource="http://www.python.org/pypi/FuXi/0.85b.dev-r23"/>
+        <license rdf:resource="http://usefulinc.com/doap/licenses/bsd"/>
         <maintainer>
             <foaf:Person>
                 <foaf:name>Chimezie Ogbuji</foaf:name>

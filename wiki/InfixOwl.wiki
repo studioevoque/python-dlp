@@ -1,0 +1,518 @@
+#summary One-sentence summary of this page.
+#labels Phase-Requirements,Code,RDF
+
+= Introduction =
+
+An infix syntax for Python, Manchester OWL, and coloqual RDF (via RDFLib).
+
+
+= Details =
+
+Description: OWLBound - Python Object Binding for OWL graphs
+URL: http://rafb.net/p/pxmCla22.html
+
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+RDFLib Python binding for OWL Abstract Syntax
+ 
+see: http://www.w3.org/TR/owl-semantics/syntax.html
+     http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf
+ 
+3.2.3 Axioms for complete classes without using owl:equivalentClass
+ 
+  Named class description of type 2 (with owl:oneOf) or type 4-6 (with owl:intersectionOf, owl:unionOf or owl:complementOf
+ 
+Uses Manchester Syntax for __repr__  
+ 
+>>> exNs = Namespace('http://example.com/')        
+>>> namespace_manager = NamespaceManager(Graph())
+>>> namespace_manager.bind('ex', exNs, override=False)
+>>> g = Graph()    
+>>> g.namespace_manager = namespace_manager
+ 
+Now we have an empty graph, we can construct OWL classes in it
+using the Python classes defined in this module
+ 
+>>> a = Class(exNs.Opera,graph=g)
+ 
+Now we can assert rdfs:subClassOf and owl:equivalentClass relationships 
+(in the underlying graph) with other classes using the 'subClassOf' 
+and 'equivalentClass' descriptors which can be set to a list
+of objects for the corresponding predicates.
+ 
+>>> a.subClassOf = [exNs.MusicalWork]
+ 
+We can then access the rdfs:subClassOf relationships
+ 
+>>> list(a.subClassOf)
+[rdflib.URIRef('http://example.com/MusicalWork')]
+ 
+This can also be used against already populated graphs:
+ 
+>>> owlGraph = Graph().parse(OWL_NS)
+>>> namespace_manager.bind('owl', OWL_NS, override=False)
+>>> owlGraph.namespace_manager = namespace_manager
+>>> list(Class(OWL_NS.Class,graph=owlGraph).subClassOf)
+[rdflib.URIRef('http://www.w3.org/2000/01/rdf-schema#Class')]
+ 
+Operators are also available.  For instance we can add ex:Opera to the extension
+of the ex:CreativeWork class via the '+=' operator
+ 
+>>> a
+Class: ex:Opera SubClassOf: ex:MusicalWork
+>>> b = Class(exNs.CreativeWork,graph=g)
+>>> b += a
+>>> len(list(a.subClassOf))
+2
+ 
+And we can then remove it from the extension as well
+ 
+>>> b -= a
+>>> a
+Class: ex:Opera SubClassOf: ex:MusicalWork
+ 
+Boolean class constructions can also  be created with Python operators
+For example, The | operator can be used to construct a class consisting of a owl:unionOf 
+the operands:
+ 
+>>> c =  a | b | Class(exNs.Work,graph=g)
+>>> c
+( ex:Opera or ex:CreativeWork or ex:Work )
+ 
+Boolean class expressions can also be operated as lists (using python list operators)
+ 
+>>> del c[c.index(Class(exNs.Work,graph=g))]
+>>> c
+( ex:Opera or ex:CreativeWork )
+ 
+The '&' operator can be used to construct class intersection:
+ 
+>>> woman = Class(exNs.Female,graph=g) & Class(exNs.Human,graph=g)
+>>> woman
+( ex:Female and ex:Human )
+ 
+Enumerated classes can also be manipulated
+ 
+>>> contList = [Class(exNs.Africa,graph=g),Class(exNs.NorthAmerica,graph=g)]
+>>> EnumeratedClass(members=contList,graph=g)
+{ ex:Africa ex:NorthAmerica }
+ 
+owl:Restrictions can also be instanciated:
+ 
+>>> Restriction(exNs.hasParent,graph=g,allValuesFrom=exNs.Human)
+( ex:hasParent only ex:Human )
+ 
+>>> Restriction(exNs.hasParent,graph=g,someValuesFrom=exNs.Physician)
+( ex:hasParent some ex:Physician )
+ 
+>>> exNs = Namespace('http://example.com/')        
+>>> namespace_manager = NamespaceManager(Graph())
+>>> namespace_manager.bind('ex', exNs, override=False)
+>>> g = Graph()    
+>>> g.namespace_manager = namespace_manager        
+>>> Class(exNs.Opera,subClassOf=[exNs.MusicalWork],
+... equivalentClass=[exNs.PrincipalResidentOfWhiteHouse],graph=g)
+Class: ex:Opera SubClassOf: ex:MusicalWork . EquivalentTo: ex:PrincipalResidentOfWhiteHouse
+>>> Class(complementOf=exNs.Meat,disjointWith=[exNs.Woman],graph=g)
+Class: [] DisjointWith ex:Woman and ex:Meat
+ 
+ 
+"""
+ 
+from pprint import pprint
+from rdflib.Namespace import Namespace
+from rdflib import plugin,RDF,RDFS,URIRef,BNode,Literal,Variable
+from rdflib.store import Store
+from rdflib.Graph import Graph
+from rdflib.Collection import Collection
+from rdflib.syntax.NamespaceManager import NamespaceManager
+ 
+OWL_NS = Namespace("http://www.w3.org/2002/07/owl#")
+ 
+nsBinds = {
+    'skos': 'http://www.w3.org/2004/02/skos/core#',
+    'rdf' : RDF.RDFNS,
+    'rdfs': RDFS.RDFSNS,
+    'owl' : OWL_NS,       
+    'dc'  : "http://purl.org/dc/elements/1.1/",
+}
+ 
+def classOrIdentifier(thing):
+    if isinstance(thing,Class):
+        return thing.identifier
+    else:
+        assert isinstance(thing,(URIRef,BNode))
+        return thing
+ 
+def propertyOrIdentifier(thing):
+    if isinstance(thing,Property):
+        return thing.identifier
+    else:
+        assert isinstance(thing,URIRef)
+        return thing
+ 
+def manchesterSyntax(thing,store,boolean=None,transientList=False):
+    """
+    Used for http://code.google.com/p/python-dlp/wiki/SemanticWebOntologyPublisher
+    """
+    assert thing is not None
+    if boolean:
+        if transientList:
+            children = [manchesterSyntax(child,store) for child in thing ]
+        else:
+            children = [manchesterSyntax(child,store) for child in Collection(store,thing)]
+        if boolean == OWL_NS.intersectionOf:
+            return '( '+ ' and '.join(children) + ' )'
+        elif boolean == OWL_NS.unionOf:
+            return '( '+ ' or '.join(children) + ' )'
+        elif boolean == OWL_NS.oneOf:
+            return '{ '+ ' '.join(children) +' }'
+        else:            
+            assert boolean == OWL_NS.complementOf
+    elif OWL_NS.Restriction in store.objects(subject=thing, predicate=RDF.type):
+        prop = list(store.objects(subject=thing, predicate=OWL_NS.onProperty))[0]
+        prefix,uri,localName = store.compute_qname(prop)
+        propString = u':'.join([prefix,localName])
+        for onlyClass in store.objects(subject=thing, predicate=OWL_NS.allValuesFrom):
+            return '( %s only %s )'%(propString,manchesterSyntax(onlyClass,store))
+        for someClass in store.objects(subject=thing, predicate=OWL_NS.someValuesFrom):    
+            return '( %s some %s )'%(propString,manchesterSyntax(someClass,store))
+        cardLookup = {OWL_NS.maxCardinality:'max',OWL_NS.minCardinality:'min',OWL_NS.cardinality:'equals'}
+        for s,p,o in store.triples_choices((thing,cardLookup.keys(),None)):            
+            return '( %s %s %s )'%(propString,cardLookup[p],o.encode('utf-8'))
+    compl = list(store.objects(subject=thing, predicate=OWL_NS.complementOf)) 
+    if compl:
+        return '( not %s )'%(manchesterSyntax(compl[0],store))
+    else:
+#        for prop,col in store.query("SELECT ?p ?bool WHERE { ?class a owl:Class; ?p ?bool . ?bool rdf:first ?foo }",
+#                                           initBindings={Variable("?class"):thing},
+#                                           initNs=nsBinds):
+#            if not isinstance(thing,URIRef):                
+#                return manchesterSyntax(col,store,boolean=prop)
+        try:
+            prefix,uri,localName = store.compute_qname(thing) 
+            qname = u':'.join([prefix,localName])
+        except Exception,e:
+            raise
+            return '[]'#+thing._id.encode('utf-8')+'</em>'            
+        if (thing,RDF.type,OWL_NS.Class) not in store:
+            return qname.encode('utf-8')
+        else:
+            return qname.encode('utf-8')
+ 
+class Class(object):
+    """
+    'General form' for classes:
+ 
+    The Manchester Syntax (supported in Protege) is used as the basis for the form 
+    of this class
+ 
+    See: http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf:
+ 
+    ‘Class:’ classID {Annotation
+                  ( (‘SubClassOf:’ ClassExpression)
+                  | (‘EquivalentTo’ ClassExpression)
+                  | (’DisjointWith’ ClassExpression)) }
+ 
+    Appropriate excerpts from OWL Reference:
+ 
+    ".. Subclass axioms provide us with partial definitions: they represent 
+     necessary but not sufficient conditions for establishing class 
+     membership of an individual."
+ 
+   ".. A class axiom may contain (multiple) owl:equivalentClass statements"   
+ 
+    "..A class axiom may also contain (multiple) owl:disjointWith statements.."
+ 
+    "..An owl:complementOf property links a class to precisely one class 
+      description."
+ 
+    """
+    def __init__(self, identifier=BNode(),subClassOf=None,equivalentClass=None,
+                       disjointWith=None,complementOf=None,graph=Graph(),skipOWLClassMembership = False):
+        self.__identifier = identifier
+        self.qname = None
+        if not isinstance(identifier,BNode):
+            prefix,uri,localName = graph.compute_qname(identifier) 
+            self.qname = u':'.join([prefix,localName])
+        self.graph = graph
+ 
+        if not skipOWLClassMembership and (self.identifier,RDF.type,OWL_NS.Class) not in self.graph:
+            self.graph.add((self.identifier,RDF.type,OWL_NS.Class))
+ 
+        self.subClassOf      = subClassOf 
+        self.equivalentClass = equivalentClass
+        self.disjointWith    = disjointWith  
+        self.complementOf    = complementOf
+ 
+    def _get_identifier(self):
+        return self.__identifier
+    def _set_identifier(self, i):
+        assert i
+        if i != self.__identifier:
+            oldStmtsOut = [(p,o) for s,p,o in self.graph.triples((self.__identifier,None,None))]
+            oldStmtsIn  = [(s,p) for s,p,o in self.graph.triples((None,None,self.__identifier))]
+            for p1,o1 in oldStmtsOut:                
+                self.graph.remove((self.__identifier,p1,o1))
+            for s1,p1 in oldStmtsIn:                
+                self.graph.remove((s1,p1,self.__identifier))
+            self.__identifier = i
+            self.graph.addN([(i,p1,o1,self.graph) for p1,o1 in oldStmtsOut])
+            self.graph.addN([(s1,p1,i,self.graph) for s1,p1 in oldStmtsIn])
+    identifier = property(_get_identifier, _set_identifier)
+ 
+    def __iadd__(self, other):
+        assert isinstance(other,Class)
+        other.subClassOf = [self]
+        return self
+ 
+    def __isub__(self, other):
+        assert isinstance(other,Class)
+        self.graph.remove((classOrIdentifier(other),RDFS.subClassOf,self.identifier))
+        return self
+ 
+    def __or__(self,other):
+        """
+        Construct an anonymous class description consisting of the union of this class and '
+        other' and return it
+        """
+        return BooleanClass(operator=OWL_NS.unionOf,members=[self,other],graph=self.graph)
+ 
+    def __and__(self,other):
+        """
+        Construct an anonymous class description consisting of the intersection of this class and '
+        other' and return it
+        """
+        return BooleanClass(operator=OWL_NS.intersectionOf,members=[self,other],graph=self.graph)
+ 
+    def _get_subClassOf(self):
+        return self.graph.objects(subject=self.identifier,predicate=RDFS.subClassOf)
+    def _set_subClassOf(self, other):
+        if not other:
+            return        
+        for sc in other:
+            self.graph.add((self.identifier,RDFS.subClassOf,classOrIdentifier(sc)))
+    subClassOf = property(_get_subClassOf, _set_subClassOf)
+ 
+    def _get_equivalentClass(self):
+        return self.graph.objects(subject=self.identifier,predicate=OWL_NS.equivalentClass)
+    def _set_equivalentClass(self, other):
+        if not other:
+            return
+        for sc in other:
+            self.graph.add((self.identifier,OWL_NS.equivalentClass,classOrIdentifier(sc)))
+    equivalentClass = property(_get_equivalentClass, _set_equivalentClass)
+ 
+    def _get_disjointWith(self):
+        return self.graph.objects(subject=self.identifier,predicate=OWL_NS.disjointWith)
+    def _set_disjointWith(self, other):
+        if not other:
+            return
+        for c in other:
+            self.graph.add((self.identifier,OWL_NS.disjointWith,classOrIdentifier(c)))
+    disjointWith = property(_get_disjointWith, _set_disjointWith)
+ 
+    def _get_complementOf(self):
+        comp = list(self.graph.objects(subject=self.identifier,predicate=OWL_NS.complementOf))
+        if not comp:
+            return None
+        elif len(comp) == 1:
+            return comp[0]
+        else:
+            raise Exception(len(comp))
+ 
+    def _set_complementOf(self, other):
+        if not other:
+            return
+        self.graph.add((self.identifier,OWL_NS.complementOf,classOrIdentifier(other)))
+    complementOf = property(_get_complementOf, _set_complementOf)
+ 
+    def __repr__(self):
+        """
+        Returns the Manchester Syntax equivalent for this class
+        """
+        exprs = []
+        sc = list(self.subClassOf)
+        ec = list(self.equivalentClass)
+        dc = list(self.disjointWith)
+        c  = self.complementOf
+        if sc:
+            exprs.append("SubClassOf: %s"%', '.join([
+              manchesterSyntax(s,self.graph) for s in sc]))
+        if ec:
+            exprs.append("EquivalentTo: %s"%', '.join([
+              manchesterSyntax(s,self.graph) for s in ec]))
+        if dc:
+            if c:
+                dc.append(c)
+            exprs.append("DisjointWith %s"%' and '.join([
+              manchesterSyntax(s,self.graph) for s in dc]))
+        return "Class: %s "%(isinstance(self.identifier,BNode) and '[]' or self.qname)+' . '.join(exprs)
+ 
+class OWLRDFListProxy(object):
+    def __init__(self,rdfList,members=None):
+        members = members and members or []
+        if rdfList:
+            self._rdfList = Collection(graph,rdfList[0])
+            for member in members:
+                if member not in self._rdfList:
+                    self._rdfList.append(classOrIdentifier(member))
+        else:
+            self._rdfList = Collection(self.graph,BNode(),
+                                       [classOrIdentifier(m) for m in members])
+            self.graph.add((self.identifier,self._operator,self._rdfList.uri)) 
+ 
+    #Redirect python list accessors to the underlying Collection instance
+    def __len__(self):
+        return len(self._rdfList)
+ 
+    def index(self, item):
+        return self._rdfList.index(classOrIdentifier(item))
+ 
+    def __getitem__(self, key):
+        return self._rdfList[key]
+ 
+    def __setitem__(self, key, value):
+        self._rdfList[key] = classOrIdentifier(value)
+ 
+    def __delitem__(self, key):
+        del self._rdfList[key]        
+ 
+    def __iter__(self):
+        for item in self._rdfList:
+            yield item
+ 
+    def __contains__(self, item):
+        for i in self._rdfList:
+            if i == classOrIdentifier(item):
+                return 1
+        return 0
+ 
+    def __iadd__(self, other):
+        self._rdfList.append(classOrIdentifier(other))
+ 
+class EnumeratedClass(Class,OWLRDFListProxy):
+    """
+    Class for owl:oneOf forms:
+ 
+    OWL Abstract Syntax is used
+ 
+    axiom ::= 'EnumeratedClass(' classID ['Deprecated'] { annotation } { individualID } ')'    
+    """
+    _operator = OWL_NS.oneOf
+    def __init__(self, identifier=BNode(),members=None,graph=Graph()):
+        Class.__init__(self,identifier,graph = graph)
+        members = members and members or []
+        rdfList = list(self.graph.objects(predicate=OWL_NS.oneOf,subject=self.identifier))
+        OWLRDFListProxy.__init__(self, rdfList, members)
+    def __repr__(self):
+        """
+        Returns the Manchester Syntax equivalent for this class
+        """
+        return manchesterSyntax(self._rdfList.uri,self.graph,boolean=self._operator)        
+ 
+class BooleanClass(Class,OWLRDFListProxy):
+    """
+    See: http://www.w3.org/TR/owl-ref/#Boolean
+ 
+    owl:complementOf is an attribute of Class, however
+ 
+    """
+    def __init__(self,identifier=BNode(),operator=OWL_NS.intersectionOf,
+                 members=None,graph=Graph()):
+        Class.__init__(self,identifier,graph = graph)
+        members = members and members or []
+        assert operator in [OWL_NS.intersectionOf,OWL_NS.unionOf]
+        self._operator = operator
+        rdfList = list(self.graph.objects(predicate=operator,subject=self.identifier))
+        OWLRDFListProxy.__init__(self, rdfList, members)
+ 
+    def __repr__(self):
+        """
+        Returns the Manchester Syntax equivalent for this class
+        """
+        return manchesterSyntax(self._rdfList.uri,self.graph,boolean=self._operator)
+ 
+    def __or__(self,other):
+        """
+        Adds other to the list and returns self
+        """
+        assert self._operator == OWL_NS.unionOf
+        self._rdfList.append(classOrIdentifier(other))
+        return self
+ 
+def AllDifferent(members):
+    """
+    DisjointClasses(' description description { description } ')'
+ 
+    """
+    pass
+ 
+class Restriction(Class):
+    """
+    restriction ::= 'restriction(' datavaluedPropertyID dataRestrictionComponent 
+                                 { dataRestrictionComponent } ')'
+                  | 'restriction(' individualvaluedPropertyID 
+                      individualRestrictionComponent 
+                      { individualRestrictionComponent } ')'    
+    """
+    def __init__(self,onProperty,graph = Graph(),allValuesFrom=None,someValuesFrom=None,value=None,
+                      cardinality=None,maxCardinality=None,minCardinality=None):
+        super(Restriction, self).__init__(BNode(),graph=graph,skipOWLClassMembership=True)
+        self.__prop = propertyOrIdentifier(onProperty)
+        assert isinstance(self.__prop,URIRef) 
+        self.graph.add((self.identifier,OWL_NS.onProperty,self.__prop))
+        restrTypes = [
+                      (allValuesFrom,OWL_NS.allValuesFrom ),
+                      (someValuesFrom,OWL_NS.someValuesFrom),
+                      (value,OWL_NS.hasValue),
+                      (cardinality,OWL_NS.cardinality),
+                      (maxCardinality,OWL_NS.maxCardinality),
+                      (minCardinality,OWL_NS.minCardinality)]
+        validRestrProps = [(i,oTerm) for (i,oTerm) in restrTypes if i] 
+        assert len(validRestrProps) == 1
+        for val,oTerm in validRestrProps:
+            self.graph.add((self.identifier,oTerm,val))   
+        if (self.identifier,RDF.type,OWL_NS.Restriction) not in self.graph:
+            self.graph.add((self.identifier,RDF.type,OWL_NS.Restriction))
+ 
+    def __repr__(self):
+        """
+        Returns the Manchester Syntax equivalent for this restriction
+        """
+        return manchesterSyntax(self.identifier,self.graph)
+ 
+class Property(object):
+    """
+    axiom ::= 'DatatypeProperty(' datavaluedPropertyID ['Deprecated'] { annotation } 
+                { 'super(' datavaluedPropertyID ')'} ['Functional']
+                { 'domain(' description ')' } { 'range(' dataRange ')' } ')'
+            | 'ObjectProperty(' individualvaluedPropertyID ['Deprecated'] { annotation } 
+                { 'super(' individualvaluedPropertyID ')' }
+                [ 'inverseOf(' individualvaluedPropertyID ')' ] [ 'Symmetric' ] 
+                [ 'Functional' | 'InverseFunctional' | 'Functional' 'InverseFunctional' |
+                  'Transitive' ]
+                { 'domain(' description ')' } { 'range(' description ')' } ')    
+    """
+    def __init__(self,identifier=BNode(),baseType=OWL_NS.ObjectProperty,
+                      subPropertyOf=None,domain=None,range=None,inverseOf=None,
+                      otherType=None,equivalentProperty=None):
+        self.identifier = identifier
+ 
+ 
+def test():
+    import doctest
+    doctest.testmod()
+ 
+if __name__ == '__main__':
+    test()
+
+
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
+
+

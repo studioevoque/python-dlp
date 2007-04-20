@@ -3,7 +3,7 @@
 
 = Introduction =
 
-An infix syntax for Python, Manchester OWL, and coloqual RDF (via RDFLib).
+An infix syntax for Python, [http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf Manchester OWL], OWL Abstract [http://www.w3.org/TR/owl-semantics/syntax.html Syntax], and coloqual RDF (via RDFLib).
 
 
 = Details =

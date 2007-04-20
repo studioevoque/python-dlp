@@ -9,6 +9,7 @@ So, you could build boolean class constructors like so:
 
 {{{
     >>> aClass = ( ex:Opera |or| ex:CreativeWork |or| ex:Work )
+    >>> aClass
     ( ex:Opera or ex:CreativeWork or ex:Work )
 }}}
 

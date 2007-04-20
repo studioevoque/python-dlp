@@ -5,6 +5,13 @@ An infix syntax for Python, [http://owl-workshop.man.ac.uk/acceptedLong/submissi
 
 *Note*, there is an ActiveState Python Cookbook [http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/384122 Recipe] for how explicit infix operators can be defined.  This can be used to craft a colloquial python syntax for Manchester OWL.
 
+So, you could build boolean class constructors like so:
+
+{{{
+    >>> aClass = ( ex:Opera |or| ex:CreativeWork |or| ex:Work )
+    ( ex:Opera or ex:CreativeWork or ex:Work )
+}}}
+
 = Details =
 
 Description: OWLBound - Python Object Binding for OWL graphs

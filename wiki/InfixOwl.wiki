@@ -54,11 +54,11 @@ We can then access the rdfs:subClassOf relationships
 
 This can also be used against already populated graphs:
 
->>> owlGraph = Graph().parse(OWL_NS)
->>> namespace_manager.bind('owl', OWL_NS, override=False)
->>> owlGraph.namespace_manager = namespace_manager
->>> list(Class(OWL_NS.Class,graph=owlGraph).subClassOf)
-[Class: rdfs:Class ]
+#>>> owlGraph = Graph().parse(OWL_NS)
+#>>> namespace_manager.bind('owl', OWL_NS, override=False)
+#>>> owlGraph.namespace_manager = namespace_manager
+#>>> list(Class(OWL_NS.Class,graph=owlGraph).subClassOf)
+#[Class: rdfs:Class ]
 
 Operators are also available.  For instance we can add ex:Opera to the extension
 of the ex:CreativeWork class via the '+=' operator
@@ -112,41 +112,6 @@ Restrictions can also be created using Manchester OWL syntax in 'colloquial' Pyt
 >>> exNs.hasParent |some| Class(exNs.Physician,graph=g)
 ( ex:hasParent some ex:Physician )
 
->>> print g.serialize(format='pretty-xml')
-<?xml version="1.0" encoding="utf-8"?>
-<rdf:RDF
-  xmlns:owl='http://www.w3.org/2002/07/owl#'
-  xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
-  xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'
->
-  <owl:Class>
-    <owl:oneOf rdf:parseType="Collection">
-      <owl:Class rdf:about="http://example.com/Africa"/>
-      <owl:Class rdf:about="http://example.com/NorthAmerica"/>
-    </owl:oneOf>
-  </owl:Class>
-  <owl:Restriction>
-    <owl:onProperty rdf:resource="http://example.com/hasParent"/>
-    <owl:someValuesFrom rdf:resource="http://example.com/Physician"/>
-  </owl:Restriction>
-  <owl:Class rdf:about="http://example.com/Work"/>
-  <owl:Class rdf:about="http://example.com/Woman">
-    <owl:unionOf rdf:parseType="Collection">
-      <owl:Class rdf:about="http://example.com/Opera">
-        <rdfs:subClassOf>
-          <owl:Class rdf:about="http://example.com/MusicalWork"/>
-        </rdfs:subClassOf>
-      </owl:Class>
-      <owl:Class rdf:about="http://example.com/CreativeWork"/>
-    </owl:unionOf>
-    <owl:intersectionOf rdf:parseType="Collection">
-      <owl:Class rdf:about="http://example.com/Female"/>
-      <owl:Class rdf:about="http://example.com/Human"/>
-    </owl:intersectionOf>
-  </owl:Class>
-  <owl:Restriction>
-    <owl:onProperty rdf:resource="http://example.com/hasParent"/>
-    <owl:allValuesFrom rdf:resource="http://example.com/Human"/>
-  </owl:Restriction>
-</rdf:RDF>
+>>> Property(exNs.hasParent,graph=g) |max| Literal(1)
+( ex:hasParent max 1 )
 }}}

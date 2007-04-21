@@ -1,7 +1,7 @@
 #labels Phase-Requirements,Featured,Phase-Implementation
 _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/ /trunk/InfixOWL/]_
 
-[http://usefulinc.com/doap/ DOAP] _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/InfixOWL.rdf /trunk/InfixOWL/InfixOWL.rdf file]_
+[http://usefulinc.com/doap/ DOAP] file: _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/InfixOWL.rdf /trunk/InfixOWL/InfixOWL.rdf file]_
 
 = Introduction =
 

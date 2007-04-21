@@ -29,6 +29,12 @@ An introductory description from the above:
 
 The production memory is a set of productions (i.e., rules). A production is specified as a set of conditions, collectively called the left-hand side (LHS), and a set of actions, collectively called the right-hand side (RHS).
 
+=== Network ===
+
+[http://python-dlp.googlecode.com/svn/trunk/fuxi/fuxi.png]
+
+FuXi's Network intances (see below) can be exported to a [http://www.graphviz.org/ Graphviz] *DOT* file and rendered to any image format.  This provides a nice visual feedback to the discrimination network built to a ruleset.
+
 === Python Idioms (hashing efficiently) ===
 
     * compiles an RDFLib N3 rule graph into AlphaNode and BetaNode instances

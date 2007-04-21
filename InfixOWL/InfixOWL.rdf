@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://usefulinc.com/ns/doap#">
+    <Project rdf:about="http://purl.org/net/chimezie/InfixOwl">
+        <rdf:seeAlso rdf:resource="http://rdflib.net"/>
+        <category rdf:resource="http://rdflib.net/projects#using_rdflib"/>
+        <name>FuXi</name>
+        <homepage rdf:resource="http://code.google.com/p/python-dlp/wiki/InfixOwl"/>
+        <created>2007-04-21</created>
+        <description xml:lang="en">An infix syntax for Python, Manchester OWL, OWL Abstract Syntax, and RDF (via RDFLib).</description>        
+        <shortdesc xml:lang="en">An infix syntax for Python, Manchester OWL, OWL Abstract Syntax, and RDF (via RDFLib).</shortdesc>
+        <release>
+            <Version>
+                <name>alpha</name>
+                <created>2007-04-21</created>
+                <revision>0.5-r1</revision>
+            </Version>
+        </release>        
+        <wiki rdf:resource="http://code.google.com/p/python-dlp/wiki/InfixOwl"/>
+        <programming-language xml:lang="en-US" rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Python</programming-language> 
+        <programming-language xml:lang="en-US" rdf:datatype="http://www.w3.org/2001/XMLSchema#string">N3</programming-language> 
+        <programming-language xml:lang="en-US" rdf:datatype="http://www.w3.org/2001/XMLSchema#string">OWL</programming-language>
+        <download-page rdf:resource="http://python-dlp.googlecode.com/svn/trunk/InfixOWL/"/>
+        <license rdf:resource="http://usefulinc.com/doap/licenses/bsd"/>
+        <maintainer>
+            <foaf:Person>
+                <foaf:name>Chimezie Ogbuji</foaf:name>
+                <foaf:mbox_sha1sum>03bdc2418c81b738135573b76fd4bd756aa42953</foaf:mbox_sha1sum>
+                <rdfs:seeAlso rdf:resource="http://purl.org/net/chimezie/foaf"/>
+            </foaf:Person>
+        </maintainer>
+        <developer>
+            <foaf:Person>
+                <foaf:name>Chimezie Ogbuji</foaf:name>
+                <foaf:mbox_sha1sum>03bdc2418c81b738135573b76fd4bd756aa42953</foaf:mbox_sha1sum>
+                <rdfs:seeAlso rdf:resource="http://purl.org/net/chimezie/foaf"/>
+            </foaf:Person>
+        </developer>
+    </Project>
+</rdf:RDF>

@@ -1,4 +1,4 @@
-#labels Phase-Requirements,Code,RDF
+#labels Phase-Requirements,Featured,RDF
 = Introduction =
 
 An infix syntax for Python, [http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf Manchester OWL], OWL Abstract [http://www.w3.org/TR/owl-semantics/syntax.html Syntax], and RDF (via RDFLib).

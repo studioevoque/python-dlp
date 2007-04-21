@@ -1,5 +1,5 @@
 #labels Phase-Requirements,Featured,Phase-Implementation
-_/trunk/InfixOWL/_
+[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/ _/trunk/InfixOWL/_]
 
 = Introduction =
 
@@ -116,4 +116,49 @@ Restrictions can also be created using Manchester OWL syntax in 'colloquial' Pyt
 
 >>> Property(exNs.hasParent,graph=g) |max| Literal(1)
 ( ex:hasParent max 1 )
+
+>>> print g.serialize(format='pretty-xml')
+<?xml version="1.0" encoding="utf-8"?>
+<rdf:RDF
+  xmlns:owl='http://www.w3.org/2002/07/owl#'
+  xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+  xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'
+>
+  <owl:Class rdf:about="http://example.com/Work"/>
+  <owl:Restriction>
+    <owl:someValuesFrom>
+      <owl:Class rdf:about="http://example.com/Physician"/>
+    </owl:someValuesFrom>
+    <owl:onProperty rdf:resource="http://example.com/hasParent"/>
+  </owl:Restriction>
+  <owl:Class>
+    <owl:oneOf rdf:parseType="Collection">
+      <owl:Class rdf:about="http://example.com/Africa"/>
+      <owl:Class rdf:about="http://example.com/NorthAmerica"/>
+    </owl:oneOf>
+  </owl:Class>
+  <owl:Restriction>
+    <owl:maxCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int">1</owl:maxCardinality>
+    <owl:onProperty rdf:resource="http://example.com/hasParent"/>
+  </owl:Restriction>
+  <owl:Restriction>
+    <owl:allValuesFrom>
+      <owl:Class rdf:about="http://example.com/Human"/>
+    </owl:allValuesFrom>
+    <owl:onProperty rdf:resource="http://example.com/hasParent"/>
+  </owl:Restriction>
+  <owl:Class rdf:about="http://example.com/Woman">
+    <owl:intersectionOf rdf:parseType="Collection">
+      <owl:Class rdf:about="http://example.com/Female"/>
+    </owl:intersectionOf>
+    <owl:unionOf rdf:parseType="Collection">
+      <owl:Class rdf:about="http://example.com/Opera">
+        <rdfs:subClassOf>
+          <owl:Class rdf:about="http://example.com/MusicalWork"/>
+        </rdfs:subClassOf>
+      </owl:Class>
+      <owl:Class rdf:about="http://example.com/CreativeWork"/>
+    </owl:unionOf>
+  </owl:Class>
+</rdf:RDF>
 }}}

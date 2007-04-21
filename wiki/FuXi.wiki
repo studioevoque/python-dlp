@@ -31,9 +31,7 @@ The production memory is a set of productions (i.e., rules). A production is spe
 
 === Python Idioms (hashing efficiently) ===
 
-Like RDFLib, FuXi is very idiomatic and uses Python hash / set / list mechanism to maximize the matching efficiency
- of the network.  The extent of the efficiency has not been fully explored and there is much more that can be done
- to improve the already impressive performance.
+Like RDFLib, FuXi is very idiomatic and uses Python hash / set / list mechanism to maximize the matching efficiency of the network.  The extent of the efficiency has not been fully explored and there is much more that can be done to improve the already impressive performance.
 
 === Roadmap & Limitations ===
 

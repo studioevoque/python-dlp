@@ -1,5 +1,5 @@
 #labels Phase-Requirements,Featured,Phase-Implementation
-[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/ _/trunk/InfixOWL/_]
+_[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/ /trunk/InfixOWL/]_
 
 = Introduction =
 

@@ -3,6 +3,9 @@ FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 
 
 _[http://python-dlp.googlecode.com/svn/trunk/fuxi/ /trunk/fuxi/]_
 
+[http://usefulinc.com/doap/ DOAP] file: _[http://python-dlp.googlecode.com/svn/trunk/fuxi/FuXi.rdf /trunk/fuxi/FuXi.rdf]_
+
+
 = Introduction =
 
 FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 3 Description Logic Programming.  It is implemented as a companion to RDFLib  – which it requires for its various RDF processing.  

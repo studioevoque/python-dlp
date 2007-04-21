@@ -1,9 +1,7 @@
-#labels Phase-Requirements,Featured,RDF
+#labels Phase-Requirements,Featured,Phase-Implementation
 = Introduction =
 
 An infix syntax for Python, [http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf Manchester OWL], OWL Abstract [http://www.w3.org/TR/owl-semantics/syntax.html Syntax], and RDF (via RDFLib).
-
-*Note*, there is an ActiveState Python Cookbook [http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/384122 Recipe] for how explicit infix operators can be defined.  This can be used to craft a colloquial python syntax for Manchester OWL.
 
 So, you could build boolean class constructors like so:
 

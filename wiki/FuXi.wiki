@@ -1,6 +1,8 @@
 #labels Phase-Implementation,Phase-Requirements,Featured,Phase-Deploy,Phase-QA,Phase-Design
 FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 3 Description Logic Programming.
 
+_[http://python-dlp.googlecode.com/svn/trunk/fuxi/ /trunk/fuxi/]_
+
 = Introduction =
 
 FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 3 Description Logic Programming.  It is implemented as a companion to RDFLib  – which it requires for its various RDF processing.  

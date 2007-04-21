@@ -41,7 +41,7 @@ Like RDFLib, FuXi is very idiomatic and uses Python hash / set / list mechanism 
 
 [http://python-dlp.googlecode.com/svn/trunk/fuxi/fuxi.png]
 
-FuXi's Network intances can be exported to a [http://www.graphviz.org/ Graphviz] *DOT* file and rendered to any image format.  This provides a nice visual feedback to the discrimination network built to a ruleset.
+FuXi's Network intances can be exported to a [http://www.graphviz.org/ Graphviz] *DOT* file and rendered to any image format.  [http://www.generic-programming.org/~dgregor/bgl-python/ Boost Graph Library - Python Bindings] is used for this.  This provides a nice visual feedback to the discrimination network built to a ruleset.
 
 === Roadmap & Limitations ===
 

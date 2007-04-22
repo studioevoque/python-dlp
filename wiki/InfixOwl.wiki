@@ -15,6 +15,10 @@ So, you could build boolean class constructors like so:
     ( ex:Opera or ex:CreativeWork or ex:Work )
 }}}
 
+= GALEN Extract =
+
+As an example, a large [http://python-dlp.googlecode.com/files/GALEN-CABG-Segment.txt extract] of GALEN was generated using InfixOwl
+
 = Doctest Example =
 
 {{{

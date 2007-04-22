@@ -3,6 +3,8 @@ _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/ /trunk/InfixOWL/]_
 
 [http://usefulinc.com/doap/ DOAP] file: _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/InfixOWL.rdf /trunk/InfixOWL/InfixOWL.rdf]_
 
+requires: [http://rdflib.net/|RDFLib] [http://rdflib.net/2.4.0/ 2.4.0] - available: [http://packages.qa.debian.org/r/rdflib.html debian]
+
 = Introduction =
 
 An infix syntax for Python, [http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf Manchester OWL], OWL Abstract [http://www.w3.org/TR/owl-semantics/syntax.html Syntax], and RDF (via RDFLib).
@@ -91,37 +93,50 @@ the operands:
 >>> c =  a | b | Class(exNs.Work,graph=g)
 >>> c
 ( ex:Opera or ex:CreativeWork or ex:Work )
+}}}
 
-Boolean class expressions can also be operated as lists (using python list operators)
+Boolean class expressions can also be operated as lists (natively in python)
 
+{{{
 >>> del c[c.index(Class(exNs.Work,graph=g))]
 >>> c
 ( ex:Opera or ex:CreativeWork )
+}}}
 
 The '&' operator can be used to construct class intersection:
-      
+
+{{{      
 >>> woman = Class(exNs.Female,graph=g) & Class(exNs.Human,graph=g)
 >>> woman.identifier = exNs.Woman
 >>> woman
 ( ex:Female and ex:Human )
+}}}
 
 Enumerated classes can also be manipulated
 
+{{{
 >>> contList = [Class(exNs.Africa,graph=g),Class(exNs.NorthAmerica,graph=g)]
 >>> EnumeratedClass(members=contList,graph=g)
 { ex:Africa ex:NorthAmerica }
+}}
 
 owl:Restrictions can also be instanciated:
 
+{{{
 >>> Restriction(exNs.hasParent,graph=g,allValuesFrom=exNs.Human)
 ( ex:hasParent only ex:Human )
+}}}
 
 Restrictions can also be created using Manchester OWL syntax in 'colloquial' Python 
+
+{{{
 >>> exNs.hasParent |some| Class(exNs.Physician,graph=g)
 ( ex:hasParent some ex:Physician )
-
 >>> Property(exNs.hasParent,graph=g) |max| Literal(1)
 ( ex:hasParent max 1 )
+}}}
+
+Then we can serialize the live RDFLib graph as uniform RDF/XML.
 
 >>> print g.serialize(format='pretty-xml')
 <?xml version="1.0" encoding="utf-8"?>

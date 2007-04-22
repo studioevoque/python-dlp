@@ -7,16 +7,6 @@ _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/ /trunk/InfixOWL/]_
 
 An infix syntax for Python, [http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf Manchester OWL], OWL Abstract [http://www.w3.org/TR/owl-semantics/syntax.html Syntax], and RDF (via RDFLib).
 
-= First Class Infix Operators =
-
-A Python trick is used to support explicit infix Manchester OWL operators.  So, you can build boolean class constructors like so:
-
-{{{
-    >>> aClass = ( ex:Opera |or| ex:CreativeWork |or| ex:Work )
-    >>> aClass
-    ( ex:Opera or ex:CreativeWork or ex:Work )
-}}}
-
 = GALEN Extract =
 
 As an example, a large [http://python-dlp.googlecode.com/files/GALEN-CABG-Segment.txt extract] of GALEN was generated using InfixOwl:
@@ -178,4 +168,14 @@ Restrictions can also be created using Manchester OWL syntax in 'colloquial' Pyt
     </owl:unionOf>
   </owl:Class>
 </rdf:RDF>
+}}}
+
+= First Class Infix Operators =
+
+A Python trick is used to support explicit infix Manchester OWL operators.  So, you can build boolean class constructors like so:
+
+{{{
+    >>> aClass = ( ex:Opera |or| ex:CreativeWork |or| ex:Work )
+    >>> aClass
+    ( ex:Opera or ex:CreativeWork or ex:Work )
 }}}

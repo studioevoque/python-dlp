@@ -118,7 +118,7 @@ Enumerated classes can also be manipulated
 >>> contList = [Class(exNs.Africa,graph=g),Class(exNs.NorthAmerica,graph=g)]
 >>> EnumeratedClass(members=contList,graph=g)
 { ex:Africa ex:NorthAmerica }
-}}
+}}}
 
 owl:Restrictions can also be instanciated:
 
@@ -138,6 +138,7 @@ Restrictions can also be created using Manchester OWL syntax in 'colloquial' Pyt
 
 Then we can serialize the live RDFLib graph as uniform RDF/XML.
 
+{{{
 >>> print g.serialize(format='pretty-xml')
 <?xml version="1.0" encoding="utf-8"?>
 <rdf:RDF

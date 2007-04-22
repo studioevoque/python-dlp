@@ -3,7 +3,7 @@ _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/ /trunk/InfixOWL/]_
 
 [http://usefulinc.com/doap/ DOAP] file: _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/InfixOWL.rdf /trunk/InfixOWL/InfixOWL.rdf]_
 
-requires: [http://rdflib.net/|RDFLib] [http://rdflib.net/2.4.0/ 2.4.0] - available: [http://packages.qa.debian.org/r/rdflib.html debian]
+requires: [http://rdflib.net/ RDFLib] [http://rdflib.net/2.4.0/ 2.4.0] - available: [http://packages.qa.debian.org/r/rdflib.html debian]
 
 = Introduction =
 

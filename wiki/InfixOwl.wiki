@@ -112,7 +112,7 @@ The '&' operator can be used to construct class intersection:
 ( ex:Female and ex:Human )
 }}}
 
-Enumerated classes can also be manipulated
+[http://www.w3.org/TR/owl-ref/#EnumeratedClass Enumerated] classes can also be manipulated
 
 {{{
 >>> contList = [Class(exNs.Africa,graph=g),Class(exNs.NorthAmerica,graph=g)]
@@ -120,7 +120,7 @@ Enumerated classes can also be manipulated
 { ex:Africa ex:NorthAmerica }
 }}}
 
-owl:Restrictions can also be instanciated:
+[http://www.w3.org/TR/owl-ref/#Restriction owl:Restrictions] can also be instanciated:
 
 {{{
 >>> Restriction(exNs.hasParent,graph=g,allValuesFrom=exNs.Human)

@@ -86,7 +86,7 @@ And we can then remove it from the extension as well
 Class: ex:Opera SubClassOf: ex:MusicalWork
 }}}
 
-[http://www.w3.org/TR/owl-ref/#Boolean Boolean class constructions can also  be created with Python operators For example, The | operator can be used to construct a class consisting of a owl:unionOf 
+[http://www.w3.org/TR/owl-ref/#Boolean Boolean] class constructions can also  be created with Python operators For example, The | operator can be used to construct a class consisting of a owl:unionOf 
 the operands:
 
 {{{

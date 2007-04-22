@@ -5,6 +5,7 @@ _[http://python-dlp.googlecode.com/svn/trunk/fuxi/ /trunk/fuxi/]_
 
 [http://usefulinc.com/doap/ DOAP] file: _[http://python-dlp.googlecode.com/svn/trunk/fuxi/FuXi.rdf /trunk/fuxi/FuXi.rdf]_
 
+requires: [http://rdflib.net/ RDFLib] [http://rdflib.net/2.4.0/ 2.4.0] - available: [http://packages.qa.debian.org/r/rdflib.html debian]
 
 = Introduction =
 

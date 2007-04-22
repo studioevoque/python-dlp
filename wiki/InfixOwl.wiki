@@ -22,8 +22,6 @@ As an example, a large [http://python-dlp.googlecode.com/files/GALEN-CABG-Segmen
 
 = Doctest Example =
 
-{{{
-
 RDFLib Python binding for OWL Abstract Syntax
  
 see: http://www.w3.org/TR/owl-semantics/syntax.html

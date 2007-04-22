@@ -47,40 +47,47 @@ of objects for the corresponding predicates.
 
 {{{
 >>> a.subClassOf = [exNs.MusicalWork]
+}}}
 
 We can then access the rdfs:subClassOf relationships
 
+{{{
 >>> print list(a.subClassOf)
 [Class: ex:MusicalWork ]
+}}}
 
 This can also be used against already populated graphs:
 
-#>>> owlGraph = Graph().parse(OWL_NS)
-#>>> namespace_manager.bind('owl', OWL_NS, override=False)
-#>>> owlGraph.namespace_manager = namespace_manager
-#>>> list(Class(OWL_NS.Class,graph=owlGraph).subClassOf)
-#[Class: rdfs:Class ]
+    #>>> owlGraph = Graph().parse(OWL_NS)
+    #>>> namespace_manager.bind('owl', OWL_NS, override=False)
+    #>>> owlGraph.namespace_manager = namespace_manager
+    #>>> list(Class(OWL_NS.Class,graph=owlGraph).subClassOf)
+    #[Class: rdfs:Class ]
 
 Operators are also available.  For instance we can add ex:Opera to the extension
 of the ex:CreativeWork class via the '+=' operator
 
+{{{
 >>> a
 Class: ex:Opera SubClassOf: ex:MusicalWork
 >>> b = Class(exNs.CreativeWork,graph=g)
 >>> b += a
 >>> print list(a.subClassOf)
 [Class: ex:CreativeWork , Class: ex:MusicalWork ]
+}}}
 
 And we can then remove it from the extension as well
 
+{{{
 >>> b -= a
 >>> a
 Class: ex:Opera SubClassOf: ex:MusicalWork
+}}}
 
-Boolean class constructions can also  be created with Python operators
-For example, The | operator can be used to construct a class consisting of a owl:unionOf 
+[http://www.w3.org/TR/owl-ref/#Boolean Boolean class constructions can also  be created with Python operators For example, The | operator can be used to construct a class consisting of a owl:unionOf 
 the operands:
 
+{{{
 >>> c =  a | b | Class(exNs.Work,graph=g)
 >>> c
 ( ex:Opera or ex:CreativeWork or ex:Work )

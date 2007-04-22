@@ -35,7 +35,7 @@ Uses Manchester Syntax for [http://docs.python.org/ref/customization.html __repr
 >>> g.namespace_manager = namespace_manager
 }}}
 
-Now we have an empty graph, we can construct OWL classes in it
+Now we have an empty [http://rdflib.net/rdflib-2.4.0/html/public/rdflib.Graph.Graph-class.html Graph], we can construct OWL classes in it
 using the Python classes defined in this module
 
 {{{

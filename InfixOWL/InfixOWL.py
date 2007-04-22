@@ -102,7 +102,7 @@ Restrictions can also be created using Manchester OWL syntax in 'colloquial' Pyt
 #>>> print g.serialize(format='pretty-xml')
 
 """
-
+import os
 from pprint import pprint
 from rdflib.Namespace import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,BNode,Literal,Variable
@@ -180,15 +180,16 @@ def manchesterSyntax(thing,store,boolean=None,transientList=False):
     if compl:
         return '( not %s )'%(manchesterSyntax(compl[0],store))
     else:
-#        for prop,col in store.query("SELECT ?p ?bool WHERE { ?class a owl:Class; ?p ?bool . ?bool rdf:first ?foo }",
-#                                           initBindings={Variable("?class"):thing},
-#                                           initNs=nsBinds):
-#            if not isinstance(thing,URIRef):                
-#                return manchesterSyntax(col,store,boolean=prop)
+        for boolProp,col in store.query("SELECT ?p ?bool WHERE { ?class a owl:Class; ?p ?bool . ?bool rdf:first ?foo }",
+                                         initBindings={Variable("?class"):thing},
+                                         initNs=nsBinds):
+            if not isinstance(thing,URIRef):                
+                return manchesterSyntax(col,store,boolean=boolProp)
         try:
             prefix,uri,localName = store.compute_qname(thing) 
             qname = u':'.join([prefix,localName])
         except Exception,e:
+            print list(store.objects(subject=thing,predicate=RDF.type))
             raise
             return '[]'#+thing._id.encode('utf-8')+'</em>'            
         if (thing,RDF.type,OWL_NS.Class) not in store:
@@ -326,33 +327,53 @@ class Class(object):
         self.graph.add((self.identifier,OWL_NS.complementOf,classOrIdentifier(other)))
     complementOf = property(_get_complementOf, _set_complementOf)
     
-    def __str__(self):
-        return str(self.identifier)
+#    def __str__(self):
+#        return str(self.identifier)
 
-    def __repr__(self):
+    def __repr__(self,full=False):
         """
         Returns the Manchester Syntax equivalent for this class
         """
         exprs = []
         sc = list(self.subClassOf)
         ec = list(self.equivalentClass)
+        for boolClass,p,rdfList in self.graph.triples_choices((self.identifier,
+                                                               [OWL_NS.intersectionOf,
+                                                                OWL_NS.unionOf],
+                                                                None)):
+            ec.append(manchesterSyntax(rdfList,self.graph,boolean=p))
         dc = list(self.disjointWith)
         c  = self.complementOf
         if sc:
-            exprs.append("SubClassOf: %s"%', '.join([
+            if full:
+                scJoin = ',\n                '
+            else:
+                scJoin = ', '
+            exprs.append("SubClassOf: %s"%scJoin.join([
+              isinstance(s,Class) and isinstance(self.identifier,BNode) and
+                                      repr(BooleanClass(classOrIdentifier(s),
+                                                        operator=None,
+                                                        graph=self.graph)) or 
               manchesterSyntax(classOrIdentifier(s),self.graph) for s in sc]))
+            if full:
+                exprs[-1]="\n    "+exprs[-1]
         if ec:
-            exprs.append("EquivalentTo: %s"%', '.join([
+            exprs.append("EquivalentTo: %s"%', '.join([    
+              isinstance(s,basestring) and s or 
               manchesterSyntax(classOrIdentifier(s),self.graph) for s in ec]))
+            if full:
+                exprs[-1]="\n    "+exprs[-1]
         if dc:
             if c:
                 dc.append(c)
             exprs.append("DisjointWith %s"%' and '.join([
               manchesterSyntax(classOrIdentifier(s),self.graph) for s in dc]))
+            if full:
+                exprs[-1]="\n    "+exprs[-1]
         return "Class: %s "%(isinstance(self.identifier,BNode) and '[]' or self.qname)+' . '.join(exprs)
 
 class OWLRDFListProxy(object):
-    def __init__(self,rdfList,members=None):
+    def __init__(self,rdfList,members=None,graph=Graph()):
         members = members and members or []
         if rdfList:
             self._rdfList = Collection(graph,rdfList[0])
@@ -406,12 +427,14 @@ class EnumeratedClass(Class,OWLRDFListProxy):
         Class.__init__(self,identifier,graph = graph)
         members = members and members or []
         rdfList = list(self.graph.objects(predicate=OWL_NS.oneOf,subject=self.identifier))
-        OWLRDFListProxy.__init__(self, rdfList, members)
+        OWLRDFListProxy.__init__(self, rdfList, members, graph = graph)
     def __repr__(self):
         """
         Returns the Manchester Syntax equivalent for this class
         """
         return manchesterSyntax(self._rdfList.uri,self.graph,boolean=self._operator)        
+
+BooleanPredicates = [OWL_NS.intersectionOf,OWL_NS.unionOf]
 
 class BooleanClass(Class,OWLRDFListProxy):
     """
@@ -422,12 +445,18 @@ class BooleanClass(Class,OWLRDFListProxy):
     """
     def __init__(self,identifier=BNode(),operator=OWL_NS.intersectionOf,
                  members=None,graph=Graph()):
+        if operator is None:
+            for s,p,o in graph.triples_choices((identifier,
+                                                [OWL_NS.intersectionOf,
+                                                 OWL_NS.unionOf],
+                                                 None)):
+                operator = p
         Class.__init__(self,identifier,graph = graph)
         members = members and members or []
-        assert operator in [OWL_NS.intersectionOf,OWL_NS.unionOf]
+        assert operator in [OWL_NS.intersectionOf,OWL_NS.unionOf], str(operator)
         self._operator = operator
         rdfList = list(self.graph.objects(predicate=operator,subject=self.identifier))
-        OWLRDFListProxy.__init__(self, rdfList, members)
+        OWLRDFListProxy.__init__(self, rdfList, members, graph = graph)
 
     def __repr__(self):
         """
@@ -515,6 +544,11 @@ class Property(object):
 def test():
     import doctest
     doctest.testmod()
+    galenGraph = Graph().parse(os.path.join(os.path.dirname(__file__), 'GALEN-CABG-Segment.owl'))
+    graph=galenGraph
+    for c in graph.subjects(predicate=RDF.type,object=OWL_NS.Class):
+        if isinstance(c,URIRef):
+            print Class(c,graph=graph).__repr__(True),"\n"
 
 if __name__ == '__main__':
     test()

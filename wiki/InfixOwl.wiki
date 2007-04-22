@@ -23,9 +23,7 @@ As an example, a large [http://python-dlp.googlecode.com/files/GALEN-CABG-Segmen
 = Doctest Example =
 
 {{{
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
+
 RDFLib Python binding for OWL Abstract Syntax
  
 see: http://www.w3.org/TR/owl-semantics/syntax.html
@@ -35,25 +33,30 @@ see: http://www.w3.org/TR/owl-semantics/syntax.html
  
   Named class description of type 2 (with owl:oneOf) or type 4-6 (with owl:intersectionOf, owl:unionOf or owl:complementOf
  
-Uses Manchester Syntax for __repr__  
- 
+Uses Manchester Syntax for [http://docs.python.org/ref/customization.html __repr__]
+
+{{{
 >>> exNs = Namespace('http://example.com/')        
 >>> namespace_manager = NamespaceManager(Graph())
 >>> namespace_manager.bind('ex', exNs, override=False)
 >>> namespace_manager.bind('owl', OWL_NS, override=False)
 >>> g = Graph()    
 >>> g.namespace_manager = namespace_manager
+}}}
 
 Now we have an empty graph, we can construct OWL classes in it
 using the Python classes defined in this module
 
+{{{
 >>> a = Class(exNs.Opera,graph=g)
+}}}
 
 Now we can assert rdfs:subClassOf and owl:equivalentClass relationships 
 (in the underlying graph) with other classes using the 'subClassOf' 
 and 'equivalentClass' descriptors which can be set to a list
 of objects for the corresponding predicates.
 
+{{{
 >>> a.subClassOf = [exNs.MusicalWork]
 
 We can then access the rdfs:subClassOf relationships

@@ -17,7 +17,16 @@ So, you could build boolean class constructors like so:
 
 = GALEN Extract =
 
-As an example, a large [http://python-dlp.googlecode.com/files/GALEN-CABG-Segment.txt extract] of GALEN was generated using InfixOwl
+As an example, a large [http://python-dlp.googlecode.com/files/GALEN-CABG-Segment.txt extract] of GALEN was generated using InfixOwl:
+
+{{{
+    from InfixOwl import *
+    galenGraph = Graph().parse(os.path.join(os.path.dirname(__file__), 'GALEN-CABG-Segment.owl'))
+    graph=galenGraph
+    for c in graph.subjects(predicate=RDF.type,object=OWL_NS.Class):
+        if isinstance(c,URIRef):
+            print Class(c,graph=graph).__repr__(True),"\n"
+}}}
 
 = Doctest Example =
 

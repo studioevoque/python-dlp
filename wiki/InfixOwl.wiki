@@ -22,15 +22,6 @@ As an example, a large [http://python-dlp.googlecode.com/files/GALEN-CABG-Segmen
 
 = Doctest Example =
 
-RDFLib Python binding for OWL Abstract Syntax
- 
-see: http://www.w3.org/TR/owl-semantics/syntax.html
-     http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf
- 
-3.2.3 Axioms for complete classes without using owl:equivalentClass
- 
-  Named class description of type 2 (with owl:oneOf) or type 4-6 (with owl:intersectionOf, owl:unionOf or owl:complementOf
- 
 Uses Manchester Syntax for [http://docs.python.org/ref/customization.html __repr__]
 
 {{{
@@ -49,9 +40,9 @@ using the Python classes defined in this module
 >>> a = Class(exNs.Opera,graph=g)
 }}}
 
-Now we can assert rdfs:subClassOf and owl:equivalentClass relationships 
-(in the underlying graph) with other classes using the 'subClassOf' 
-and 'equivalentClass' descriptors which can be set to a list
+Now we can assert [http://www.w3.org/TR/rdf-schema/#ch_subclassof rdfs:subClassOf] and [http://www.w3.org/TR/owl-ref/#equivalentClass-def owl:equivalentClass] relationships 
+(in the underlying graph) with other classes using the _subClassOf_ 
+and _equivalentClass_ [http://users.rcn.com/python/download/Descriptor.htm descriptors] which can be set to a list
 of objects for the corresponding predicates.
 
 {{{

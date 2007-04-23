@@ -129,7 +129,7 @@ The '&' operator can be used to construct class intersection:
 ( ex:hasParent only ex:Human )
 }}}
 
-Restrictions can also be created using Manchester OWL syntax in 'colloquial' Python 
+Restrictions can also be created using Manchester OWL syntax in 'colloquial' Python.  A Python infix operator [http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/384122 recipe] was used for this purpose.
 
 {{{
 >>> exNs.hasParent |some| Class(exNs.Physician,graph=g)
@@ -137,6 +137,14 @@ Restrictions can also be created using Manchester OWL syntax in 'colloquial' Pyt
 >>> Property(exNs.hasParent,graph=g) |max| Literal(1)
 ( ex:hasParent max 1 )
 }}}
+
+Other Python equivalents of Manchester OWL:
+
+  * |only|
+  * |max|
+  * |min|
+  * |exactly|
+  * |value|
 
 Then we can serialize the live RDFLib graph as uniform RDF/XML.
 

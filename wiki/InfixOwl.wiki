@@ -60,11 +60,13 @@ We can then access the rdfs:subClassOf relationships
 
 This can also be used against already populated graphs:
 
-    #>>> owlGraph = Graph().parse(OWL_NS)
-    #>>> namespace_manager.bind('owl', OWL_NS, override=False)
-    #>>> owlGraph.namespace_manager = namespace_manager
-    #>>> list(Class(OWL_NS.Class,graph=owlGraph).subClassOf)
-    #[Class: rdfs:Class ]
+{{{
+>>> owlGraph = Graph().parse(OWL_NS)
+>>> namespace_manager.bind('owl', OWL_NS, override=False)
+>>> owlGraph.namespace_manager = namespace_manager
+>>> list(Class(OWL_NS.Class,graph=owlGraph).subClassOf)
+[Class: rdfs:Class ]
+}}}
 
 Operators are also available.  For instance we can add ex:Opera to the extension
 of the ex:CreativeWork class via the '+=' operator

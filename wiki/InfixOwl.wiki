@@ -129,7 +129,7 @@ The '&' operator can be used to construct class intersection:
 ( ex:hasParent only ex:Human )
 }}}
 
-Restrictions can also be created using Manchester OWL syntax in 'colloquial' Python.  A Python infix operator [http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/384122 recipe] was used for this purpose.
+Restrictions can also be created using Manchester OWL syntax in 'colloquial' Python.  A Python infix operator [http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/384122 recipe] was used for this purpose.  See below
 
 {{{
 >>> exNs.hasParent |some| Class(exNs.Physician,graph=g)
@@ -137,14 +137,6 @@ Restrictions can also be created using Manchester OWL syntax in 'colloquial' Pyt
 >>> Property(exNs.hasParent,graph=g) |max| Literal(1)
 ( ex:hasParent max 1 )
 }}}
-
-Other Python equivalents of Manchester OWL:
-
-  * |only|
-  * |max|
-  * |min|
-  * |exactly|
-  * |value|
 
 Then we can serialize the live RDFLib graph as uniform RDF/XML.
 
@@ -197,10 +189,10 @@ Then we can serialize the live RDFLib graph as uniform RDF/XML.
 
 = First Class Infix Operators =
 
-A Python trick is used to support explicit infix Manchester OWL operators.  So, you can build boolean class constructors like so:
+Other Python equivalents of Manchester OWL:
 
-{{{
-    >>> aClass = ( ex:Opera |or| ex:CreativeWork |or| ex:Work )
-    >>> aClass
-    ( ex:Opera or ex:CreativeWork or ex:Work )
-}}}
+  * |only|
+  * |max|
+  * |min|
+  * |exactly|
+  * |value|

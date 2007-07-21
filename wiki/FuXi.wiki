@@ -46,6 +46,8 @@ FuXi's Network intances can be exported to a [http://www.graphviz.org/ Graphviz]
 
 === Beta (Join) Nodes ===
 
+[http://metacognition.info/images/rete-network.jpg]
+
 [http://python-dlp.googlecode.com/files/rete-ul-join-node.png]
 
 === Roadmap & Limitations ===

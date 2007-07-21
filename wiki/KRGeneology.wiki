@@ -5,6 +5,20 @@ A diagram summarizing the geneology of First-order Logic (FOL), Description Logi
 
 The diagram is also [http://python-dlp.googlecode.com/files/KR-Geneology.svg available] in its original SVG format
 
+== Notes ==
 
+Cardinality (see: [http://www.w3.org/TR/owl-semantics/rdfs.html#owl_cardinality_rdf owl:cardinality]) and Disjoint semantics (see: [http://www.w3.org/TR/owl-semantics/direct.html#owl_disjointWith_semantics DisjointClasses(d1 … dn)]) cannot be expressed in DLP!:
+
+    "These constructors cannot, in general, be mapped into def-Horn.
+    The case of negation is obvious as negation is not allowed in either
+    the head or body of a def-Horn rule. As can be seen in Figure 4,
+    cardinality restrictions correspond to assertions of variable equality
+    and inequality in FOL, and this is again outside of the def-Horn
+    framework."
+
+Other restrictions:
+
+    "it is impossible to assert the existence
+    of individuals whose identity might not be known."
 
 [http://www.cs.man.ac.uk/~horrocks/Publications/download/2003/p117-grosof.pdf http://python-dlp.googlecode.com/files/MT-KR-Geneology.png]

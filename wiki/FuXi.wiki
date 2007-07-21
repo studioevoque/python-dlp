@@ -52,6 +52,13 @@ FuXi's Network intances can be exported to a [http://www.graphviz.org/ Graphviz]
 
 === Beta (Join) Nodes ===
 
+{{{
+(<x> ^self <y>) /* C1 */
+(<x> ^color red) /* C2 */
+(<y> ^color red) /* C3 */
+... /* other conditions */
+}}}
+
 [http://python-dlp.googlecode.com/files/rete-ul-join-node.png]
 
 === Roadmap & Limitations ===

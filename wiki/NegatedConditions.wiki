@@ -1,0 +1,7 @@
+#summary Rete networks for Negated Conditions
+
+= Introduction =
+
+Follows RETE-UL algorithm..
+
+= Details =

@@ -1,4 +1,5 @@
 #summary An EBNF for DLP (via RIF BLD: Positive Conditions + RDF Terms)
+#labels Featured,Phase-Requirements,Phase-Design
 
 = Introduction =
 

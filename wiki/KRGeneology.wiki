@@ -1,5 +1,10 @@
+#labels Featured
 = Geneology of FOL and LP =
 
-A diagram summarizing the geneology of First-order Logic (FOL), Description Logic (DL), and Logic Programming (LP) as a basis for an EvaluationSemantics4RETE
+A diagram summarizing the geneology of First-order Logic (FOL), Description Logic (DL), and Logic Programming (LP) as a basis for an [EvaluationSemantics4RETE].
+
+The diagram is also [http://python-dlp.googlecode.com/files/KR-Geneology.svg available] in its original SVG format
+
+
 
 [http://www.cs.man.ac.uk/~horrocks/Publications/download/2003/p117-grosof.pdf http://python-dlp.googlecode.com/files/MT-KR-Geneology.png]

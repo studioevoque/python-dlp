@@ -1,7 +1,7 @@
 #labels Featured
 = Geneology of FOL and LP =
 
-A diagram summarizing the geneology of First-order Logic (FOL), Description Logic (DL), and Logic Programming (LP) as a basis for (an) [EvaluationSemantics4RETE] which outperforms tableau-based algorithms.
+A diagram summarizing the geneology of First-order Logic (FOL), Description Logic (DL), and Logic Programming (LP) as a basis for (an) [http://code.google.com/p/python-dlp/wiki/FuXi open-source], [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf enterprise-scale] [EvaluationSemantics4RETE] which outperforms tableau-based algorithms.
 
 The diagram is also [http://python-dlp.googlecode.com/files/KR-Geneology.svg available] in its original SVG format
 

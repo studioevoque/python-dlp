@@ -40,13 +40,17 @@ Like RDFLib, FuXi is very idiomatic and uses Python hash / set / list mechanism 
 
 === Network ===
 
+==== Rete "Legend" ====
+
+[http://metacognition.info/images/rete-network.jpg]
+
+==== An OWL/RDFS Example ====
+
 [http://python-dlp.googlecode.com/svn/trunk/fuxi/fuxi.png]
 
 FuXi's Network intances can be exported to a [http://www.graphviz.org/ Graphviz] *DOT* file and rendered to any image format.  [http://www.generic-programming.org/~dgregor/bgl-python/ Boost Graph Library - Python Bindings] is used for this.  This provides a nice visual feedback to the discrimination network built to a ruleset.
 
 === Beta (Join) Nodes ===
-
-[http://metacognition.info/images/rete-network.jpg]
 
 [http://python-dlp.googlecode.com/files/rete-ul-join-node.png]
 

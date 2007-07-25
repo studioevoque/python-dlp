@@ -89,6 +89,7 @@ BASE &lt;http://www.clevelandclinic.org/heartcenter/ontologies/DataNodes.owl#>
       <span style="font-weight:bold">URI: </span> <input name="uri" type="input" size="80"/>
       <select name="action">
         <option value="extension">Class extension</OPTION>
+        <option value="extension-size">Class extension size</OPTION>
         <option value="resource">Browse resource</OPTION>
       </select>
       <input type="submit" label="Browse" onClick="submitQuery('browseform')"/>
@@ -183,6 +184,18 @@ class Browser(StoreConnectee):
                               set(targetGraph.subjects(predicate=RDF.type,
                                                        object=URIRef(targetClass)))])
             body = "<h3>Extension of %s</h3><ul>%s</ul>"%(targetClass,_l)
+            targetGraph.close()
+            response_headers = [('Content-type','text/html'),
+                                ('Content-Length',len(BROWSER_HTML%(body,self.endpoint)))]
+            start_response(status, response_headers)
+            return [BROWSER_HTML%(body,self.endpoint)]
+        elif action == 'extension-size':
+            targetClass = d['uri']
+            size=len(set(targetGraph.subjects(predicate=RDF.type,
+                                              object=URIRef(targetClass))))
+            body = \
+            """<h3>Extension cardinality</h3>
+            <p style="font-size:10pt">The class identified by the URI &lt;%s> has <em>%s</em> members.</p>"""%(targetClass,size)
             targetGraph.close()
             response_headers = [('Content-type','text/html'),
                                 ('Content-Length',len(BROWSER_HTML%(body,self.endpoint)))]

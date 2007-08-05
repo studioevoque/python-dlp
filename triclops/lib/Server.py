@@ -61,18 +61,7 @@ function submitQuery(formId) {
       <form id="queryform" action="ENDPOINT" method="post">
         Default Grap IRI: <input type="text" size="80" name="default-graph-uri" id="default-graph-uri" value=""/>
         <div>
-          <textarea style="width: 80%" name="query" rows="20" id="querytext">
-BASE &lt;http://www.clevelandclinic.org/heartcenter/ontologies/DataNodes.owl#>
-   PREFIX ptrec: &lt;tag:info@semanticdb.ccf.org,2007:PatientRecordTerms#>
-   PREFIX xsd: &lt;http://www.w3.org/2001/XMLSchema#> 
-   SELECT   ?ccfId ?PROC ?SITE
-   WHERE { ?proc a &lt;tag:info@semanticdb.ccf.org,2007:PatientRecordTerms#SurgicalProcedure-vascular-endovascular%20procedure>.
-           ?proc :contains [ a ptrec:VascularProcedure ; 
-                             ptrec:hasVascularProcedureName ?PROC;
-                             ptrec:hasVascularProcedureSite ?SITE ].
-           ?evt :contains ?proc.
-           ?ptrec :contains ?evt, [ a ptrec:Patient; ptrec:hasCCFID ?ccfId ] }
-          </textarea>
+          <textarea style="width: 80%" name="query" rows="20" id="querytext"></textarea>
           <div><input type="button" value="Submit SPARQL" onClick="submitQuery('queryform')" /></div>
         </div>        
       </form>

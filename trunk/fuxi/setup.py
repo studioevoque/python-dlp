@@ -11,7 +11,7 @@ setup(name="FuXi",
       },
       packages=[
         "FuXi",
-        "FuXi.Rete"
+        "FuXi.Rete",
       ],
       install_requires = ['rdflib>=2.3.3'],
       scripts = ['Fuxi.py'],

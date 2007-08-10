@@ -1,1 +1,0 @@
-../fuxi/test/HornRules.py

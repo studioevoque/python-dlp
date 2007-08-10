@@ -1,4 +1,4 @@
-from pprint import pprint
+from pprint import pprint, pformat
 from sets import Set
 from FuXi.Rete import *
 from FuXi.Rete.AlphaNode import SUBJECT,PREDICATE,OBJECT,VARIABLE
@@ -12,7 +12,6 @@ from rdflib.Graph import Graph,ReadOnlyGraphAggregate,ConjunctiveGraph
 from rdflib.syntax.NamespaceManager import NamespaceManager
 from glob import glob
 from rdflib.sparql.bison import Parse
-from rdflib.sparql.bison.SPARQLEvaluate import Evaluate
 import unittest, os, time
 
 RDFLIB_CONNECTION=''
@@ -75,7 +74,7 @@ Tests2Skip = [
     'OWL/oneOf/Manifest003.rdf', #logical set equivalence?  Probably needs a built-in to support
     'OWL/differentFrom/Manifest002.rdf'  ,#needs log:notEqualTo
     'OWL/distinctMembers/Manifest001.rdf',#needs log:notEqualTo
-    'OWL/intersectionOf/Manifest001.rdf' ,#can't calculate identical class extensions
+    #'OWL/intersectionOf/Manifest001.rdf' ,#can't calculate identical class extensions
     'OWL/unionOf/Manifest002.rdf',#can't implement set theoretic union for owl:unionOf.
     'OWL/InverseFunctionalProperty/Manifest001.rdf',#owl:sameIndividualAs deprecated
     'OWL/FunctionalProperty/Manifest001.rdf', #owl:sameIndividualAs deprecated
@@ -103,7 +102,7 @@ class OwlTestSuite(unittest.TestCase):
             self.ruleGraph.parse(open(fileN),format='n3')        
             self.ruleFactsGraph.parse(open(fileN),format='n3')
         self.network = ReteNetwork(self.ruleStore)
-        renderNetwork(self.network,nsMap=nsMap).write_graphviz('owl-rules.dot')
+        #renderNetwork(self.network,nsMap=nsMap).write_graphviz('owl-rules.dot')
     def tearDown(self):
         pass
     
@@ -139,6 +138,8 @@ class OwlTestSuite(unittest.TestCase):
                 if status == 'APPROVED':
                     assert os.path.exists('.'.join([premiseFile,'rdf'])) 
                     assert os.path.exists('.'.join([conclusionFile,'rdf']))
+                    print "<%s> :- <%s>"%('.'.join([conclusionFile,'rdf']),
+                                          '.'.join([premiseFile,'rdf']))
                     store = plugin.get(RDFLIB_STORE,Store)()
                     store.open(RDFLIB_CONNECTION)
                     factGraph = Graph(store)
@@ -169,15 +170,15 @@ class OwlTestSuite(unittest.TestCase):
                     for triple in expectedFacts.parse('.'.join([conclusionFile,'rdf'])):
                         closureGraph = ReadOnlyGraphAggregate([self.network.inferredFacts,factGraph])
                         if triple not in self.network.inferredFacts and triple not in factGraph:
-                            print "missing triple %s"%(repr(triple))
+                            print "missing triple %s"%(pformat(triple))
                             print manifest
                             print "feature: ", feature
                             print description
-                            #pprint(list(self.network.inferredFacts))                            
-                            return
-#                        else:
-#                            print "=== Passed! ==="
-#                            pprint(list(self.network.inferredFacts))
+                            pprint(list(self.network.inferredFacts))                            
+                            raise Exception ("Failed test: "+feature)
+                        else:
+                            print "=== Passed! ==="
+                            #pprint(list(self.network.inferredFacts))
                     print "\n"
                     testData[manifest] = sTimeStr
                     store.rollback()

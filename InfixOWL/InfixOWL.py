@@ -104,7 +104,7 @@ Restrictions can also be created using Manchester OWL syntax in 'colloquial' Pyt
 """
 import os
 from pprint import pprint
-from rdflib.Namespace import Namespace
+from rdflib import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,BNode,Literal,Variable
 from rdflib.store import Store
 from rdflib.Graph import Graph
@@ -225,15 +225,15 @@ class Class(object):
       description."
       
     """
+    factoryGraph = Graph()
     def __init__(self, identifier=BNode(),subClassOf=None,equivalentClass=None,
-                       disjointWith=None,complementOf=None,graph=Graph(),skipOWLClassMembership = False):
+                       disjointWith=None,complementOf=None,graph=None,skipOWLClassMembership = False):
         self.__identifier = identifier
         self.qname = None
+        self.graph = graph or self.factoryGraph
         if not isinstance(identifier,BNode):
-            prefix,uri,localName = graph.compute_qname(identifier) 
+            prefix,uri,localName = self.graph.compute_qname(identifier) 
             self.qname = u':'.join([prefix,localName])
-        self.graph = graph
-        
         if not skipOWLClassMembership and (self.identifier,RDF.type,OWL_NS.Class) not in self.graph:
             self.graph.add((self.identifier,RDF.type,OWL_NS.Class))
         
@@ -257,7 +257,6 @@ class Class(object):
             self.graph.addN([(i,p1,o1,self.graph) for p1,o1 in oldStmtsOut])
             self.graph.addN([(s1,p1,i,self.graph) for s1,p1 in oldStmtsIn])
     identifier = property(_get_identifier, _set_identifier)
-
     def __iadd__(self, other):
         assert isinstance(other,Class)
         other.subClassOf = [self]
@@ -330,7 +329,7 @@ class Class(object):
 #    def __str__(self):
 #        return str(self.identifier)
 
-    def __repr__(self,full=False):
+    def __repr__(self,full=False,normalization=True):
         """
         Returns the Manchester Syntax equivalent for this class
         """
@@ -344,33 +343,48 @@ class Class(object):
             ec.append(manchesterSyntax(rdfList,self.graph,boolean=p))
         dc = list(self.disjointWith)
         c  = self.complementOf
+        klassKind = ''
+        label = list(self.graph.objects(self.identifier,RDFS.label))
+        label = label and '('+label[0]+')' or ''
         if sc:
             if full:
-                scJoin = ',\n                '
+                scJoin = '\n                '
             else:
                 scJoin = ', '
-            exprs.append("SubClassOf: %s"%scJoin.join([
+            necStatements = [
               isinstance(s,Class) and isinstance(self.identifier,BNode) and
                                       repr(BooleanClass(classOrIdentifier(s),
                                                         operator=None,
                                                         graph=self.graph)) or 
-              manchesterSyntax(classOrIdentifier(s),self.graph) for s in sc]))
+              manchesterSyntax(classOrIdentifier(s),self.graph) for s in sc]
+            if necStatements:
+                klassKind = "Primitive Type %s"%label
+            exprs.append("SubClassOf: %s"%scJoin.join(necStatements))
             if full:
                 exprs[-1]="\n    "+exprs[-1]
         if ec:
-            exprs.append("EquivalentTo: %s"%', '.join([    
+            nec_SuffStatements = [    
               isinstance(s,basestring) and s or 
-              manchesterSyntax(classOrIdentifier(s),self.graph) for s in ec]))
+              manchesterSyntax(classOrIdentifier(s),self.graph) for s in ec]
+            if nec_SuffStatements:
+                klassKind = "A Defined Class %s"%label
+            exprs.append("EquivalentTo: %s"%', '.join(nec_SuffStatements))
             if full:
                 exprs[-1]="\n    "+exprs[-1]
         if dc:
             if c:
                 dc.append(c)
-            exprs.append("DisjointWith %s"%' and '.join([
+            exprs.append("DisjointWith %s\n"%'\n                 '.join([
               manchesterSyntax(classOrIdentifier(s),self.graph) for s in dc]))
             if full:
                 exprs[-1]="\n    "+exprs[-1]
-        return "Class: %s "%(isinstance(self.identifier,BNode) and '[]' or self.qname)+' . '.join(exprs)
+        descr = list(self.graph.objects(self.identifier,RDFS.comment))
+        if full and normalization:
+            klassDescr = klassKind and '\n    ## %s ##'%klassKind +\
+            (descr and "\n    %s"%descr[0] or '') + ' . '.join(exprs) or ' . '.join(exprs)
+        else:
+            klassDescr = full and (descr and "\n    %s"%descr[0] or '') or '' + ' . '.join(exprs)
+        return "Class: %s "%(isinstance(self.identifier,BNode) and '[]' or self.qname)+klassDescr
 
 class OWLRDFListProxy(object):
     def __init__(self,rdfList,members=None,graph=Graph()):
@@ -534,17 +548,26 @@ class Property(object):
                   'Transitive' ]
                 { 'domain(' description ')' } { 'range(' description ')' } ')    
     """
-    def __init__(self,identifier=BNode(),graph = Graph(),baseType=OWL_NS.ObjectProperty,
+    factoryGraph = Graph()
+    def __init__(self,identifier=BNode(),graph = None,baseType=OWL_NS.ObjectProperty,
                       subPropertyOf=None,domain=None,range=None,inverseOf=None,
                       otherType=None,equivalentProperty=None):
         self.identifier = identifier
-        self.graph = graph        
+        self.graph = graph or self.factoryGraph        
     
 
 def test():
     import doctest
     doctest.testmod()
-    galenGraph = Graph().parse(os.path.join(os.path.dirname(__file__), 'GALEN-CABG-Segment.owl'))
+    galenGraph = Graph()
+    galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/SDB-local/Base/owl/DataNodes.owl'))
+    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/bfo-1.0.owl'))
+    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/OBI.owl'))
+    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/problem-oriented-medical-record.owl'))
+    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/InformationObjects.owl'))
+    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/ExtendedDnS.owl'))
+    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/DOLCE-Lite.owl'))
+    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/Plans.owl'))
     graph=galenGraph
     for c in graph.subjects(predicate=RDF.type,object=OWL_NS.Class):
         if isinstance(c,URIRef):

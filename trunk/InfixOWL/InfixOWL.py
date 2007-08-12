@@ -560,8 +560,8 @@ def test():
     import doctest
     doctest.testmod()
     galenGraph = Graph()
-    galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/SDB-local/Base/owl/DataNodes.owl'))
-    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/bfo-1.0.owl'))
+    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/SDB-local/Base/owl/DataNodes.owl'))
+    galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/bfo-1.0.owl'))
     #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/OBI.owl'))
     #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/problem-oriented-medical-record.owl'))
     #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/InformationObjects.owl'))

@@ -6,13 +6,14 @@ from FuXi.Rete.AlphaNode import SUBJECT,PREDICATE,OBJECT,VARIABLE
 from FuXi.Rete.BetaNode import PartialInstanciation, LEFT_MEMORY, RIGHT_MEMORY
 from FuXi.Rete.RuleStore import N3RuleStore
 from FuXi.Rete.Util import renderNetwork,generateTokenSet, xcombine
+from FuXi.DLP import MapDLPtoNetwork, non_DHL_OWL_Semantics
 from rdflib.Namespace import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,URIRef,Literal,Variable
 from rdflib.store import Store
 from cStringIO import StringIO
 from rdflib.Graph import Graph,ReadOnlyGraphAggregate,ConjunctiveGraph
 from rdflib.syntax.NamespaceManager import NamespaceManager
-import unittest
+import unittest, time
 
 RDFLIB_CONNECTION=''
 RDFLIB_STORE='IOMemory'
@@ -54,10 +55,31 @@ Options:
                              RETE network
                              
   ---ruleFacts               Determines whether or not to attempt to parse 
-                             initial facts from the rule graph.  Default by default"""    
+                             initial facts from the rule graph.  Default by default
+                             
+   --dlp                     This switch turns on Description Logic Programming 
+                             (DLP) inference.  In this mode, the input document 
+                             is considered an OWL ontology mostly comprised of
+                             Description Horn Logic (DHL) axioms. ontology.  An 
+                             additional ruleset is included to capture those 
+                             semantics outside DHL but which can be expressed in
+                             definite Datalog Logic Programming.  The DHL-compiled 
+                             ruleset and the extensions are mapped into a RETE-UL 
+                             Network for evaluateion."""    
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "", ["optimize","output=","ns=","facts=", "rules=","stdin","help","ruleFacts","graphviz-out=","input-format=","closure"])
+        opts, args = getopt.getopt(sys.argv[1:], "", ["optimize",
+                                                      "output=",
+                                                      "ns=",
+                                                      "facts=", 
+                                                      "rules=",
+                                                      "dlp",
+                                                      "stdin",
+                                                      "help",
+                                                      "ruleFacts",
+                                                      "graphviz-out=",
+                                                      "input-format=",
+                                                      "closure"])
     except getopt.GetoptError, e:
         # print help information and exit:
         print e
@@ -74,6 +96,7 @@ def main():
     optimize = False
     stdIn = False
     closure = False
+    dlp = False
     if not opts:
         usage()
         sys.exit()        
@@ -94,6 +117,8 @@ def main():
         elif o == "--help":
             usage()
             sys.exit()
+        elif o == '--dlp':
+            dlp = True
         elif o == "--rules":
             ruleGraphs = a.split(',')
         elif o == '--ruleFacts':
@@ -125,11 +150,29 @@ def main():
     if stdIn:
         factGraph.parse(sys.stdin,format=factFormat)
     workingMemory = generateTokenSet(factGraph)
-    network = ReteNetwork(ruleStore,
-                          initialWorkingMemory=workingMemory,
-                          inferredTarget = closureDeltaGraph,
-                          graphVizOutFile = gVizOut,
-                          nsMap = nsBinds)
+    if dlp:
+        ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
+        network = ReteNetwork(ruleStore,
+                              inferredTarget = closureDeltaGraph,
+                              graphVizOutFile = gVizOut,
+                              nsMap = nsBinds)
+        MapDLPtoNetwork(network,factGraph)
+    else:
+        network = ReteNetwork(ruleStore,
+                              inferredTarget = closureDeltaGraph,
+                              graphVizOutFile = gVizOut,
+                              nsMap = nsBinds)
+    
+    start = time.time()  
+    network.feedFactsToAdd(workingMemory)
+    sTime = time.time() - start
+    if sTime > 1:
+        sTimeStr = "%s seconds"%sTime
+    else:
+        sTime = sTime * 1000
+        sTimeStr = "%s milli seconds"%sTime
+    print "Time to calculate closure on working memory: ",sTimeStr
+        
     if outMode == 'conflict':
         tNodeOrder = [tNode for tNode in network.terminalNodes if network.instanciations[tNode]]
         tNodeOrder.sort(key=lambda x:network.instanciations[x],reverse=True)

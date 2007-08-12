@@ -6,13 +6,14 @@ from FuXi.Rete.AlphaNode import SUBJECT,PREDICATE,OBJECT,VARIABLE
 from FuXi.Rete.BetaNode import PartialInstanciation, LEFT_MEMORY, RIGHT_MEMORY
 from FuXi.Rete.RuleStore import N3RuleStore
 from FuXi.Rete.Util import renderNetwork,generateTokenSet, xcombine
+from FuXi.DLP import MapDLPtoNetwork
 from rdflib.Namespace import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,URIRef,Literal,Variable
 from rdflib.store import Store
 from cStringIO import StringIO
 from rdflib.Graph import Graph,ReadOnlyGraphAggregate,ConjunctiveGraph
 from rdflib.syntax.NamespaceManager import NamespaceManager
-import unittest
+import unittest, time
 
 RDFLIB_CONNECTION=''
 RDFLIB_STORE='IOMemory'
@@ -30,12 +31,25 @@ def usage():
     print "\tThe graphviz-out option is a filename to write a graphviz diagram of the RETE network to"
     print "Input format"
     print "\tThe --input-format option determines the format of the RDF document(s) specified by --facts"
+    print "Description Logic Programming"
+    print "\tThe --dlp switch turns on DLP reasoning.  In this mode, the input document is considered a Description Horn Logic ontology, and a compiled ruleset is mapped into a Network"
     print "Namespace bindings:"
     print "\tThe --ns option adds a prefix to namespace binding and is used by both the generated RETE network diagram and the serialization (if specified by --out)"
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "", ["optimize","output=","ns=","facts=", "rules=","stdin","help","ruleFacts","graphviz-out=","input-format=","conflict"])
+        opts, args = getopt.getopt(sys.argv[1:], "", ["optimize",
+                                                      "output=",
+                                                      "ns=",
+                                                      "dlp",
+                                                      "facts=", 
+                                                      "rules=",
+                                                      "stdin",
+                                                      "help",
+                                                      "ruleFacts",
+                                                      "graphviz-out=",
+                                                      "input-format=",
+                                                      "conflict"])
     except getopt.GetoptError, e:
         # print help information and exit:
         print e
@@ -51,6 +65,7 @@ def main():
     outMode = 'n3'
     optimize = False
     stdIn = False
+    dlp = False
     if not opts:
         usage()
         sys.exit()        
@@ -73,6 +88,8 @@ def main():
         elif o == "--help":
             usage()
             sys.exit()
+        elif o == '--dlp':
+            dlp = True
         elif o == "--rules":
             ruleGraphs = a.split(',')
         elif o == '--ruleFacts':
@@ -102,10 +119,21 @@ def main():
         factGraph.parse(sys.stdin,format=factFormat)
     workingMemory = generateTokenSet(factGraph)
     network = ReteNetwork(ruleStore,
-                          initialWorkingMemory=workingMemory,
                           inferredTarget = closureDeltaGraph,
                           graphVizOutFile = gVizOut,
                           nsMap = nsBinds)
+    if dlp:
+        MapDLPtoNetwork(network,factGraph)
+    start = time.time()  
+    network.feedFactsToAdd(workingMemory)
+    sTime = time.time() - start
+    if sTime > 1:
+        sTimeStr = "%s seconds"%sTime
+    else:
+        sTime = sTime * 1000
+        sTimeStr = "%s milli seconds"%sTime
+    print "Time to calculate closure on working memory: ",sTimeStr
+
     if outMode in ['n3','xml']:        
         #print network.inferredFacts.serialize(destination=None, format=outMode, base=None)
         print network.closureGraph(factGraph).serialize(destination=None, format=outMode, base=None)

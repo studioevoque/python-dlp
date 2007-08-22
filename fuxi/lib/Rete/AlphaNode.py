@@ -59,7 +59,7 @@ class ReteToken:
         return self.hash 
 
     def concatenateTerms(self):
-        return reduce(lambda x,y:x+y,[term[VALUE] for term in [self.subject,self.predicate,self.object_]])
+        return reduce(lambda x,y:str(x)+str(y),[term[VALUE] for term in [self.subject,self.predicate,self.object_]])
 
     def __eq__(self,other):
         return hash(self) == hash(other)   

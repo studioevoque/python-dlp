@@ -22,7 +22,7 @@ class QNameManager:
     def bind(self,prefix,namespace):
         self.nsMgr.bind(prefix,namespace)
 
-class _SetOperatorSerializer:
+class SetOperator:
     def repr(self,operator):
         return "%s( %s )"%(operator,' '.join([repr(i) for i in self.formulae]))
     
@@ -35,7 +35,7 @@ class Condition:
         for f in self.formulae:
             yield f
 
-class And(QNameManager,_SetOperatorSerializer,Condition):
+class And(QNameManager,SetOperator,Condition):
     """
     CONJUNCTION ::= 'And' '(' CONDITION* ')'
     
@@ -50,7 +50,7 @@ class And(QNameManager,_SetOperatorSerializer,Condition):
     def __repr__(self):
         return self.repr('And')
     
-class Or(QNameManager,_SetOperatorSerializer,Condition):
+class Or(QNameManager,SetOperator,Condition):
     """
     DISJUNCTION ::= 'Or' '(' CONDITION* ')'
     

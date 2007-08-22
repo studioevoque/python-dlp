@@ -7,13 +7,14 @@ from FuXi.Rete.BetaNode import PartialInstanciation, LEFT_MEMORY, RIGHT_MEMORY
 from FuXi.Rete.RuleStore import N3RuleStore
 from FuXi.Rete.Util import renderNetwork,generateTokenSet, xcombine
 from FuXi.DLP import MapDLPtoNetwork, non_DHL_OWL_Semantics
+from FuXi.Syntax.InfixOWL import *
 from rdflib.Namespace import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,URIRef,Literal,Variable
 from rdflib.store import Store
 from cStringIO import StringIO
 from rdflib.Graph import Graph,ReadOnlyGraphAggregate,ConjunctiveGraph
 from rdflib.syntax.NamespaceManager import NamespaceManager
-import unittest, time
+import unittest, time, warnings
 
 RDFLIB_CONNECTION=''
 RDFLIB_STORE='IOMemory'
@@ -33,6 +34,11 @@ Options:
                              'nt','turtle',or 'n3') or to print a summary of the conflict set 
                              (from the RETE network) if the value of this option is
                              'conflict'
+  --man-owl                  If present, either the closure (or just the inferred triples) are serialized 
+                             using an extension of the manchester OWL syntax
+                             with indications for ontology normalization
+                             (http://www.cs.man.ac.uk/~rector/papers/rector-modularisation-kcap-2003-distrib.pdf)
+  --normalize                Will attempt to determine if the ontology is 'normalized' [Rector, A. 2003]                             
   --help
   --input-format=<FORMAT>    Determines the format of the RDF document(s) which
                              serve as the initial facts for the RETE network.
@@ -73,6 +79,8 @@ def main():
                                                       "ns=",
                                                       "facts=", 
                                                       "rules=",
+                                                      "normalize",
+                                                      "man-owl",
                                                       "dlp",
                                                       "stdin",
                                                       "help",
@@ -97,6 +105,8 @@ def main():
     stdIn = False
     closure = False
     dlp = False
+    manOWL = False
+    normalize=False
     if not opts:
         usage()
         sys.exit()        
@@ -107,6 +117,8 @@ def main():
             stdIn = True
         elif o == '--optimize':
             optimize = True            
+        elif o == '--normalize':
+            normalize = True            
         elif o == '--output':
             outMode = a
         elif o == '--ns':            
@@ -114,6 +126,8 @@ def main():
             nsBinds[pref]=nsUri
         elif o == '--graphviz-out':
             gVizOut = a
+        elif o == '--man-owl':
+            manOWL = True
         elif o == "--help":
             usage()
             sys.exit()
@@ -156,7 +170,16 @@ def main():
                               inferredTarget = closureDeltaGraph,
                               graphVizOutFile = gVizOut,
                               nsMap = nsBinds)
+        start = time.time()  
         MapDLPtoNetwork(network,factGraph)
+        sTime = time.time() - start
+        if sTime > 1:
+            sTimeStr = "%s seconds"%sTime
+        else:
+            sTime = sTime * 1000
+            sTimeStr = "%s milli seconds"%sTime
+        print "Time to map Description Horn Logic axioms to definite Horn clauses and import into network: ",sTimeStr
+        print network
     else:
         network = ReteNetwork(ruleStore,
                               inferredTarget = closureDeltaGraph,
@@ -183,13 +206,36 @@ def main():
             print "\t", rhsF
             print "\t\t%s instanciations"%network.instanciations[termNode]
     else:        
-        if closure:
+        if manOWL:
+            cGraph = network.closureGraph(factGraph)
+            cloneGraph = Graph()
+            cloneGraph += cGraph
+            cloneGraph.namespace_manager = namespace_manager
+            Class.factoryGraph = cloneGraph
+            for c in AllClasses(cGraph):#cGraph.subjects(predicate=RDF.type,object=OWL_NS.Class):
+                if normalize:
+                    if c.isPrimitive():
+                        primAnc = [sc for sc in c.subClassOf if sc.isPrimitive()] 
+                        if len(primAnc)>1:
+                            warnings.warn("Branches of primitive skeleton taxonomy should form trees: %s has %s primitive parents"%(c.qname,len(primAnc)),UserWarning,1)
+                        children = [desc for desc in c.subSumpteeIds()]
+                        for child in children:
+                            for otherChild in [o for o in children if o is not child]:
+                                if not otherChild in [c.identifier \
+                                                        for c in Class(child).disjointWith]:
+                                    warnings.warn("Primitive children (of %s) must be mutually disjoint: %s and %s"%(
+                                                                                    c.qname,
+                                                                                    Class(child).qname,
+                                                                                    Class(otherChild).qname),UserWarning,1)
+                if not isinstance(c,BNode):
+                    print c.__repr__(True)
+        elif closure:
             #FIXME: The code below *should* work
             cGraph = network.closureGraph(factGraph)
             cGraph.namespace_manager = namespace_manager
             print cGraph.serialize(destination=None, format=outMode, base=None)
         else:
-            print network.inferredFacts.serialize(destination=None, format=outMode, base=None)            
+            print network.inferredFacts.serialize(destination=None, format=outMode, base=None)
     print >> sys.stderr, repr(network)
     store.rollback()
 

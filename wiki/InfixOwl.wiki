@@ -1,13 +1,19 @@
 #labels Phase-Requirements,Featured,Phase-Implementation
-_[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/ /trunk/InfixOWL/]_
+_[http://python-dlp.googlecode.com/svn/trunk/fuxi/lib/Syntax/ /trunk/python-dlp/fuxi/lib/Syntax/]_
+
+This has been [http://groups.google.com/group/fuxi-discussion/t/ea670004f8b018ec integrated] into FuXi.  
 
 [http://usefulinc.com/doap/ DOAP] file: _[http://python-dlp.googlecode.com/svn/trunk/InfixOWL/InfixOWL.rdf /trunk/InfixOWL/InfixOWL.rdf]_
 
-requires: [http://rdflib.net/ RDFLib] [http://rdflib.net/2.4.0/ 2.4.0] - available: [http://packages.qa.debian.org/r/rdflib.html debian]
 
 = Introduction =
 
 An infix syntax for Python, [http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf Manchester OWL], OWL Abstract [http://www.w3.org/TR/owl-semantics/syntax.html Syntax], and RDF (via RDFLib).
+
+= Computer-based Patient Record Ontology =
+
+An [http://python-dlp.googlecode.com/files/pomr.py example] of building a OWL ontology programmatically via FuXi.Syntax.InfixOWL
+
 
 = GALEN Extract =
 

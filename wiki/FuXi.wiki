@@ -82,7 +82,9 @@ FuXi currently implements production capabilities for a limited subset of Notati
   * Live addition/removal of rules
   * Support for removal of triples / WMEs
 
-In addition, a small script has been used to extract N3 rules and serialize them as RIF BLD's (working draft) plain [http://code.google.com/p/python-dlp/wiki/DLPConcreteSyntax EBNF], for example:
+=== Proof Generation ===
+
+A small script has been used to extract N3 rules and serialize them as RIF BLD's (working draft) plain [http://code.google.com/p/python-dlp/wiki/DLPConcreteSyntax EBNF], for example:
 
 {{{
 { ?x a BURNS. ?x a WOMAN } => { ?x a WITCH }.
@@ -103,7 +105,7 @@ Forall ?y ?x witch:FLOATS(?y) :- And( witch:FLOATS(?x) witch:SAMEWEIGHT(?x ?y) )
 
 and is used to build the following network:
 
-[http://python-dlp.googlecode.com/svn/trunk/fuxi/test/witches.jpg]
+[http://python-dlp.googlecode.com/svn/trunk/fuxi/test/witches.svg http://python-dlp.googlecode.com/svn/trunk/fuxi/test/witches.jpg]
 
 The 3 asserted facts are added to the network with the following (timed) results:
 

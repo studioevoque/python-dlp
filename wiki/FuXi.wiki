@@ -11,6 +11,15 @@ requires: [http://rdflib.net/ RDFLib] [http://rdflib.net/2.4.0/ 2.4.0] - availab
 
 FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 3 Description Logic Programming.  It is implemented as a companion to RDFLib  – which it requires for its various RDF processing.  
 
+= What is With the Name? =
+
+Originally, it was an idea to express the underlying constructs of the Yi Jing / I Ching in Description & First Order Logic in order to reason over them. 
+
+* _[http://copia.ogbuji.net/blog/2007-08-05/why-fuxi Why FuXi?]_
+
+= README =
+
+* [http://python-dlp.googlecode.com/svn/trunk/fuxi/README.txt README]
 
 = Details =
 

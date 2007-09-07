@@ -29,6 +29,7 @@
             <foaf:Person>
                 <foaf:name>Chimezie Ogbuji</foaf:name>
                 <foaf:mbox_sha1sum>03bdc2418c81b738135573b76fd4bd756aa42953</foaf:mbox_sha1sum>
+                <foaf:depiction rdf:resource="http://farm1.static.flickr.com/27/96722527_44eef4c7f2.jpg?v=0"/>
                 <rdfs:seeAlso rdf:resource="http://purl.org/net/chimezie/foaf"/>
             </foaf:Person>
         </maintainer>
@@ -47,6 +48,7 @@
                 <foaf:name>Chimezie Ogbuji</foaf:name>
                 <rdfs:seeAlso rdf:resource="http://purl.org/net/chimezie/foaf"/>
                 <foaf:mbox_sha1sum>03bdc2418c81b738135573b76fd4bd756aa42953</foaf:mbox_sha1sum>
+                <foaf:depiction rdf:resource="http://farm1.static.flickr.com/27/96722527_44eef4c7f2.jpg?v=0"/>
             </foaf:Person>
         </foaf:maker>
     </rdf:Description>    

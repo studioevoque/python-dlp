@@ -13,6 +13,9 @@ FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 
 
 = What is With the Name? =
 
+        In the beginning there was as yet no moral or social order. Men knew their mothers only, not their fathers. When hungry, they searched for food; when satisfied, they threw away the remnants. They devoured their food hide and hair, drank the blood, and clad themselves in skins and rushes. Then came Fu Hsi and looked upward and contemplated the images in the heavens, and looked downward and contemplated the occurrences on earth. He united man and wife, regulated the five stages of change, and laid down the laws of humanity. He devised the eight trigrams, in order to gain mastery over the world.
+
+
 Originally, it was an idea to express the underlying constructs of the Yi Jing / I Ching in Description & First Order Logic in order to reason over them. 
 
 * _[http://copia.ogbuji.net/blog/2007-08-05/why-fuxi Why FuXi?]_

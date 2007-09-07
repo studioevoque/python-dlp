@@ -11,7 +11,7 @@ requires: [http://rdflib.net/ RDFLib] [http://rdflib.net/2.4.0/ 2.4.0] - availab
 
 FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 3 Description Logic Programming.  It is implemented as a companion to RDFLib  – which it requires for its various RDF processing.  
 
-= What is With the Name? =
+= What is with the Name? =
 
         In the beginning there was as yet no moral or social order. Men knew their mothers only, not their fathers. When hungry, they searched for food; when satisfied, they threw away the remnants. They devoured their food hide and hair, drank the blood, and clad themselves in skins and rushes. Then came Fu Hsi and looked upward and contemplated the images in the heavens, and looked downward and contemplated the occurrences on earth. He united man and wife, regulated the five stages of change, and laid down the laws of humanity. He devised the eight trigrams, in order to gain mastery over the world.
 

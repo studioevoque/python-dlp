@@ -82,6 +82,26 @@ FuXi currently implements production capabilities for a limited subset of Notati
   * Live addition/removal of rules
   * Support for removal of triples / WMEs
 
+In addition, a small script has been used to extract N3 rules and serialize them as RIF BLD's (working draft) plain EBNF, for example:
+
+{{{
+{ ?x a BURNS. ?x a WOMAN } => { ?x a WITCH }.
+{ ?x a ISMADEOFWOOD. } => { ?x a BURNS. }.
+{ ?x a FLOATS } => { ?x a ISMADEOFWOOD }.
+{ ?x a FLOATS. ?x SAMEWEIGHT ?y } => { ?y a FLOATS }.
+}}}
+
+becomes
+
+{{{
+Forall ?x witch:WITCH(?x) :- And( witch:BURNS(?x) witch:WOMAN(?x) )
+Forall ?x witch:BURNS(?x) :- witch:ISMADEOFWOOD(?x)
+Forall ?x witch:ISMADEOFWOOD(?x) :- witch:FLOATS(?x)
+Forall ?y ?x witch:FLOATS(?y) :- And( witch:FLOATS(?x) witch:SAMEWEIGHT(?x ?y) )
+}}}
+
+see: 
+
 === Installation ===
 
 Fuxi is now setuptools integrated and can be installed via:

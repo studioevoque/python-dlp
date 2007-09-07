@@ -250,6 +250,8 @@ The goal is to put a _tracer_ on a fact as it is evaluated (killing the conflict
          :source <test/reason/witch.n3> .
 }}}
 
+per Dan's [http://dig.csail.mit.edu/breadcrumbs/node/179 success] with CWM.
+
 === Installation ===
 
 Fuxi is now setuptools integrated and can be installed via:

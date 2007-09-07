@@ -125,7 +125,7 @@ Time to calculate closure on working memory:  29.7100543976 milli seconds
 
 }}}
 
-The goal is to put a _tracer_ on a fact as it is evaluated (killing the conflict set generation cycle in the process - so this is less efficient than [http://dig.csail.mit.edu/breadcrumbs/node/179 backward chaining] (Jos)).  Each terminal node is embedded with a [http://www.w3.org/TR/rif-core/#head-c8a8b9971adf36d94fc63cc675bb451a719f934e Clause] which is added to list of tokens which keep identity as they exit and re-enter the network.  We want to output the following N3:
+The goal is to put a _tracer_ on a fact as it is evaluated (killing the conflict set generation cycle when the goal ( WITCH(witch:GIRL) ) is inferred - so this is less efficient than [http://dig.csail.mit.edu/breadcrumbs/node/179 backward chaining] (Jos)).  Each terminal node is embedded with a [http://www.w3.org/TR/rif-core/#head-c8a8b9971adf36d94fc63cc675bb451a719f934e Clause] which is added to list of tokens which keep identity as they exit and re-enter the network.  We want to output the following N3:
 
 {{{
 #   Base was: file:///home/connolly/w3ccvs/WWW/2000/10/swap/.run-1167793172.967557p6477

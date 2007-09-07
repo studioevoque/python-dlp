@@ -82,7 +82,7 @@ FuXi currently implements production capabilities for a limited subset of Notati
   * Live addition/removal of rules
   * Support for removal of triples / WMEs
 
-In addition, a small script has been used to extract N3 rules and serialize them as RIF BLD's (working draft) plain EBNF, for example:
+In addition, a small script has been used to extract N3 rules and serialize them as RIF BLD's (working draft) plain [http://code.google.com/p/python-dlp/wiki/DLPConcreteSyntax EBNF], for example:
 
 {{{
 { ?x a BURNS. ?x a WOMAN } => { ?x a WITCH }.

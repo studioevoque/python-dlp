@@ -1,4 +1,4 @@
-#This is summary of an attempt to generate a proof from a particular test case
+This is summary of an attempt to generate a proof from a particular test case
 
 = Introduction =
 

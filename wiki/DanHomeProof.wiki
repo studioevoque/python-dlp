@@ -67,6 +67,8 @@ r:boundTo [ n3:uri "file://temp/gmpbnode#Texas"]];
 
 http://python-dlp.googlecode.com/files/dan.png
 
+Each Proof Step is a [http://dig.csail.mit.edu/2005/ajar/ajaw/tab?uri=http://inferenceweb.stanford.edu/2004/07/iw.owl#NodeSet NodeSet] and each justification (the range of the 'is consequence of' relation) is a [http://dig.csail.mit.edu/2005/ajar/ajaw/tab?uri=http://inferenceweb.stanford.edu/2004/07/iw.owl#InferenceStep InferenceStep]
+
 = RETE-UL Network =
 
 http://python-dlp.googlecode.com/files/dan_network.png

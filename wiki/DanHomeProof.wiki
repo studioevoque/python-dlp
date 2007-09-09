@@ -6,6 +6,53 @@ This is built around the test scenario described [http://lists.w3.org/Archives/P
 
 The diagrams below are rendered by FuXi, using its BGL Python binding library to render the proof and the RETE-UL network used to perform forward-chaining.  This experimental code will soon  be merged into FuXi
 
+= Euler Proof =
+
+For reference, below is the reason.n3 proof [http://lists.w3.org/Archives/Public/public-cwm-talk/2007JanMar/0004.html generated] via euler:
+
+{{{
+[ a r:Proof, r:Conjunction;
+  r:component [ a r:Inference; r:gives {:dan :homeRegion :Texas}; 
+r:evidence (
+    [ a r:Extraction; r:gives {:dan :homeRegion :Texas}; r:because [ a 
+r:Inference; r:gives {:dan :homeRegion :Texas}; r:evidence (
+      [ a r:Extraction; r:gives {@forSome var:e24637076_40_. :dan :home 
+var:e24637076_40_}; r:because [ a r:Parsing; r:source 
+<file://temp/gmpbnode2.n3>]]
+      [ a r:Extraction; r:gives {@forSome var:e24637076_40_. 
+var:e24637076_40_ :in :Texas}; r:because [ a r:Inference; r:gives 
+{@forSome var:e24637076_40_. var:e24637076_40_ :in :Texas}; r:evidence (
+        [ a r:Extraction; r:gives {@forSome var:e24637076_40_. :dan :home 
+var:e24637076_40_}; r:because [ a r:Parsing; r:source 
+<file://temp/gmpbnode2.n3>]]);
+        r:binding [ r:variable [ n3:uri "http://localhost/var#WHERE"]; 
+r:boundTo [ a r:Existential; n3:nodeId 
+"http://localhost/var#e24637076_40_"]]; 
+        r:rule [ a r:Extraction; r:gives {@forAll var:WHERE. {:dan :home 
+var:WHERE} => {var:WHERE :in :Texas}. }; r:because [ a r:Parsing; r:source 
+<file://temp/gmpbnode2.n3>]]]]);
+      r:binding [ r:variable [ n3:uri "http://localhost/var#WHO"]; 
+r:boundTo [ n3:uri "file://temp/gmpbnode#dan"]]; 
+      r:binding [ r:variable [ n3:uri "http://localhost/var#WHERE"]; 
+r:boundTo [ a r:Existential; n3:nodeId 
+"http://localhost/var#e24637076_40_"]]; 
+      r:binding [ r:variable [ n3:uri "http://localhost/var#REGION"]; 
+r:boundTo [ n3:uri "file://temp/gmpbnode#Texas"]]; 
+      r:rule [ a r:Extraction; r:gives {@forAll 
+var:WHO,var:WHERE,var:REGION. {var:WHO :home var:WHERE. var:WHERE :in 
+var:REGION} => {var:WHO :homeRegion var:REGION}. }; r:because [ a 
+r:Parsing; r:source <file://temp/gmpbnode2.n3>]]]]);
+    r:binding [ r:variable [ n3:uri "http://localhost/var#WHO"]; r:boundTo 
+[ n3:uri "file://temp/gmpbnode#dan"]]; 
+    r:binding [ r:variable [ n3:uri "http://localhost/var#REGION"]; 
+r:boundTo [ n3:uri "file://temp/gmpbnode#Texas"]]; 
+    r:rule [ a r:Extraction; r:gives {@forAll var:WHO,var:REGION. {var:WHO 
+:homeRegion var:REGION} => {var:WHO :homeRegion var:REGION}. }; r:because 
+[ a r:Parsing; r:source <temp/gmpbnodeF.n3>]]];
+  r:gives {
+    :dan :homeRegion :Texas.}].
+}}}
+
 = Rendered Proof =
 
 http://python-dlp.googlecode.com/files/dan.png

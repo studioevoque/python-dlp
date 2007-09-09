@@ -1,0 +1,36 @@
+#This is summary of an attempt to generate a proof from a particular test case
+
+= Introduction =
+
+This is built around the test scenario described [http://lists.w3.org/Archives/Public/public-cwm-talk/2007JanMar/0003.html here]
+
+= RETE-UL Network =
+
+
+= Details =
+
+The console (while extracting proof from a goal and the evaluated RETE-UL network):
+
+{{{
+Forall ?REGION ?WHO ?WHERE dan:homeRegion(?WHO ?REGION) :- And( dan:home(?WHO ?WHERE) dan:in(?WHERE ?REGION) )
+Forall ?WHERE dan:in(?WHERE dan:Texas) :- dan:home(dan:dan ?WHERE)
+Time to build production rule (RDFLib): 0.00168204307556 seconds
+[]
+<Network: 2 rules, 6 nodes, 4 tokens in working memory, 2 inferred tokens>
+Time to calculate closure on working memory:  9.73010063171 milli seconds
+## Going in ##
+[]
+[dan:Man(dan:dan), dan:home(dan:dan _:TidWPjhF74)]
+## Coming out ##
+[dan:homeRegion(dan:dan dan:Texas), dan:in(_:TidWPjhF65 dan:Texas)]
+goal  _4:homeRegion(_4:dan _4:Texas)
+<Network: 2 rules, 6 nodes, 4 tokens in working memory, 2 inferred tokens>
+Building nodeset around goal:  _4:homeRegion(_4:dan _4:Texas)
+Building inference step for  Proof step for _4:homeRegion(_4:dan _4:Texas)
+Inferred from <TerminalNode : CommonVariables: [?WHERE] (1 in left, 1 in right memories)> via _4:homeRegion(?WHO ?REGION) :- And( _4:home(?WHO ?WHERE) _4:in(?WHERE ?REGION) )
+Building nodeset around goal:  _4:in(_:TidWPjhF65 _4:Texas)
+Building inference step for  Proof step for _4:in(_:TidWPjhF65 _4:Texas)
+Inferred from <TerminalNode (pass-thru): CommonVariables: [?WHERE] (0 in left, 1 in right memories)> via _4:in(?WHERE _4:Texas) :- _4:home(_4:dan ?WHERE)
+Building nodeset around goal (justified by a direct assertion):  _4:home(_4:dan _:TidWPjhF65)
+Building nodeset around goal (justified by a direct assertion):  _4:home(_4:dan _:TidWPjhF65)
+}}}

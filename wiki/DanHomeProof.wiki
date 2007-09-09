@@ -4,8 +4,13 @@ This is summary of an attempt to generate a proof from a particular test case
 
 This is built around the test scenario described [http://lists.w3.org/Archives/Public/public-cwm-talk/2007JanMar/0003.html here]
 
+= Rendered Proof =
+
+http://python-dlp.googlecode.com/files/dan.png
+
 = RETE-UL Network =
 
+http://python-dlp.googlecode.com/files/dan_network.png
 
 = Details =
 

@@ -14,7 +14,7 @@ dan home [ in Texas ].
   ?WHERE in ?REGION } => { ?WHO homeRegion ?REGION }.
 }}}
 
-The diagrams below are rendered by FuXi, using its BGL Python binding library to render the proof and the RETE-UL network used to perform forward-chaining.  This experimental code will soon  be merged into FuXi.  The diagram is annotated with the RIF BLD syntax ( see: DLPConcreteSyntax )
+The diagrams below are rendered by FuXi, using its BGL Python binding library to render the proof and the RETE-UL network used to perform forward-chaining.  This experimental code will soon  be merged into FuXi.  The diagram is annotated with the [DLPConcreteSyntax  RIF BLD] syntax
 
 = Euler Proof =
 

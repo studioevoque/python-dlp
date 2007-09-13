@@ -307,8 +307,11 @@ class Ontology(AnnotatibleTerms):
     imports = property(_get_imports, _set_imports)
 
 def AllClasses(graph):
+    prevClasses=set()
     for c in graph.subjects(predicate=RDF.type,object=OWL_NS.Class):
-        yield Class(c)
+        if c not in prevClasses:
+            prevClasses.add(c)
+            yield Class(c)            
     
 def CastClass(c,graph):
 #    for kind in graph.triples_choices((classOrIdentifier(c),
@@ -471,6 +474,17 @@ class Class(AnnotatibleTerms):
             return
         self.graph.add((self.identifier,OWL_NS.complementOf,classOrIdentifier(other)))
     complementOf = property(_get_complementOf, _set_complementOf)
+
+    def _get_seeAlso(self):
+        for ec in self.graph.objects(subject=self.identifier,predicate=RDFS.seeAlso):
+            yield Class(ec,graph=self.graph)
+                
+    def _set_seeAlso(self, others):
+        if not others:
+            return
+        for link in others:
+            self.graph.add((self.identifier,RDFS.seeAlso,link))
+    seeAlso = property(_get_seeAlso, _set_seeAlso)
     
 #    def __str__(self):
 #        return str(self.identifier)
@@ -687,7 +701,8 @@ class Restriction(Class):
         super(Restriction, self).__init__(identifier and identifier or BNode(),
                                           graph=graph,
                                           skipOWLClassMembership=True)
-        assert (self.identifier,OWL_NS.onProperty,propertyOrIdentifier(onProperty)) in graph,repr(onProperty)
+        if (self.identifier,OWL_NS.onProperty,propertyOrIdentifier(onProperty)) not in graph:
+            graph.add((self.identifier,OWL_NS.onProperty,propertyOrIdentifier(onProperty)))
         self.onProperty = onProperty
         restrTypes = [
                       (allValuesFrom,OWL_NS.allValuesFrom ),
@@ -916,7 +931,7 @@ class Property(AnnotatibleTerms):
         if not ranges:
             return        
         for range in ranges:
-            self.graph.add((self.identifier,RDFS.domain,classOrIdentifier(range)))
+            self.graph.add((self.identifier,RDFS.range,classOrIdentifier(range)))
     range = property(_get_range, _set_range)
         
 def test():

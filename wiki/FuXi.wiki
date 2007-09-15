@@ -20,13 +20,21 @@ Originally, it was an idea to express the underlying constructs of the Yi Jing /
 
 * _[http://copia.ogbuji.net/blog/2007-08-05/why-fuxi Why FuXi?]_
 
-= README =
+= README =0.85b.dev-r23
 
 * [http://python-dlp.googlecode.com/svn/trunk/fuxi/README.txt README]
 
 = Details =
 
   * FuXi is now [http://python-dlp.googlecode.com/svn/trunk/fuxi/ part] of the python-dlp SVN source tree
+
+== Packages ==
+
+  * Rete.Network: Rete network
+  * Rete.Proof: Proof generation / serialization
+  * Rete.DLP: Description Logic Programming core
+  * Horn: RIF Horn rules core API
+  * Syntax.InfixOWL: InfixOWL API
 
 === Background of RETE and RETE/UL Algorithms ===
 
@@ -137,3 +145,4 @@ Options:
   ---ruleFacts               Determines whether or not to attempt to parse 
                              initial facts from the rule graph.  Default by default
 }}}
+ 

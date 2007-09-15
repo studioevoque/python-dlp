@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from pprint import pprint
 from sets import Set
+from FuXi.Rete.Proof import GenerateProof
 from FuXi.Rete import ReteNetwork
 from FuXi.Rete.AlphaNode import SUBJECT,PREDICATE,OBJECT,VARIABLE
 from FuXi.Rete.BetaNode import PartialInstanciation, LEFT_MEMORY, RIGHT_MEMORY
@@ -33,7 +34,12 @@ Options:
                              to STDOUT using the specified RDF syntax ('xml','pretty-xml',
                              'nt','turtle',or 'n3') or to print a summary of the conflict set 
                              (from the RETE network) if the value of this option is
-                             'conflict'
+                             'conflict'.  If the DLP mechanism is invoked (via --dlp) then
+                             a value of 'rif' will cause the generated ruleset to be rendered
+                             in the RIF format.  If the proof generation mechanism is
+                             activated then a value of 'pml' will trigger a serialization
+                             of the proof in PML. 
+                             
   --man-owl                  If present, either the closure (or just the inferred triples) are serialized 
                              using an extension of the manchester OWL syntax
                              with indications for ontology normalization
@@ -71,12 +77,18 @@ Options:
                              semantics outside DHL but which can be expressed in
                              definite Datalog Logic Programming.  The DHL-compiled 
                              ruleset and the extensions are mapped into a RETE-UL 
-                             Network for evaluateion."""    
+                             Network for evaluateion.
+   --proove                  A N3 string consisting of a single RDF assertion to proove
+                             against the rules and facts provided.  Depending on the 
+                             --output switch, the proof can be rendered as a Graphviz dot
+                             graph, as a PML proof document, or in a human-readable printout                           
+"""    
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], "", ["optimize",
                                                       "output=",
                                                       "ns=",
+                                                      "proove=",
                                                       "facts=", 
                                                       "rules=",
                                                       "normalize",
@@ -93,13 +105,13 @@ def main():
         print e
         usage()
         sys.exit(2)
-
+    proove=None
     factGraphs = args
     ruleGraphs = []
     factFormat = 'xml'
     useRuleFacts = False
     gVizOut = None
-    nsBinds = {}
+    nsBinds = {'iw':'http://inferenceweb.stanford.edu/2004/07/iw.owl#'}
     outMode = 'n3'
     optimize = False
     stdIn = False
@@ -139,6 +151,9 @@ def main():
             useRuleFacts = True
         elif o == '--closure':
             closure = True
+        elif o == '--proove':
+            proove=a
+            
     store = plugin.get(RDFLIB_STORE,Store)()        
     store.open(RDFLIB_CONNECTION)
     
@@ -165,21 +180,28 @@ def main():
         factGraph.parse(sys.stdin,format=factFormat)
     workingMemory = generateTokenSet(factGraph)
     if dlp:
-        ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
+        #ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
         network = ReteNetwork(ruleStore,
                               inferredTarget = closureDeltaGraph,
                               graphVizOutFile = gVizOut,
                               nsMap = nsBinds)
+        print >>sys.stderr,"Building DLP ruleset"
         start = time.time()  
-        MapDLPtoNetwork(network,factGraph)
+        rules=MapDLPtoNetwork(network,factGraph)
         sTime = time.time() - start
         if sTime > 1:
             sTimeStr = "%s seconds"%sTime
         else:
             sTime = sTime * 1000
             sTimeStr = "%s milli seconds"%sTime
-        print "Time to map Description Horn Logic axioms to definite Horn clauses and import into network: ",sTimeStr
-        print network
+        print >>sys.stderr,"Time to map Description Horn Logic axioms to definite Horn clauses and import into network: ",sTimeStr
+        print >>sys.stderr,network
+        if outMode == 'rif':
+            for rule in rules:
+                print rule
+        elif outMode == 'n3':
+            for rule in rules:
+                print rule.n3()
     else:
         network = ReteNetwork(ruleStore,
                               inferredTarget = closureDeltaGraph,
@@ -194,17 +216,17 @@ def main():
     else:
         sTime = sTime * 1000
         sTimeStr = "%s milli seconds"%sTime
-    print "Time to calculate closure on working memory: ",sTimeStr
+    print >>sys.stderr,"Time to calculate closure on working memory: ",sTimeStr
         
     if outMode == 'conflict':
         tNodeOrder = [tNode for tNode in network.terminalNodes if network.instanciations[tNode]]
         tNodeOrder.sort(key=lambda x:network.instanciations[x],reverse=True)
         for termNode in tNodeOrder:
             lhsF,rhsF = termNode.ruleFormulae
-            print termNode
+            print >>sys.stderr,termNode
             #print "\t %s => %s"%(lhsF,rhsF)
-            print "\t", rhsF
-            print "\t\t%s instanciations"%network.instanciations[termNode]
+            print >>sys.stderr,"\t", rhsF
+            print >>sys.stderr,"\t\t%s instanciations"%network.instanciations[termNode]
     else:        
         if manOWL:
             cGraph = network.closureGraph(factGraph)
@@ -217,12 +239,14 @@ def main():
                     if c.isPrimitive():
                         primAnc = [sc for sc in c.subClassOf if sc.isPrimitive()] 
                         if len(primAnc)>1:
-                            warnings.warn("Branches of primitive skeleton taxonomy should form trees: %s has %s primitive parents"%(c.qname,len(primAnc)),UserWarning,1)
+                            warnings.warn("Branches of primitive skeleton taxonomy should form trees: %s has %s primitive parents: %s"%(c.qname,
+                                                                                                                                        len(primAnc),
+                                                                                                                                        primAnc),UserWarning,1)
                         children = [desc for desc in c.subSumpteeIds()]
                         for child in children:
                             for otherChild in [o for o in children if o is not child]:
-                                if not otherChild in [c.identifier \
-                                                        for c in Class(child).disjointWith]:
+                                if not otherChild in [c.identifier for c in Class(child).disjointWith]:# and\
+                                   #not child in [c.identifier for c in Class(otherChild).disjointWith]:
                                     warnings.warn("Primitive children (of %s) must be mutually disjoint: %s and %s"%(
                                                                                     c.qname,
                                                                                     Class(child).qname,
@@ -234,10 +258,27 @@ def main():
             cGraph = network.closureGraph(factGraph)
             cGraph.namespace_manager = namespace_manager
             print cGraph.serialize(destination=None, format=outMode, base=None)
-        else:
+        elif proove:
+            goalGraph=Graph()
+            goalGraph.parse(StringIO(proove),format='n3')
+            print proove,len(goalGraph)
+            assert len(goalGraph),"Empty goal!"
+            goal=list(goalGraph)[0]
+            builder,proof=GenerateProof(network,goal)
+            if outMode == 'dot':
+                builder.renderProof(proof).write_graphviz('proof.dot')
+            elif outMode == 'pml':
+                proofGraph=Graph()
+                proofGraph.namespace_manager = namespace_manager
+                builder.serialize(proof,proofGraph)
+                print proofGraph.serialize(format='pretty-xml')                
+            else:
+                for step in builder.trace:
+                    print step
+        elif not outMode =='rif':
             print network.inferredFacts.serialize(destination=None, format=outMode, base=None)
+        
     print >> sys.stderr, repr(network)
     store.rollback()
-
 if __name__ == "__main__":
     main()

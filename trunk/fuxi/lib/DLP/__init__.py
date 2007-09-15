@@ -72,8 +72,9 @@ from rdflib.Graph import QuotedGraph, Graph
 from rdflib.store.REGEXMatching import REGEXTerm, NATIVE_REGEX, PYTHON_REGEX
 from FuXi.Rete.RuleStore import Formula
 from FuXi.Rete.AlphaNode import AlphaNode
-from FuXi.Horn.PositiveConditions import And, Or, Uniterm, Condition, Atomic,SetOperator
-from FuXi.Horn.HornRules import Clause
+from FuXi.Horn.PositiveConditions import And, Or, Uniterm, Condition, Atomic,SetOperator,Exists
+from FuXi.Horn.HornRules import Clause,Rule
+from FuXi.Rete.Util import renderNetwork
 from cStringIO import StringIO
 
 non_DHL_OWL_Semantics=\
@@ -179,7 +180,16 @@ class Clause:
     def __repr__(self):
         return "%r :- %r"%(self.head,self.body)
 
+def makeRule(clause,nsMap):
+    vars=set()
+    for condition in [clause.head,clause.body]:
+        for child in condition:
+            assert isinstance(child,Uniterm),repr(child)
+            vars.update([term for term in child.toRDFTuple() if isinstance(term,Variable)])
+    return Rule(clause,declare=vars,nsMapping=nsMap)
+
 def MapDLPtoNetwork(network,factGraph):
+    ruleset=[]
     for horn_clause in T(factGraph):
 #        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
 #        print "## RIF BLD Horn Rules: After LloydTopor: ##"
@@ -197,14 +207,20 @@ def MapDLPtoNetwork(network,factGraph):
                 for item in disj:
                     #replace disj with item in tx_horn_clause.body
                     list(breadth_first_replace(tx_horn_clause.body,candidate=disj,replacement=item))
-                    ExtendN3Rules(network,NormalizeClause(tx_horn_clause))
+#                    print tx_horn_clause
+                    for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause)):
+                        ruleset.append(makeRule(hc,network.nsMap))
                     #restore
                     for item in breadth_first_replace(tx_horn_clause.body,candidate=item,replacement=disj):
                         pass
             else:
-                #print tx_horn_clause
-                ExtendN3Rules(network,NormalizeClause(tx_horn_clause))            
+#                print tx_horn_clause
+                for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause)):
+                    ruleset.append(makeRule(hc,network.nsMap))                    
+            #Extract free variables anre add rule to ruleset
 #        print "#######################"
+    #renderNetwork(network).write_graphviz('out.dot')
+    return ruleset
 
 def IsaFactFormingConclusion(head):
     """
@@ -226,6 +242,7 @@ def IsaFactFormingConclusion(head):
     elif isinstance(head,Clause):
         return False
     else:
+        print head
         raise
 
 def traverseClause(condition):
@@ -286,12 +303,13 @@ def ExtendN3Rules(network,horn_clause):
     """
     Extends the network with the given Horn clause (rule)
     """
+    rt=[]
     ruleStore = network.ruleStore
     lhs = BNode()
     rhs = BNode()
     assert isinstance(horn_clause.body,(And,Uniterm)),list(horn_clause.body)
     assert len(list(horn_clause.body))
-    #print horn_clause
+#    print horn_clause
     for term in horn_clause.body:
         ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
     assert isinstance(horn_clause.head,(And,Uniterm))
@@ -300,19 +318,35 @@ def ExtendN3Rules(network,horn_clause):
 #                   for c in conjuncts])
     #print horn_clause
     if IsaFactFormingConclusion(horn_clause.head):
+        def extractBNodes(term):
+            if isinstance(term,BNode):
+                yield term
+            elif isinstance(term,Uniterm):
+                for t in term.toRDFTuple():
+                    if isinstance(t,BNode):
+                        yield t
+        exist=[list(extractBNodes(i)) for i in breadth_first(horn_clause.head)]
+        e=Exists(formula=horn_clause.head,
+                 declare=set(reduce(lambda x,y:x+y,exist,[])))        
+        if reduce(lambda x,y:x+y,exist):
+            horn_clause.head=e
+            assert e.declare,exist
         for term in horn_clause.head:
             assert not hasattr(term,'next')
-        ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term.toRDFTuple())
+            ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term.toRDFTuple())
         ruleStore.rules.append((ruleStore.formulae[lhs],ruleStore.formulae[rhs]))
         network.buildNetwork(iter(ruleStore.formulae[lhs]),
                              iter(ruleStore.formulae[rhs]),
-                             ruleStore.formulae[lhs],
-                             ruleStore.formulae[rhs])
+                             horn_clause)
         network.alphaNodes = [node for node in network.nodes.values() if isinstance(node,AlphaNode)]
+        rt.append(horn_clause)
     else:
         for hC in LloydToporTransformation(horn_clause,fullReduction=True):
+            rt.append(hC)
             #print "normalized clause: ", hC
-            ExtendN3Rules(network,hC)
+            for i in ExtendN3Rules(network,hC):
+                rt.append(hC)
+    return rt
 
 def generatorFlattener(gen):
     assert hasattr(gen,'next')
@@ -337,7 +371,7 @@ def T(owlGraph):
                                      T(rdfs:subClassOf(D,C) }
     
     A generator over the Logic Programming rules which correspond
-    to the DL subsumption axiom denoted via rdfs:subClassOf
+    to the DL subsumption axiom described via rdfs:subClassOf
     """
     for c,p,d in owlGraph.triples((None,RDFS.subClassOf,None)):
         yield NormalizeClause(Clause(Tb(owlGraph,c),Th(owlGraph,d)))

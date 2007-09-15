@@ -13,6 +13,9 @@ from rdflib.syntax.NamespaceManager import NamespaceManager
 
 OWL    = Namespace("http://www.w3.org/2002/07/owl#")
 
+def buildUniTerm((s,p,o),newNss=None):
+    return Uniterm(p,[s,o],newNss=newNss)
+
 class QNameManager:
     def __init__(self,nsDict=None):
         self.nsDict = nsDict and nsDict or {}
@@ -25,7 +28,8 @@ class QNameManager:
 class SetOperator:
     def repr(self,operator):
         return "%s( %s )"%(operator,' '.join([repr(i) for i in self.formulae]))
-    
+    def __len__(self):
+        return len(self.formulae)
 
 class Condition:
     """
@@ -46,6 +50,15 @@ class And(QNameManager,SetOperator,Condition):
     def __init__(self,formulae=None):
         self.formulae = formulae and formulae or []
         QNameManager.__init__(self)
+        
+    def n3(self):
+        """
+        >>> And([Uniterm(RDF.type,[RDFS.comment,RDF.Property]),
+        ...      Uniterm(RDF.type,[OWL.Class,RDFS.Class])]).n3()
+        u'rdfs:comment a rdf:Property. owl:Class a rdfs:Class.'
+        
+        """
+        return u' '.join([i.n3() for i in self])
         
     def __repr__(self):
         return self.repr('And')
@@ -77,7 +90,13 @@ class Exists(Condition):
         self.formula = formula
         self.declare = declare and declare or []    
     def __iter__(self):
-        yield self.formula
+        for term in self.formula: 
+            yield term
+    def n3(self):
+        """
+        """
+        return u"@forSome %s %s"%(','.join(self.declare),self.formula.n3())
+    
     def __repr__(self):
         return "Exists %s ( %r )"%(' '.join([var.n3() for var in self.declare]),
                                    self.formula )
@@ -122,22 +141,41 @@ class Uniterm(QNameManager,Atomic):
         self.arg = arg and arg or []
         QNameManager.__init__(self)
         if newNss is not None:
+            newNss = isinstance(newNss,dict) and newNss.items() or newNss
             for k,v in newNss:
                 self.nsMgr.bind(k,v)
+        
+    def n3(self):
+        """
+        Serialize as N3 (using available namespace managers)
+        
+        >>> Uniterm(RDF.type,[RDFS.comment,RDF.Property]).n3()
+        'rdfs:comment a rdf:Property.'
+
+        """
+        g=Graph(namespace_manager=self.nsMgr)
+        g.add((self.arg[0],self.op,self.arg[1]))
+        return ' '.join(g.serialize(format='n3').split(' ')[-4:-1])
         
     def toRDFTuple(self):
         subject,_object = self.arg
         return (subject,self.op,_object)
         
+    def collapseName(self,val):
+        try:
+            return self.nsMgr.qname(val)
+        except:
+            return val
+        
     def __repr__(self):
         arg0,arg1 = self.arg
         pred = isinstance(self.op,Variable) and self.op.n3() or \
-               self.nsMgr.qname(self.op)
+               self.collapseName(self.op)
         subj = isinstance(arg0,(Variable,BNode)) and arg0.n3() or \
-               self.nsMgr.qname(arg0)
+               self.collapseName(arg0)
         obj  = isinstance(arg1,(Variable,BNode)) and arg1.n3() or \
-               self.nsMgr.qname(arg1)
-        if self.op is RDF.type:
+               self.collapseName(arg1)    
+        if self.op == RDF.type:
             return "%s(%s)"%(obj,subj)
         else:
             return "%s(%s %s)"%(pred,

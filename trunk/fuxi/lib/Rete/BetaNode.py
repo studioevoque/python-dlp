@@ -597,6 +597,7 @@ class BetaNode(Node):
     Set([<PartialInstanciation (joined on ?X): Set([<ReteToken: Z->urn:uuid:Bar,W->urn:uuid:Beezle>, <ReteToken: X->urn:uuid:Foo>, <ReteToken: X->urn:uuid:Foo,Y->urn:uuid:Baz>])>, <PartialInstanciation (joined on ?X): Set([<ReteToken: Z->urn:uuid:Bar,W->urn:uuid:Bundle>, <ReteToken: X->urn:uuid:Foo>, <ReteToken: X->urn:uuid:Foo,Y->urn:uuid:Baz>])>])
     """
     def __init__(self,leftNode,rightNode,aPassThru=False):
+        self.instanciatingTokens = set()
         self.aPassThru = aPassThru 
         self.name = BNode()
         self.network = None

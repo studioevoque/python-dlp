@@ -11,12 +11,14 @@ This work is licensed under the Creative Commons Attribution-NonCommercial-Share
 To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/2.5/ 
 or send a letter to Creative Commons, 543 Howard Street, 5th Floor, San Francisco, California, 94105, USA.    
 """
-import time
+import time,sys
 from sets import Set
 from pprint import pprint
 from Util import xcombine
 from BetaNode import BetaNode, LEFT_MEMORY, RIGHT_MEMORY, PartialInstanciation
 from AlphaNode import AlphaNode, ReteToken, SUBJECT, PREDICATE, OBJECT, BuiltInAlphaNode
+from FuXi.Horn.HornRules import Clause, Ruleset
+from FuXi.Horn.PositiveConditions import Uniterm, SetOperator
 #from FuXi.Rete.RuleStore import N3Builtin
 from Util import generateTokenSet,renderNetwork
 from rdflib import Variable, BNode, URIRef, Literal, Namespace,RDF,RDFS
@@ -117,18 +119,25 @@ def _mulPatternWithSubstitutions(tokens,consequent,termNode):
                 else:                    
                     tripleVals.append(term)
             success = True
-            yield tuple(tripleVals)
+            yield tuple(tripleVals),binding
         else:
             return
 
-class ReteNetwork:      
+class ReteNetwork:
     """
     The Rete network.  The constructor takes an N3 rule graph, an identifier (a BNode by default), an 
     initial Set of Rete tokens that serve as the 'working memory', and an rdflib Graph to 
     add inferred triples to - by forward-chaining via Rete evaluation algorithm), 
     """
-    def __init__(self,ruleStore,name = None,initialWorkingMemory = None, inferredTarget = None,nsMap = {},graphVizOutFile=None):
-        from BuiltinPredicates import FILTERS        
+    def __init__(self,ruleStore,name = None,
+                 initialWorkingMemory = None, 
+                 inferredTarget = None,
+                 nsMap = {},
+                 graphVizOutFile=None,
+                 dontFinalize=False,
+                 goal=None):
+        from BuiltinPredicates import FILTERS
+        self.goal = goal        
         self.nsMap = nsMap
         self.name = name and name or BNode()
         self.nodes = {}
@@ -144,28 +153,32 @@ class ReteNetwork:
         self.instanciations = {}        
         start = time.time()
         self.ruleStore=ruleStore
-        self.ruleStore._finalize()
+        self.justifications = {}
+        self.dischargedBindings = {}
+        if not dontFinalize:
+            self.ruleStore._finalize()
         #self.ruleStore.optimizeRules()
         
         #'Universal truths' for a rule set are rules where the LHS is empty.  
         # Rather than automatically adding them to the working set, alpha nodes are 'notified'
         # of them, so they can be checked for while performing inter element tests.
         self.universalTruths = []
-        for lhs,rhs in self.ruleStore.rules:
-            if not len(lhs):
-                #If LHS is empty, then add to 'default' conflict set
-                self.universalTruths.extend(list(rhs))
-                continue
-            self.buildNetwork(iter(lhs),iter(rhs),lhs,rhs)
+        rs=Ruleset(n3StoreSrc=self.ruleStore.rules,nsMapping=self.nsMap)
+        for rule in rs:
+            if isinstance(rule.formula.body,SetOperator) and not len(rule.formula.body):
+                raise
+            self.buildNetwork(iter(rule.formula.body),
+                              iter(rule.formula.head),
+                              rule.formula)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
         self._setupDefaultRules()
-        print "Time to build production rule (RDFLib): %s seconds"%(time.time() - start)
+        print >>sys.stderr,"Time to build production rule (RDFLib): %s seconds"%(time.time() - start)
         if initialWorkingMemory:            
             start = time.time()          
             self.feedFactsToAdd(initialWorkingMemory)
-            print "Time to calculate closure on working memory: %s m seconds"%((time.time() - start) * 1000)            
+            print >>sys.stderr,"Time to calculate closure on working memory: %s m seconds"%((time.time() - start) * 1000)            
         if graphVizOutFile:
-            print "Writing out RETE network to ", graphVizOutFile
+            print >>sys.stderr,"Writing out RETE network to ", graphVizOutFile
             renderNetwork(self,nsMap=nsMap).write_graphviz(graphVizOutFile)
 
     def __repr__(self):
@@ -216,13 +229,16 @@ class ReteNetwork:
             print "%s from %s"%(tokens,termNode)
 
         newTokens = []
+        termNode.instanciatingTokens.add(tokens)
         for rhsTriple in termNode.consequent:
             if debug:
                 if not tokens.bindings:
                     tokens._generateBindings()
-            for inferredTriple in _mulPatternWithSubstitutions(tokens,rhsTriple,termNode):
-                #print inferredTriple, rhsTriple
+            for inferredTriple,binding in _mulPatternWithSubstitutions(tokens,rhsTriple,termNode):
+                #print inferredTriple
                 if inferredTriple not in self.inferredFacts and ReteToken(inferredTriple) not in self.workingMemory:
+                    self.dischargedBindings[inferredTriple]=binding
+                    self.justifications.setdefault(inferredTriple,set()).add(termNode)
                     currIdx = self.instanciations.get(termNode,0)
                     currIdx+=1
                     self.instanciations[termNode] = currIdx
@@ -230,6 +246,8 @@ class ReteNetwork:
                         print "Inferred triple: ", inferredTriple, " from ",termNode 
                     self.inferredFacts.add(inferredTriple)
                     self.addWME(ReteToken(inferredTriple))
+                    if inferredTriple == self.goal:
+                        return                    
                 elif debug:
                     print "Inferred triple skipped: ", inferredTriple
     
@@ -293,7 +311,7 @@ class ReteNetwork:
     def _resetinstanciationStats(self):
         self.instanciations = dict([(tNode,0) for tNode in self.terminalNodes])        
     
-    def buildNetwork(self,lhsIterator,rhsIterator,lhsFormula,rhsFormula):
+    def buildNetwork(self,lhsIterator,rhsIterator,clause):
         """
         Takes an iterator of triples in the LHS of an N3 rule and an iterator of the RHS and extends
         the Rete network, building / reusing Alpha 
@@ -307,11 +325,16 @@ class ReteNetwork:
             try:
                 currentPattern = lhsIterator.next()
                 #The LHS isn't done yet, stow away the current pattern
+                #We need to convert the Uniterm into a triple
+                if isinstance(currentPattern,Uniterm):
+                    currentPattern = currentPattern.toRDFTuple()
                 LHS.append(currentPattern)
             except StopIteration:                
                 #The LHS is done, need to initiate second pass to recursively build join / beta
-                #nodes towards a terminal node
-                consequents = list(rhsIterator)
+                #nodes towards a terminal node                
+                
+                #We need to convert the Uniterm into a triple
+                consequents = [isinstance(fact,Uniterm) and fact.toRDFTuple() or fact for fact in rhsIterator]
                 if matchedPatterns and matchedPatterns in self.nodes:
                     attachedPatterns.append(matchedPatterns)
                 elif matchedPatterns:
@@ -330,7 +353,7 @@ class ReteNetwork:
                     terminalNode.rule = (LHS,consequents)
                     terminalNode.consequent.update(consequents)
                     terminalNode.network    = self
-                    terminalNode.ruleFormulae = [lhsFormula,rhsFormula]
+                    terminalNode.clause = clause
                     self.terminalNodes.append(terminalNode)
                     
                 else:              
@@ -341,7 +364,7 @@ class ReteNetwork:
                 terminalNode.rule = (LHS,consequents)
                 terminalNode.consequent.update(consequents)
                 terminalNode.network    = self
-                terminalNode.ruleFormulae = [lhsFormula,rhsFormula]
+                terminalNode.clause = clause
                 self.terminalNodes.append(terminalNode)
                 self._resetinstanciationStats()
                 return

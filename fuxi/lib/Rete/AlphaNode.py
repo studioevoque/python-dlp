@@ -45,6 +45,7 @@ class ReteToken:
         self._termConcat = self.concatenateTerms()
         self.hash = hash(self._termConcat) 
         self.divergentVariables = {}
+        self.inferred = False
 
     def __hash__(self):
         """

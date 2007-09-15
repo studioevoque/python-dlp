@@ -61,7 +61,6 @@ def generateTokenSet(graph,debugTriples=[],skipImplies=True):
     Takes an rdflib graph and generates a corresponding Set of ReteTokens
     Note implication statements are excluded from the realm of facts by default
     """
-    print debugTriples
     from FuXi.Rete import ReteToken
     rt = Set()    
     for s,p,o in graph:
@@ -97,17 +96,6 @@ def generateBGLNode(node,bglGraph,vertexMaps,namespace_manager,identifier,edgeMa
         else:
             labelMap[vertex] = "Beta node"
 
-        leftMemNode = bglGraph.add_vertex() 
-        rightMemNode = bglGraph.add_vertex() 
-        edge1 = bglGraph.add_edge(vertex,leftMemNode)
-        edge2 = bglGraph.add_edge(vertex,rightMemNode)
-        
-        for pos,memory,bglNode in [ (LEFT_MEMORY,node.memories[LEFT_MEMORY],leftMemNode),
-                                (RIGHT_MEMORY,node.memories[RIGHT_MEMORY],rightMemNode)]:            
-            if memory:
-                labelMap[bglNode] = '\\n'.join([repr(token) for token in memory])
-            shapeMap[bglNode] = 'plaintext'
-            idMap[bglNode] = str(int(identifier) * 200 + pos)
 
         if isinstance(node,BuiltInAlphaNode):
             raise NotImplemented("N3 builtins not supported") 
@@ -135,18 +123,6 @@ def generateBGLNode(node,bglGraph,vertexMaps,namespace_manager,identifier,edgeMa
             labelMap[vertex] = str("Terminal node\\n(%s)"%(','.join(["?%s"%i for i in node.commonVariables])))
         else:
             labelMap[vertex] = "Terminal node"
-
-        leftMemNode = bglGraph.add_vertex() 
-        rightMemNode = bglGraph.add_vertex() 
-        edge1 = bglGraph.add_edge(vertex,leftMemNode)
-        edge2 = bglGraph.add_edge(vertex,rightMemNode)
-        
-        for pos,memory,bglNode in [ (LEFT_MEMORY,node.memories[LEFT_MEMORY],leftMemNode),
-                                (RIGHT_MEMORY,node.memories[RIGHT_MEMORY],rightMemNode)]:            
-            if memory:
-                labelMap[bglNode] = '\\n'.join([repr(token) for token in memory])
-            shapeMap[bglNode] = 'plaintext'
-            idMap[bglNode] = str(int(identifier) * 200 + pos)
 
         if isinstance(node,BuiltInAlphaNode):
             raise NotImplemented("N3 builtins not supported") 
@@ -214,9 +190,10 @@ def renderNetwork(network,nsMap = {}):
             if not mem:
                 continue
             bNode = mem.successor
-        #for bNode in node.descendentBetaNodes:
+        for bNode in node.descendentBetaNodes:
             for otherNode in [bNode.leftNode,bNode.rightNode]:
                 if node == otherNode and (node,otherNode) not in edges:
+#                    print "adding (%s,%s) to edges"%(node,otherNode)
                     if isinstance(node,BuiltInAlphaNode):
                         continue
                     for i in [node,bNode]:

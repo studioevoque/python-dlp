@@ -121,11 +121,22 @@ Options:
                              to STDOUT using the specified RDF syntax ('xml','pretty-xml',
                              'nt','turtle',or 'n3') or to print a summary of the conflict set 
                              (from the RETE network) if the value of this option is
-                             'conflict'
+                             'conflict'.  If the DLP mechanism is invoked (via --dlp) then
+                             a value of 'rif' will cause the generated ruleset to be rendered
+                             in the RIF format.  If the proof generation mechanism is
+                             activated then a value of 'pml' will trigger a serialization
+                             of the proof in PML. 
+                             
+  --man-owl                  If present, either the closure (or just the inferred triples) are serialized 
+                             using an extension of the manchester OWL syntax
+                             with indications for ontology normalization
+                             (http://www.cs.man.ac.uk/~rector/papers/rector-modularisation-kcap-2003-distrib.pdf)
+  --normalize                Will attempt to determine if the ontology is 'normalized' [Rector, A. 2003]                             
   --help
   --input-format=<FORMAT>    Determines the format of the RDF document(s) which
                              serve as the initial facts for the RETE network.
-                             One of 'n3','trix', 'nt', or 'rdfa'
+                             One of 'xml','n3','trix', 'nt', or 'rdfa'.  The default
+                             is 'xml'.
                              
   --optimize                 Suggest inefficiencies in the ruleset and exit
                      
@@ -144,5 +155,21 @@ Options:
                              
   ---ruleFacts               Determines whether or not to attempt to parse 
                              initial facts from the rule graph.  Default by default
+                             
+   --dlp                     This switch turns on Description Logic Programming 
+                             (DLP) inference.  In this mode, the input document 
+                             is considered an OWL ontology mostly comprised of
+                             Description Horn Logic (DHL) axioms. ontology.  An 
+                             additional ruleset is included to capture those 
+                             semantics outside DHL but which can be expressed in
+                             definite Datalog Logic Programming.  The DHL-compiled 
+                             ruleset and the extensions are mapped into a RETE-UL 
+                             Network for evaluateion.
+   --proove                  A N3 string consisting of a single RDF assertion to proove
+                             against the rules and facts provided.  Depending on the 
+                             --output switch, the proof can be rendered as a Graphviz dot
+                             graph, as a PML proof document, or in a human-readable printout    
+
 }}}
+ 
  

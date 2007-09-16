@@ -3,7 +3,7 @@
 
 = Introduction =
 
-[KRGeneology] covers the semantics and 'abstract' syntax, this covers a [http://copia.ogbuji.net/blog/2005-04-27/Of_BisonGe BisonGen] -powered concrete syntax to use in addition to Notation 3:
+#[KRGeneology] covers the semantics and 'abstract' syntax, this covers a #[http://copia.ogbuji.net/blog/2005-04-27/Of_BisonGe BisonGen] -powered concrete syntax to #use in addition to Notation 3:
 
 == Concrete (non-XML) EBNF for DLP (via subset of RIF BLD: Positive Conditions) ==
 {{{
@@ -28,3 +28,4 @@ We can introduce Curies, RDF Literals, and IRI's into CONSTNAME:
 {{{
 CONSTNAME ::= CURIE | '<' IRI '>' | RDFLiteral
 }}}
+ 

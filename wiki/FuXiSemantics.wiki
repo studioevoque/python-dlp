@@ -2,18 +2,24 @@
 
 = Introduction =
 
-FuXi adopts the semantics of Description Logic Programs _[#1]_.  This combined KR is a unidirectional mapping from a restricted subset of Description Logic to a corresponding Horn ruleset (_def-Horn_) and a Logic Program (_def-LP_). FuXi uses Logic Programs _[#2]_ as its operation semantics due to its superior time / space complexity.  The restrictions adopted are those outlined in the Description Logic Programming Paper and listed below:
+FuXi adopts the semantics of Description Logic Programs _[#1]_.  This combined KR is a unidirectional mapping from a restricted subset of Description Logic to a corresponding Horn ruleset (_def-Horn_) and a Logic Program (_def-LP_). FuXi uses Logic Programs _[#2]_ as its operation semantics due to its superior time _[#2]_ & space _[#3]_ complexity.  The restrictions adopted are those outlined in the Description Logic Programming Paper and listed below:
 
   * _Definite_: i.e., no negation operators (either classic or NAF)
   * _Equality-free_: no equals operator (owl:sameAs, or fully communicative owl:equivalentClass)
   * _Datalog_: no function symbols
   * _DL-safety_: see: http://code.google.com/p/owl1-1/wiki/SafeRules
 
-The mapping between def-Horn and def-LP is sound, and complete (for rules with only ground terms in the head/conclusion).
+The mapping between def-Horn and def-LP is sound and complete (for rules with only ground terms in the head/conclusion).
 
 = Details =
 
 == The Abstract Syntax and Mappings to SWRL/RIF/N3  ==
+
+The DLP abstract syntax is very expressive and can be serialized as any of:
+
+  * SWRL (DL-Safe subset)
+  * RIF Basic Logic Dialect [http://www.w3.org/2005/rules/wg/wiki/FrontPage?action=AttachFile&do=get&target=ED-rif-bld-20070914.html BLD Last Call Draft]
+  * _"N3-Datalog"_ (a syntactic subset of full N3 - a sibling of Turtle and SPARQL triple patterns)
 
 == Mapping def-LP to RETE-UL  ==
 
@@ -21,7 +27,7 @@ A syntactic function is outlined which has a domain of a def-LP expression and a
 
 == Efficient Proof Generation  ==
 
-_Magic sets_ for forward-chained theorem proofs
+_Magic sets_ for efficient forward-chained theorem proofs
 
 == Time Complexity: Polynomial ==
 
@@ -32,9 +38,4 @@ _Magic sets_ for forward-chained theorem proofs
   # [http://www.cs.man.ac.uk/~horrocks/Publications/download/2003/p117-grosof.pdf Description Logic Programs: Combining Logic Programs with Description Logic]
   # [http://doi.acm.org/10.1145/502807.502810 Complexity and expressive power of logic programming]
   # [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Production Matching for Large Learning Systems]
- 
- 
- 
- 
- 
  

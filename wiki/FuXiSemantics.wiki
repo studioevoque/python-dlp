@@ -13,16 +13,23 @@ The mapping between def-Horn and def-LP is sound, and complete (for rules with o
 
 = Details =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+== The Abstract Syntax and Mappings to SWRL/RIF/N3  ==
 
+== Mapping def-LP to RETE-UL  ==
+
+== Efficient Proof Generation  ==
+
+_Magic sets_ for forward-chained theorem proofs
+
+== Time Complexity: Polynomial ==
+
+== Space Complexity: Polynomial ==
  
 = References =
 
   # [http://www.cs.man.ac.uk/~horrocks/Publications/download/2003/p117-grosof.pdf Description Logic Programs: Combining Logic Programs with Description Logic]
   # [http://doi.acm.org/10.1145/502807.502810 Complexity and expressive power of logic programming]
+ 
  
  
  

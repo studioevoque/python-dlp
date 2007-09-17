@@ -3,7 +3,7 @@
 
 = Introduction =
 
-FuXi adopts the semantics of Description Logic Programs _[#1]_.  This combined KR is a unidirectional mapping from a restricted subset of Description Logic to a corresponding Horn ruleset (_def-Horn_) and a Logic Program (_def-LP_). FuXi uses Logic Programs _[#2]_ as its operation semantics due to its superior lineage _[#4]_  and time _[#2]_ & space _[#3]_ complexity.  The restrictions adopted are those outlined in the Description Logic Programming Paper and listed below (known as _f-weakenings_):
+FuXi adopts the semantics of Description Logic Programs _[#1]_.  This combined KR is a unidirectional mapping from a restricted [http://www.w3.org/Submission/owl11-tractable/#4 subset] of Description Logic to a corresponding Horn ruleset (_def-Horn_) and a Logic Program (_def-LP_). FuXi uses Logic Programs _[#2]_ as its operation semantics due to its superior lineage _[#4]_  and time _[#2]_ & space _[#3]_ complexity.  The restrictions adopted are those outlined in the Description Logic Programming Paper and listed below (known as _f-weakenings_):
 
   * _Definite_: i.e., no negation operators (either classic or NAF)
   * _Equality-free_: no equals operator (owl:sameAs, or fully communicative owl:equivalentClass)
@@ -76,6 +76,7 @@ KR expressive classes  / restrictions diagram:
   # [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Production Matching for Large Learning Systems]
   # [http://www.inf.unibz.it/~jdebruijn/publications/msa-ruleml05.pdf A Realistic Architecture for the Semantic Web]
   # [http://doi.acm.org/10.1145/6012.15399 Magic sets and other strange ways to implement logic programs (extended abstract)]
+ 
  
  
  

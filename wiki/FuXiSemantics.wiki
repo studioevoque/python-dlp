@@ -81,6 +81,10 @@ Use _Magic sets_ _[#5]_ for efficient forward-chained theorem proof generation
 
 See: [http://www.w3.org/DesignIssues/N3Logic Notation 3 Logic ].  This would require extending the data log restriction with support for function symbols (thus making it no longer decidable _[#2]_ - with the exception of if the functions are non-recursive), and negation as failure (thus making it only polynomial space complexity _[#2]_ ).
 
+=== Formulae & Named Graphs ===
+
+Formal N3 Formulae are epistemological operators and thus not in the Herbrand universe of any Logic Program.  However, they can be used to denote head and body atoms in a Horn clause.  Kyle, G. [http://ninebynine.org/RDFNotes/UsingContextsWithRDF.html#xtocid-6303976 introduces] a notion of formula nodes into the RDF model theory with a partitions of formulaic (hypothetical) statements. This logic is outside the bounds of FOL with the possible exception of introducing non-deterministic function symbols (builtins) for scoped inference mechanics (log:includes, log:semantics, etc..). 
+
 == Time Complexity: Polynomial ==
 
 == Space Complexity: Polynomial ==
@@ -98,6 +102,7 @@ KR expressive classes  / restrictions diagram:
   # [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Production Matching for Large Learning Systems]
   # [http://www.inf.unibz.it/~jdebruijn/publications/msa-ruleml05.pdf A Realistic Architecture for the Semantic Web]
   # [http://doi.acm.org/10.1145/6012.15399 Magic sets and other strange ways to implement logic programs (extended abstract)]
+ 
  
  
  

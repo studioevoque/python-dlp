@@ -41,7 +41,7 @@ The DLP abstract syntax is very expressive and can be serialized as any of:
 
 == Mapping def-LP to RETE-UL  ==
 
-A syntactic function is outlined which has a domain of a def-LP expression and a range of a corresponding RETE-UL _[#3]_ network.
+A syntactic function is outlined which has a domain of a def-LP expression and a range of a corresponding RETE-UL _[#3]_ network.  See [http://copia.ogbuji.net/blog/2006-07-14/fuxi-mapping-from-rete-to-n3 "Mapping Rete algorithm to FOL and then to RDF/N3"] for a high-level overview.
 
 == Operational Semantics for Default Negation ==
 
@@ -72,6 +72,7 @@ KR expressive classes  / restrictions diagram:
   # [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Production Matching for Large Learning Systems]
   # [http://www.inf.unibz.it/~jdebruijn/publications/msa-ruleml05.pdf A Realistic Architecture for the Semantic Web]
   # [http://doi.acm.org/10.1145/6012.15399 Magic sets and other strange ways to implement logic programs (extended abstract)]
+ 
  
  
  

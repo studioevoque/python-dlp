@@ -17,7 +17,7 @@ FuXi's semantics are comprised of a set of Description Logic Programs.
 
 [http://www.cs.man.ac.uk/~horrocks/Publications/download/2003/p117-grosof.pdf http://python-dlp.googlecode.com/files/MT-KR-Geneology.png]
 
-Semantically, the combined semantics are the f-weakening _[#1]_ of a Description Horn Logic ruleset (generated from DL expressions via the algorithm presented by Grosof, B. et.al.).  Description Logic Programs generated from DL expressions can be used in conjunction with rules expressed in their native dialect, as long as they adhere to _DL-safety restrictions_ (see: http://code.google.com/p/owl1-1/wiki/SafeRules)
+The combined semantics are the f-weakening _[#1]_ of a Description Horn Logic ruleset (generated from DL expressions via the algorithm presented by Grosof, B. et.al.).  Description Logic Programs generated from DL expressions can be used in conjunction with rules expressed in their native dialect, as long as they adhere to _DL-safety restrictions_ (see: http://code.google.com/p/owl1-1/wiki/SafeRules)
 
 The semantics of a generated DLP, additional DL-safe def-LP rules, an initial, ground (possibly by [http://www.w3.org/TR/rdf-mt/#defskolem skolemization] _[#4]_) set of facts is a conclusion set, where each conclusion is a ground atom, i.e., fact, entailed by the LP. Formally, the semantics of the corresponding def-LP R is defined as follows. Let HB stand for the Herbrand base of R. The conclusion
 set C is the smallest (w.r.t. set inclusion) subset S of HB such that for any rule in the DLP, the conclusion set is a Herbrand Model _[#2]_
@@ -61,6 +61,7 @@ See: [http://www.w3.org/DesignIssues/N3Logic Notation 3 Logic ].  This would req
   # [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Production Matching for Large Learning Systems]
   # [http://www.inf.unibz.it/~jdebruijn/publications/msa-ruleml05.pdf A Realistic Architecture for the Semantic Web]
   # [http://doi.acm.org/10.1145/6012.15399 Magic sets and other strange ways to implement logic programs (extended abstract)]
+ 
  
  
  

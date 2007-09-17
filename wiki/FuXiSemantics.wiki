@@ -39,6 +39,10 @@ The DLP abstract syntax is very expressive and can be serialized as any of:
   * RIF Basic Logic Dialect [http://www.w3.org/2005/rules/wg/wiki/FrontPage?action=AttachFile&do=get&target=ED-rif-bld-20070914.html BLD Last Call Draft]
   * _"N3-Datalog"_ (a syntactic subset of full N3 - a sibling of Turtle and SPARQL triple patterns)
 
+=== N3-Datalog ===
+
+Start with [http://www.w3.org/2000/10/swap/grammar/n3rules-report.html "n3rules"] and remove: *existential* and *existential_s *
+
 == Mapping def-LP to RETE-UL  ==
 
 A syntactic function is outlined which has a domain of a def-LP expression and a range of a corresponding RETE-UL _[#3]_ network.  See [http://copia.ogbuji.net/blog/2006-07-14/fuxi-mapping-from-rete-to-n3 "Mapping Rete algorithm to FOL and then to RDF/N3"] for a high-level overview.
@@ -72,6 +76,7 @@ KR expressive classes  / restrictions diagram:
   # [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Production Matching for Large Learning Systems]
   # [http://www.inf.unibz.it/~jdebruijn/publications/msa-ruleml05.pdf A Realistic Architecture for the Semantic Web]
   # [http://doi.acm.org/10.1145/6012.15399 Magic sets and other strange ways to implement logic programs (extended abstract)]
+ 
  
  
  

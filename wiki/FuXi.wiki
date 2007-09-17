@@ -28,6 +28,10 @@ Originally, it was an idea to express the underlying constructs of the Yi Jing /
 
   * FuXi is now [http://python-dlp.googlecode.com/svn/trunk/fuxi/ part] of the python-dlp SVN source tree
 
+= Semantics =
+
+*New*: FuXi has a sketched out formal semantics (based on classic Logic Programming), see: FuXiSemantics 
+
 == Packages ==
 
   * Rete.Network: Rete network
@@ -175,6 +179,7 @@ Options:
                              graph, as a PML proof document, or in a human-readable printout    
 
 }}}
+ 
  
  
  

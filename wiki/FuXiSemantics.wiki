@@ -1,4 +1,5 @@
 #summary This page gives a sketch of a formal semantics for FuXi based on Classic Logic Programming formalisms
+#labels Featured,Phase-Design,Phase-Implementation
 
 = Introduction =
 
@@ -51,5 +52,6 @@ _Magic sets_ for efficient forward-chained theorem proofs
   # [http://doi.acm.org/10.1145/502807.502810 Complexity and expressive power of logic programming]
   # [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Production Matching for Large Learning Systems]
   # [http://www.inf.unibz.it/~jdebruijn/publications/msa-ruleml05.pdf A Realistic Architecture for the Semantic Web]
+ 
  
  

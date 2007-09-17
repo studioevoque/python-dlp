@@ -2,7 +2,7 @@
 
 = Introduction =
 
-FuXi adopts the semantics of Description Logic Programs _[1]_.  This combined KR is a unidirectional mapping from a restricted subset of Description Logic to a corresponding Horn ruleset (_def-Horn_) and a Logic Program (_def-LP_). FuXi uses Logic Programs as its operation semantics due to its superior time / space complexity.  The restrictions adopted are those outlined in the Description Logic Programming Paper and listed below:
+FuXi adopts the semantics of Description Logic Programs _[#1]_.  This combined KR is a unidirectional mapping from a restricted subset of Description Logic to a corresponding Horn ruleset (_def-Horn_) and a Logic Program (_def-LP_). FuXi uses Logic Programs _[#2]_ as its operation semantics due to its superior time / space complexity.  The restrictions adopted are those outlined in the Description Logic Programming Paper and listed below:
 
   * _Definite_: i.e., no negation operators (either classic or NAF)
   * _Equality-free_: no equals operator (owl:sameAs, or fully communicative owl:equivalentClass)
@@ -23,5 +23,8 @@ Add your content here.  Format your content with:
 
   # [http://www.cs.man.ac.uk/~horrocks/Publications/download/2003/p117-grosof.pdf Description Logic Programs: Combining Logic Programs with Description Logic]
   # [http://doi.acm.org/10.1145/502807.502810 Complexity and expressive power of logic programming]
+ 
+ 
+ 
  
  

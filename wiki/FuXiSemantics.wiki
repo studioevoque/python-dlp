@@ -1,0 +1,15 @@
+#summary This page gives a sketch of a formal semantics for FuXi based on Classic Logic Programming formalisms
+
+= Introduction =
+
+FuXi adopts the semantics of Logic Programs.  It uses Logic Programs as the basis for programs composed of restricted Horn rules.  The restrictions adopted are those outlined in the Description Logic Programming Paper.
+
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
+
+ 

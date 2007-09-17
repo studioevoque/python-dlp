@@ -41,7 +41,7 @@ The DLP abstract syntax is very expressive and can be serialized as any of:
 
 === N3-Datalog ===
 
-Start with [http://www.w3.org/2000/10/swap/grammar/n3rules-report.html "n3rules"] and remove: *existential* and *existential_s *
+Start with [http://www.w3.org/2000/10/swap/grammar/n3rules-report.html "n3rules"] and remove: [http://www.w3.org/2000/10/swap/grammar/n3rules-report.html#existential existential] and [http://www.w3.org/2000/10/swap/grammar/n3rules-report.html#existential_s existential_s]
 
 == Mapping def-LP to RETE-UL  ==
 
@@ -76,6 +76,8 @@ KR expressive classes  / restrictions diagram:
   # [http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf Production Matching for Large Learning Systems]
   # [http://www.inf.unibz.it/~jdebruijn/publications/msa-ruleml05.pdf A Realistic Architecture for the Semantic Web]
   # [http://doi.acm.org/10.1145/6012.15399 Magic sets and other strange ways to implement logic programs (extended abstract)]
+ 
+ 
  
  
  

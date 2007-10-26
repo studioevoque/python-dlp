@@ -218,6 +218,8 @@ def manchesterSyntax(thing,store,boolean=None,transientList=False):
             prefix,uri,localName = store.compute_qname(thing) 
             qname = u':'.join([prefix,localName])
         except Exception,e:
+            if isinstance(thing,BNode):
+                return thing.n3()
             print list(store.objects(subject=thing,predicate=RDF.type))
             raise
             return '[]'#+thing._id.encode('utf-8')+'</em>'            
@@ -533,9 +535,10 @@ class Class(AnnotatibleTerms):
                 scJoin = ', '
             necStatements = [
               isinstance(s,Class) and isinstance(self.identifier,BNode) and
-                                      repr(BooleanClass(classOrIdentifier(s),
-                                                        operator=None,
-                                                        graph=self.graph)) or 
+                                      repr(CastClass(s,self.graph)) or
+                                      #repr(BooleanClass(classOrIdentifier(s),
+                                      #                  operator=None,
+                                      #                  graph=self.graph)) or 
               manchesterSyntax(classOrIdentifier(s),self.graph) for s in sc]
             if necStatements:
                 klassKind = "Primitive Type %s"%label
@@ -642,19 +645,20 @@ class BooleanClass(Class,OWLRDFListProxy):
     def __init__(self,identifier=BNode(),operator=OWL_NS.intersectionOf,
                  members=None,graph=Graph()):
         if operator is None:
-            iters=0
+            props=[]
             for s,p,o in graph.triples_choices((identifier,
                                                 [OWL_NS.intersectionOf,
                                                  OWL_NS.unionOf],
                                                  None)):
-                iters+=1
+                props.append(p)
                 operator = p
-            assert len(iters)==1
+            assert len(props)==1,repr(props)
         Class.__init__(self,identifier,graph = graph)
         members = members and members or []
         assert operator in [OWL_NS.intersectionOf,OWL_NS.unionOf], str(operator)
         self._operator = operator
         rdfList = list(self.graph.objects(predicate=operator,subject=self.identifier))
+        assert len(rdfList)==1
         OWLRDFListProxy.__init__(self, rdfList, members, graph = graph)
 
     def isPrimitive(self):
@@ -735,7 +739,7 @@ class Restriction(Class):
 
     def _get_allValuesFrom(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.allValuesFrom):
-            return Class(dc,graph=self.graph)
+            return Class(i,graph=self.graph)
         return None
     def _set_allValuesFrom(self, other):
         triple = (self.identifier,OWL_NS.allValuesFrom,classOrIdentifier(other))
@@ -749,7 +753,7 @@ class Restriction(Class):
 
     def _get_someValuesFrom(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.someValuesFrom):
-            return Class(dc,graph=self.graph)
+            return Class(i,graph=self.graph)
         return None
     def _set_someValuesFrom(self, other):
         triple = (self.identifier,OWL_NS.someValuesFrom,classOrIdentifier(other))
@@ -763,7 +767,7 @@ class Restriction(Class):
 
     def _get_hasValue(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.hasValue):
-            return Class(dc,graph=self.graph)
+            return Class(i,graph=self.graph)
         return None
     def _set_hasValue(self, other):
         triple = (self.identifier,OWL_NS.hasValue,classOrIdentifier(other))
@@ -777,7 +781,7 @@ class Restriction(Class):
 
     def _get_cardinality(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.cardinality):
-            return Class(dc,graph=self.graph)
+            return Class(i,graph=self.graph)
         return None
     def _set_cardinality(self, other):
         triple = (self.identifier,OWL_NS.cardinality,classOrIdentifier(other))
@@ -791,7 +795,7 @@ class Restriction(Class):
 
     def _get_maxCardinality(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.maxCardinality):
-            return Class(dc,graph=self.graph)
+            return Class(i,graph=self.graph)
         return None
     def _set_maxCardinality(self, other):
         triple = (self.identifier,OWL_NS.maxCardinality,classOrIdentifier(other))
@@ -805,7 +809,7 @@ class Restriction(Class):
 
     def _get_minCardinality(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.minCardinality):
-            return Class(dc,graph=self.graph)
+            return Class(i,graph=self.graph)
         return None
     def _set_minCardinality(self, other):
         triple = (self.identifier,OWL_NS.minCardinality,classOrIdentifier(other))

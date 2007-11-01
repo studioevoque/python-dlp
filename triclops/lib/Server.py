@@ -9,6 +9,7 @@ or send a letter to Creative Commons, 543 Howard Street, 5th Floor, San Francisc
 import os, getopt, sys, re, time, urllib
 from rdflib.Graph import Graph,ReadOnlyGraphAggregate,ConjunctiveGraph
 from rdflib import URIRef, store, plugin, RDF, BNode, Literal
+from rdflib.Namespace import Namespace
 from rdflib.store import Store
 from rdflib.sparql.QueryResult import SPARQL_XML_NAMESPACE
 from Ft.Xml.Domlette import NonvalidatingReader
@@ -16,6 +17,22 @@ from Ft.Xml.Domlette import Print, PrettyPrint
 from cStringIO import StringIO
 from rdflib.store.MySQL import ParseConfigurationString
 from paste.request import parse_formvars
+
+OWL_NS=Namespace('http://www.w3.org/2002/07/owl#')
+
+OWL_PROPERTIES_QUERY=\
+"""
+SELECT ?literalProperty ?resourceProperty
+WHERE {
+    { ?literalProperty a owl:DatatypeProperty }
+                    UNION
+    { ?resourceProperty a ?propType 
+      FILTER( 
+        ?propType = owl:ObjectProperty || 
+        ?propType = owl:TransitiveProperty ||
+        ?propType = owl:SymmetricProperty ||
+        ?propType = owl:InverseFunctionalProperty )  }
+}"""
 
 WRONG_URL_HTML=\
 """
@@ -61,7 +78,18 @@ function submitQuery(formId) {
       <form id="queryform" action="ENDPOINT" method="post">
         Default Grap IRI: <input type="text" size="80" name="default-graph-uri" id="default-graph-uri" value=""/>
         <div>
-          <textarea style="width: 80%" name="query" rows="20" id="querytext"></textarea>
+          <textarea style="width: 80%" name="query" rows="20" id="querytext">
+BASE &lt;http://www.clevelandclinic.org/heartcenter/ontologies/DataNodes.owl#>
+   PREFIX ptrec: &lt;tag:info@semanticdb.ccf.org,2007:PatientRecordTerms#>
+   PREFIX xsd: &lt;http://www.w3.org/2001/XMLSchema#> 
+   SELECT   ?ccfId ?PROC ?SITE
+   WHERE { ?proc a &lt;tag:info@semanticdb.ccf.org,2007:PatientRecordTerms#SurgicalProcedure-vascular-endovascular%20procedure>.
+           ?proc :contains [ a ptrec:VascularProcedure ; 
+                             ptrec:hasVascularProcedureName ?PROC;
+                             ptrec:hasVascularProcedureSite ?SITE ].
+           ?evt :contains ?proc.
+           ?ptrec :contains ?evt, [ a ptrec:Patient; ptrec:hasCCFID ?ccfId ] }
+          </textarea>
           <div><input type="button" value="Submit SPARQL" onClick="submitQuery('queryform')" /></div>
         </div>        
       </form>
@@ -124,10 +152,32 @@ class StoreConnectee(object):
         self.layout        = global_conf['graphVizLayout']
         self.vizualization = global_conf['visualization']
         self.endpoint      = global_conf['endpoint']
+        self.dataStoreOWL  = global_conf['datastore_owl']
+        self.litProps = set()
+        self.resProps = set()
+        if self.storeKind == 'MySQL' and self.dataStoreOWL:
+            ontGraph=Graph().parse(self.dataStoreOWL)
+            for litProp,resProp in ontGraph.query(OWL_PROPERTIES_QUERY,
+                                                  initNs={u'owl':OWL_NS}):
+                if litProp:
+                    self.litProps.add(litProp)
+                if resProp: 
+                    self.resProps.add(resProp)
+            print "Registered %s owl:DatatypeProperties"%len(self.litProps)         
+            print "Registered %s owl:ObjectProperties"%len(self.resProps)
+
 
     def buildGraph(self,default_graph_uri=None):
         store = plugin.get(self.storeKind,Store)(self.store_id)
         store.open(self.connection,create=False)
+        #The MySQL store has a special set of attribute for optimizing
+        #SPARQL queries based on the characteristics of RDF properties
+        #used in the queries
+        if self.storeKind == 'MySQL' and hasattr(store,"literal_properties") and \
+           self.dataStoreOWL:
+            print "Updating the property optimization parameters to the store"
+            store.literal_properties =self.litProps
+            store.resource_properties=self.resProps
         if default_graph_uri:
             targetGraph = Graph(store,identifier = URIRef(default_graph_uri))
         else:

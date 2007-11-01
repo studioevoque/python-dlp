@@ -173,8 +173,7 @@ class StoreConnectee(object):
         #The MySQL store has a special set of attribute for optimizing
         #SPARQL queries based on the characteristics of RDF properties
         #used in the queries
-        if self.storeKind == 'MySQL' and hasattr(store,"literal_properties") and \
-           self.dataStoreOWL:
+        if self.storeKind == 'MySQL' and self.dataStoreOWL:
             print "Updating the property optimization parameters to the store"
             store.literal_properties =self.litProps
             store.resource_properties=self.resProps

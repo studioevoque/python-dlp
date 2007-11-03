@@ -64,10 +64,10 @@ from sets import Set
 from rdflib import BNode, RDF, Namespace, Variable, RDFS
 from rdflib.Collection import Collection
 from rdflib.store import Store,VALID_STORE, CORRUPTED_STORE, NO_STORE, UNKNOWN
-from rdflib.Literal import Literal
+from rdflib import Literal, URIRef
 from pprint import pprint, pformat
 import sys
-from rdflib.term_utils import *
+#from rdflib.term_utils import *
 from rdflib.Graph import QuotedGraph, Graph
 from rdflib.store.REGEXMatching import REGEXTerm, NATIVE_REGEX, PYTHON_REGEX
 from FuXi.Rete.RuleStore import Formula

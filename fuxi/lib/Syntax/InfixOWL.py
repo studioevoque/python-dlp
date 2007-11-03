@@ -106,6 +106,8 @@ import os
 from pprint import pprint
 from rdflib import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,BNode,Literal,Variable
+from rdflib.Identifier import Identifier
+from rdflib.util import first
 from rdflib.store import Store
 from rdflib.Graph import Graph
 from rdflib.Collection import Collection
@@ -233,18 +235,39 @@ def GetIdentifiedClasses(graph):
         if isinstance(c,URIRef):
             yield Class(c)
 
-class AnnotatibleTerms(object):
+class Individual(object):
+    """
+    A typed individual
+    """
+    def _get_type(self):
+        for _t in self.graph.objects(subject=self.identifier,predicate=RDF.type):
+            yield _t
+    def _set_type(self, kind):
+        if not kind:
+            return  
+        if isinstance(kind,(Individual,Identifier)):
+            self.graph.add((self.identifier,RDF.type,classOrIdentifier(kind)))
+        else:
+            for c in kind:
+                assert isinstance(c,(Individual,Identifier))
+                self.graph.add((self.identifier,RDF.type,classOrIdentifier(c)))
+    type = property(_get_type, _set_type)
+
+class AnnotatibleTerms(Individual):
     """
     Terms in an OWL ontology with rdfs:label and rdfs:comment
     """
     def _get_comment(self):
         for comment in self.graph.objects(subject=self.identifier,predicate=RDFS.comment):
-            yield comments
+            yield comment
     def _set_comment(self, comment):
         if not comment:
             return        
-        for c in comment:
-            self.graph.add((self.identifier,RDFS.comment,c))
+        if isinstance(comment,Identifier):
+            self.graph.add((self.identifier,RDFS.comment,comment))
+        else:
+            for c in comment:
+                self.graph.add((self.identifier,RDFS.comment,c))
     comment = property(_get_comment, _set_comment)
 
     def _get_seeAlso(self):
@@ -263,8 +286,11 @@ class AnnotatibleTerms(object):
     def _set_label(self, label):
         if not label:
             return        
-        for l in label:
-            self.graph.add((self.identifier,RDFS.label,l))
+        if isinstance(label,Identifier):
+            self.graph.add((self.identifier,RDFS.label,label))
+        else:
+            for l in label:
+                self.graph.add((self.identifier,RDFS.label,l))
     label = property(_get_label, _set_label)
 
 class Ontology(AnnotatibleTerms):
@@ -622,7 +648,7 @@ class EnumeratedClass(Class,OWLRDFListProxy):
     _operator = OWL_NS.oneOf
     def isPrimitive(self):
         return False
-    def __init__(self, identifier=BNode(),members=None,graph=Graph()):
+    def __init__(self, identifier=BNode(),members=None,graph=None):
         Class.__init__(self,identifier,graph = graph)
         members = members and members or []
         rdfList = list(self.graph.objects(predicate=OWL_NS.oneOf,subject=self.identifier))
@@ -643,7 +669,7 @@ class BooleanClass(Class,OWLRDFListProxy):
     
     """
     def __init__(self,identifier=BNode(),operator=OWL_NS.intersectionOf,
-                 members=None,graph=Graph()):
+                 members=None,graph=None):
         if operator is None:
             props=[]
             for s,p,o in graph.triples_choices((identifier,
@@ -654,11 +680,10 @@ class BooleanClass(Class,OWLRDFListProxy):
                 operator = p
             assert len(props)==1,repr(props)
         Class.__init__(self,identifier,graph = graph)
-        members = members and members or []
         assert operator in [OWL_NS.intersectionOf,OWL_NS.unionOf], str(operator)
         self._operator = operator
         rdfList = list(self.graph.objects(predicate=operator,subject=self.identifier))
-        assert len(rdfList)==1
+        assert not members or not rdfList,"This is a previous boolean class description!"+repr(Collection(self.graph,rdfList[0]).n3())        
         OWLRDFListProxy.__init__(self, rdfList, members, graph = graph)
 
     def isPrimitive(self):
@@ -843,6 +868,13 @@ min      = Infix(lambda prop,_class: Restriction(prop,graph=prop.graph,minCardin
 exactly  = Infix(lambda prop,_class: Restriction(prop,graph=prop.graph,cardinality=_class))
 value    = Infix(lambda prop,_class: Restriction(prop,graph=prop.graph,hasValue=_class))
 
+PropertyAbstractSyntax=\
+"""
+%s( %s { %s } 
+%s
+{ 'super(' datavaluedPropertyID ')'} ['Functional']
+{ domain( %s ) } { range( %s ) } )"""
+
 class Property(AnnotatibleTerms):
     """
     axiom ::= 'DatatypeProperty(' datavaluedPropertyID ['Deprecated'] { annotation } 
@@ -866,12 +898,44 @@ class Property(AnnotatibleTerms):
         self.qname = u':'.join([prefix,localName])
         if (self.identifier,RDF.type,baseType) not in self.graph:
             self.graph.add((self.identifier,RDF.type,baseType))
+        self._baseType=baseType
         self.subPropertyOf = subPropertyOf
         self.inverseOf     = inverseOf
         self.domain        = domain
         self.range         = range
         self.comment = comment and comment or []
-        
+
+    def __repr__(self):
+        rt=[]
+        if OWL_NS.ObjectProperty in self.type:
+            rt.append('ObjectProperty( %s annotation(%s)'\
+                       %(self.qname,first(self.comment) and first(self.comment) or ''))
+            if first(self.inverseOf):
+                rt.append("  inverseOf( %s )%s"%(first(self.inverseOf),
+                            OWL_NS.Symmetric in self.type and ' Symmetric' or ''))
+            for s,p,roleType in self.graph.triples_choices((self.identifier,
+                                                            RDF.type,
+                                                            [OWL_NS.Functional,
+                                                             OWL_NS.InverseFunctional,
+                                                             OWL_NS.Transitive])):
+                rt.append(roleType.split(OWL_NS)[-1])
+        else:
+            rt.append('DatatypeProperty( %s annotation(%s)'\
+                       %(self.qname,first(self.comment) and first(self.comment) or ''))            
+            for s,p,roleType in self.graph.triples((self.identifier,
+                                                    RDF.type,
+                                                    OWL_NS.Functional)):
+                rt.append('   Functional')
+        rt.append(' '.join(["   super( %r )"%superP 
+                              for superP in self.subPropertyOf]))                        
+        rt.append(' '.join(["   domain( %r )"%domain 
+                              for domain in self.domain]))
+        rt.append(' '.join(["   range( %r )"%range 
+                              for range in self.range]))
+        rt='\n'.join([expr for expr in rt if expr])
+        rt+='\n)'
+        return rt
+                    
     def _get_identifier(self):
         return self.__identifier
     def _set_identifier(self, i):
@@ -907,53 +971,35 @@ class Property(AnnotatibleTerms):
         self.graph.add((self.identifier,OWL_NS.inverseOf,classOrIdentifier(other)))
     inverseOf = property(_get_inverseOf, _set_inverseOf)
 
-    def _get_comment(self):
-        for comment in self.graph.objects(subject=self.identifier,predicate=RDFS.comment):
-            yield comment
-    def _set_comment(self, comments):
-        if not comments:
-            return     
-        for comment in comments:   
-            self.graph.add((self.identifier,RDFS.comment,comment))
-    comment = property(_get_comment, _set_comment)
-
     def _get_domain(self):
         for dom in self.graph.objects(subject=self.identifier,predicate=RDFS.domain):
             yield Class(dom,graph=self.graph)
     def _set_domain(self, other):
         if not other:
-            return        
-        for dom in other:
-            self.graph.add((self.identifier,RDFS.domain,classOrIdentifier(dom)))
+            return
+        if isinstance(other,(Individual,Identifier)):
+            self.graph.add((self.identifier,RDFS.domain,classOrIdentifier(other)))
+        else:
+            for dom in other:
+                self.graph.add((self.identifier,RDFS.domain,classOrIdentifier(dom)))
     domain = property(_get_domain, _set_domain)
-
 
     def _get_range(self):
         for ran in self.graph.objects(subject=self.identifier,predicate=RDFS.range):
             yield Class(ran,graph=self.graph)
     def _set_range(self, ranges):
         if not ranges:
-            return        
-        for range in ranges:
-            self.graph.add((self.identifier,RDFS.range,classOrIdentifier(range)))
+            return
+        if isinstance(ranges,(Individual,Identifier)):
+            self.graph.add((self.identifier,RDFS.range,classOrIdentifier(ranges)))
+        else:        
+            for range in ranges:
+                self.graph.add((self.identifier,RDFS.range,classOrIdentifier(range)))
     range = property(_get_range, _set_range)
         
 def test():
     import doctest
     doctest.testmod()
-    galenGraph = Graph()
-    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/SDB-local/Base/owl/DataNodes.owl'))
-    galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/bfo-1.0.owl'))
-    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/OBI.owl'))
-    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/problem-oriented-medical-record.owl'))
-    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/InformationObjects.owl'))
-    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/ExtendedDnS.owl'))
-    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/DOLCE-Lite.owl'))
-    #galenGraph.parse(os.path.join(os.path.dirname(__file__), '/home/chimezie/workspace/Ontologies/Plans.owl'))
-    graph=galenGraph
-    for c in graph.subjects(predicate=RDF.type,object=OWL_NS.Class):
-        if isinstance(c,URIRef):
-            print Class(c,graph=graph).__repr__(True),"\n"
 
 if __name__ == '__main__':
     test()

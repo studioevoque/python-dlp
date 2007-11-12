@@ -1,4 +1,4 @@
-#summary This page is a sketch of a semantics for FuXi based on Classic Logic Programming formalisms.  _This  page may be superceded by [http://arxiv.org/abs/0711.1533 N3Logic]_
+#summary This page is a sketch of a semantics for FuXi based on Classic Logic Programming formalisms.  _This  page may be superceded by_ [http://arxiv.org/abs/0711.1533 N3Logic]
 #labels Featured,Phase-Design,Phase-Implementation
 
 = Introduction =

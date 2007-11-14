@@ -152,7 +152,7 @@ class StoreConnectee(object):
         self.layout        = global_conf['graphVizLayout']
         self.vizualization = global_conf['visualization']
         self.endpoint      = global_conf['endpoint']
-        self.dataStoreOWL  = global_conf['datastore_owl']
+        self.dataStoreOWL  = global_conf.get('datastore_owl')
         self.litProps = set()
         self.resProps = set()
         if self.storeKind == 'MySQL' and self.dataStoreOWL:
@@ -161,8 +161,13 @@ class StoreConnectee(object):
                                                   initNs={u'owl':OWL_NS}):
                 if litProp:
                     self.litProps.add(litProp)
-                if resProp: 
-                    self.resProps.add(resProp)
+                if resProp:
+                    #Need to account for OWL Full, where datatype properties
+                    #can be IFPs
+                    if (resProp,
+                        RDF.type,
+                        OWL_NS.DatatypeProperty) not in ontGraph:
+                        self.resProps.add(resProp)
             print "Registered %s owl:DatatypeProperties"%len(self.litProps)         
             print "Registered %s owl:ObjectProperties"%len(self.resProps)
 

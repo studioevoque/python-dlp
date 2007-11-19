@@ -106,6 +106,7 @@ import os
 from pprint import pprint
 from rdflib import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,BNode,Literal,Variable
+from rdflib.Literal import _XSD_NS
 from rdflib.Identifier import Identifier
 from rdflib.util import first
 from rdflib.store import Store
@@ -222,6 +223,7 @@ def manchesterSyntax(thing,store,boolean=None,transientList=False):
         except Exception,e:
             if isinstance(thing,BNode):
                 return thing.n3()
+            return "<"+thing+">"
             print list(store.objects(subject=thing,predicate=RDF.type))
             raise
             return '[]'#+thing._id.encode('utf-8')+'</em>'            
@@ -239,6 +241,21 @@ class Individual(object):
     """
     A typed individual
     """
+    factoryGraph = Graph()
+    def __init__(self, identifier=None,graph=None):
+        self.__identifier = identifier is not None and identifier or BNode()
+        if graph is None:
+            self.graph = self.factoryGraph
+        else:
+            self.graph = graph    
+        self.qname = None
+        if not isinstance(self.identifier,BNode):
+            try:
+                prefix,uri,localName = self.graph.compute_qname(self.identifier) 
+                self.qname = u':'.join([prefix,localName])
+            except:
+                pass
+    
     def _get_type(self):
         for _t in self.graph.objects(subject=self.identifier,predicate=RDF.type):
             yield _t
@@ -253,10 +270,28 @@ class Individual(object):
                 self.graph.add((self.identifier,RDF.type,classOrIdentifier(c)))
     type = property(_get_type, _set_type)
 
+    def _get_identifier(self):
+        return self.__identifier
+    def _set_identifier(self, i):
+        assert i
+        if i != self.__identifier:
+            oldStmtsOut = [(p,o) for s,p,o in self.graph.triples((self.__identifier,None,None))]
+            oldStmtsIn  = [(s,p) for s,p,o in self.graph.triples((None,None,self.__identifier))]
+            for p1,o1 in oldStmtsOut:                
+                self.graph.remove((self.__identifier,p1,o1))
+            for s1,p1 in oldStmtsIn:                
+                self.graph.remove((s1,p1,self.__identifier))
+            self.__identifier = i
+            self.graph.addN([(i,p1,o1,self.graph) for p1,o1 in oldStmtsOut])
+            self.graph.addN([(s1,p1,i,self.graph) for s1,p1 in oldStmtsIn])
+    identifier = property(_get_identifier, _set_identifier)
+
 class AnnotatibleTerms(Individual):
     """
     Terms in an OWL ontology with rdfs:label and rdfs:comment
     """
+    def __init__(self,identifier,graph):
+        super(AnnotatibleTerms, self).__init__(identifier,graph)
     def _get_comment(self):
         for comment in self.graph.objects(subject=self.identifier,predicate=RDFS.comment):
             yield comment
@@ -295,31 +330,12 @@ class AnnotatibleTerms(Individual):
 
 class Ontology(AnnotatibleTerms):
     """ The owl ontology metadata"""
-    factoryGraph = Graph()
-    def __init__(self, identifier=BNode(),imports=None,comment=None,
-                 graph=None):
-        self.__identifier = identifier
+    def __init__(self, identifier=None,imports=None,comment=None,graph=None):
+        super(Ontology, self).__init__(identifier,graph)
         self.imports = imports and imports or []
         self.comment = imports and imports or []
-        self.graph = graph or self.factoryGraph
         if (self.identifier,RDF.type,OWL_NS.Ontology) not in self.graph:
             self.graph.add((self.identifier,RDF.type,OWL_NS.Ontology))
-
-    def _get_identifier(self):
-        return self.__identifier
-    def _set_identifier(self, i):
-        assert i
-        if i != self.__identifier:
-            oldStmtsOut = [(p,o) for s,p,o in self.graph.triples((self.__identifier,None,None))]
-            oldStmtsIn  = [(s,p) for s,p,o in self.graph.triples((None,None,self.__identifier))]
-            for p1,o1 in oldStmtsOut:                
-                self.graph.remove((self.__identifier,p1,o1))
-            for s1,p1 in oldStmtsIn:                
-                self.graph.remove((s1,p1,self.__identifier))
-            self.__identifier = i
-            self.graph.addN([(i,p1,o1,self.graph) for p1,o1 in oldStmtsOut])
-            self.graph.addN([(s1,p1,i,self.graph) for s1,p1 in oldStmtsIn])
-    identifier = property(_get_identifier, _set_identifier)
 
     def setVersion(self,version):
         self.graph.set((self.identifier,OWL_NS.versionInfo,version))
@@ -340,6 +356,28 @@ def AllClasses(graph):
         if c not in prevClasses:
             prevClasses.add(c)
             yield Class(c)            
+
+def AllProperties(graph):
+    prevProps=set()
+    for s,p,o in graph.triples_choices(
+               (None,RDF.type,[OWL_NS.Symmetric,
+                               OWL_NS.FunctionalProperty,
+                               OWL_NS.InverseFunctionalProperty,
+                               OWL_NS.TransitiveProperty,
+                               OWL_NS.DatatypeProperty,
+                               OWL_NS.ObjectProperty])):
+        if o in [OWL_NS.Symmetric,
+                 OWL_NS.InverseFunctionalProperty,
+                 OWL_NS.TransitiveProperty,
+                 OWL_NS.ObjectProperty]:
+            bType=OWL_NS.ObjectProperty
+        else:
+            bType=OWL_NS.DatatypeProperty
+        if s not in prevProps:
+            prevProps.add(s)
+            yield Property(s,
+                           graph=graph,
+                           baseType=bType)            
     
 def CastClass(c,graph):
 #    for kind in graph.triples_choices((classOrIdentifier(c),
@@ -392,17 +430,10 @@ class Class(AnnotatibleTerms):
       description."
       
     """
-    factoryGraph = Graph()
-    
-    def __init__(self, identifier=BNode(),subClassOf=None,equivalentClass=None,
-                       disjointWith=None,complementOf=None,graph=None,skipOWLClassMembership = False,
-                       comment=None):
-        self.__identifier = identifier
-        self.qname = None
-        self.graph = graph is not None and graph or self.factoryGraph
-        if not isinstance(identifier,BNode):
-            prefix,uri,localName = self.graph.compute_qname(identifier) 
-            self.qname = u':'.join([prefix,localName])
+    def __init__(self, identifier=None,subClassOf=None,equivalentClass=None,
+                       disjointWith=None,complementOf=None,graph=None,
+                       skipOWLClassMembership = False,comment=None):
+        super(Class, self).__init__(identifier,graph)
         if not skipOWLClassMembership and (self.identifier,RDF.type,OWL_NS.Class) not in self.graph:
             self.graph.add((self.identifier,RDF.type,OWL_NS.Class))
         
@@ -412,27 +443,6 @@ class Class(AnnotatibleTerms):
         if complementOf:
             self.complementOf    = complementOf
         self.comment = comment and comment or []
-
-#    def _get_label(self):
-#        return self.__identifier
-#    def _set_label(self, i):
-#        assert i
-
-    def _get_identifier(self):
-        return self.__identifier
-    def _set_identifier(self, i):
-        assert i
-        if i != self.__identifier:
-            oldStmtsOut = [(p,o) for s,p,o in self.graph.triples((self.__identifier,None,None))]
-            oldStmtsIn  = [(s,p) for s,p,o in self.graph.triples((None,None,self.__identifier))]
-            for p1,o1 in oldStmtsOut:                
-                self.graph.remove((self.__identifier,p1,o1))
-            for s1,p1 in oldStmtsIn:                
-                self.graph.remove((s1,p1,self.__identifier))
-            self.__identifier = i
-            self.graph.addN([(i,p1,o1,self.graph) for p1,o1 in oldStmtsOut])
-            self.graph.addN([(s1,p1,i,self.graph) for s1,p1 in oldStmtsIn])
-    identifier = property(_get_identifier, _set_identifier)
     
     def __iadd__(self, other):
         assert isinstance(other,Class)
@@ -514,9 +524,6 @@ class Class(AnnotatibleTerms):
             self.graph.add((self.identifier,RDFS.seeAlso,link))
     seeAlso = property(_get_seeAlso, _set_seeAlso)
     
-#    def __str__(self):
-#        return str(self.identifier)
-
     def isPrimitive(self):
         if (self.identifier,RDF.type,OWL_NS.Restriction) in self.graph:
             return False
@@ -593,7 +600,7 @@ class Class(AnnotatibleTerms):
             (descr and "\n    %s"%descr[0] or '') + ' . '.join(exprs) or ' . '.join(exprs)
         else:
             klassDescr = full and (descr and "\n    %s"%descr[0] or '') or '' + ' . '.join(exprs)
-        return "Class: %s "%(isinstance(self.identifier,BNode) and '[]' or self.qname)+klassDescr
+        return (isinstance(self.identifier,BNode) and "Some Class " or "Class: %s "%self.qname)+klassDescr
 
 class OWLRDFListProxy(object):
     def __init__(self,rdfList,members=None,graph=Graph()):
@@ -648,7 +655,7 @@ class EnumeratedClass(Class,OWLRDFListProxy):
     _operator = OWL_NS.oneOf
     def isPrimitive(self):
         return False
-    def __init__(self, identifier=BNode(),members=None,graph=None):
+    def __init__(self, identifier=None,members=None,graph=None):
         Class.__init__(self,identifier,graph = graph)
         members = members and members or []
         rdfList = list(self.graph.objects(predicate=OWL_NS.oneOf,subject=self.identifier))
@@ -668,7 +675,7 @@ class BooleanClass(Class,OWLRDFListProxy):
     owl:complementOf is an attribute of Class, however
     
     """
-    def __init__(self,identifier=BNode(),operator=OWL_NS.intersectionOf,
+    def __init__(self,identifier=None,operator=OWL_NS.intersectionOf,
                  members=None,graph=None):
         if operator is None:
             props=[]
@@ -727,7 +734,7 @@ class Restriction(Class):
     
     def __init__(self,onProperty,graph = Graph(),allValuesFrom=None,someValuesFrom=None,value=None,
                       cardinality=None,maxCardinality=None,minCardinality=None,identifier=None):
-        super(Restriction, self).__init__(identifier and identifier or BNode(),
+        super(Restriction, self).__init__(identifier,
                                           graph=graph,
                                           skipOWLClassMembership=True)
         if (self.identifier,OWL_NS.onProperty,propertyOrIdentifier(onProperty)) not in graph:
@@ -866,7 +873,7 @@ only     = Infix(lambda prop,_class: Restriction(prop,graph=_class.graph,allValu
 max      = Infix(lambda prop,_class: Restriction(prop,graph=prop.graph,maxCardinality=_class))
 min      = Infix(lambda prop,_class: Restriction(prop,graph=prop.graph,minCardinality=_class))
 exactly  = Infix(lambda prop,_class: Restriction(prop,graph=prop.graph,cardinality=_class))
-value    = Infix(lambda prop,_class: Restriction(prop,graph=prop.graph,hasValue=_class))
+value    = Infix(lambda prop,_class: Restriction(prop,graph=prop.graph,value=_class))
 
 PropertyAbstractSyntax=\
 """
@@ -887,15 +894,11 @@ class Property(AnnotatibleTerms):
                   'Transitive' ]
                 { 'domain(' description ')' } { 'range(' description ')' } ')    
     """
-    factoryGraph = Graph()
-    def __init__(self,identifier=BNode(),graph = None,baseType=OWL_NS.ObjectProperty,
+    def __init__(self,identifier=None,graph = None,baseType=OWL_NS.ObjectProperty,
                       subPropertyOf=None,domain=None,range=None,inverseOf=None,
                       otherType=None,equivalentProperty=None,comment=None):
-        self.__identifier = identifier
-        self.graph = graph is not None and graph or self.factoryGraph        
-        assert not isinstance(identifier,BNode)
-        prefix,uri,localName = self.graph.compute_qname(identifier) 
-        self.qname = u':'.join([prefix,localName])
+        super(Property, self).__init__(identifier,graph)
+        assert not isinstance(self.identifier,BNode)
         if (self.identifier,RDF.type,baseType) not in self.graph:
             self.graph.add((self.identifier,RDF.type,baseType))
         self._baseType=baseType
@@ -916,42 +919,39 @@ class Property(AnnotatibleTerms):
             for s,p,roleType in self.graph.triples_choices((self.identifier,
                                                             RDF.type,
                                                             [OWL_NS.Functional,
-                                                             OWL_NS.InverseFunctional,
+                                                             OWL_NS.InverseFunctionalProperty,
                                                              OWL_NS.Transitive])):
                 rt.append(roleType.split(OWL_NS)[-1])
         else:
-            rt.append('DatatypeProperty( %s annotation(%s)'\
+            rt.append('DatatypeProperty( %s %s'\
                        %(self.qname,first(self.comment) and first(self.comment) or ''))            
             for s,p,roleType in self.graph.triples((self.identifier,
                                                     RDF.type,
                                                     OWL_NS.Functional)):
                 rt.append('   Functional')
-        rt.append(' '.join(["   super( %r )"%superP 
+        def canonicalName(term,g):
+            normalizedName=classOrIdentifier(term)
+            if isinstance(normalizedName,BNode):
+                return term
+            elif normalizedName.startswith(_XSD_NS):
+                return term
+            elif first(g.triples_choices((
+                      normalizedName,
+                      [OWL_NS.unionOf,
+                       OWL_NS.intersectionOf],None))):
+                return repr(term)
+            else:
+                return str(term.qname)
+        rt.append(' '.join(["   super( %s )"%canonicalName(superP,self.graph) 
                               for superP in self.subPropertyOf]))                        
-        rt.append(' '.join(["   domain( %r )"%domain 
+        rt.append(' '.join(["   domain( %s )"% canonicalName(domain,self.graph) 
                               for domain in self.domain]))
-        rt.append(' '.join(["   range( %r )"%range 
+        rt.append(' '.join(["   range( %s )"%canonicalName(range,self.graph) 
                               for range in self.range]))
         rt='\n'.join([expr for expr in rt if expr])
         rt+='\n)'
         return rt
                     
-    def _get_identifier(self):
-        return self.__identifier
-    def _set_identifier(self, i):
-        assert i
-        if i != self.__identifier:
-            oldStmtsOut = [(p,o) for s,p,o in self.graph.triples((self.__identifier,None,None))]
-            oldStmtsIn  = [(s,p) for s,p,o in self.graph.triples((None,None,self.__identifier))]
-            for p1,o1 in oldStmtsOut:                
-                self.graph.remove((self.__identifier,p1,o1))
-            for s1,p1 in oldStmtsIn:                
-                self.graph.remove((s1,p1,self.__identifier))
-            self.__identifier = i
-            self.graph.addN([(i,p1,o1,self.graph) for p1,o1 in oldStmtsOut])
-            self.graph.addN([(s1,p1,i,self.graph) for s1,p1 in oldStmtsIn])
-    identifier = property(_get_identifier, _set_identifier)
-
     def _get_subPropertyOf(self):
         for anc in self.graph.objects(subject=self.identifier,predicate=RDFS.subPropertyOf):
             yield Property(anc,graph=self.graph)

@@ -229,11 +229,14 @@ def main():
             print >>sys.stderr,"\t\t%s instanciations"%network.instanciations[termNode]
     else:        
         if manOWL:
-            cGraph = network.closureGraph(factGraph)
-            cloneGraph = Graph()
-            cloneGraph += cGraph
-            cloneGraph.namespace_manager = namespace_manager
-            Class.factoryGraph = cloneGraph
+            cGraph = network.closureGraph(factGraph,readOnly=False)
+#            cloneGraph = Graph()
+#            cloneGraph += cGraph
+            cGraph.namespace_manager = namespace_manager
+            Individual.factoryGraph = cGraph
+            for p in AllProperties(cGraph):
+                print p.identifier
+                print repr(p)
             for c in AllClasses(cGraph):#cGraph.subjects(predicate=RDF.type,object=OWL_NS.Class):
                 if normalize:
                     if c.isPrimitive():

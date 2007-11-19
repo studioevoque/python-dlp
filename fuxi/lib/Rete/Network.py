@@ -190,8 +190,14 @@ class ReteNetwork:
         
         return "<Network: %s rules, %s nodes, %s tokens in working memory, %s inferred tokens>"%(len(self.ruleStore.rules),len(self.nodes),total,len(self.inferredFacts))
         
-    def closureGraph(self,sourceGraph):
-        return ReadOnlyGraphAggregate([sourceGraph,self.inferredFacts])
+    def closureGraph(self,sourceGraph,readOnly=True):
+        if readOnly:
+            return ReadOnlyGraphAggregate([sourceGraph,self.inferredFacts])
+        else:
+            cg=ConjunctiveGraph()
+            cg+=sourceGraph
+            cg+=self.inferredFacts
+            return cg        
 
     def _setupDefaultRules(self):
         """

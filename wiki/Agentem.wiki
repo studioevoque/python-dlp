@@ -3,7 +3,9 @@ This is an architectural overview of a finite state machine for semantic web age
 
 = Introduction =
 
-The motivation is a lack of any coherence in how a _semantic web agent_ (with more sophistication than just a [http://wiki.foaf-project.org/Scutter scutter]) might go about consuming, processing, and acting upon RDF content retrieved from a "semantic web."  Much of this is motivated by Jim Hendler's must-read article _[http://www.mindswap.org/blog/2007/04/23/where-are-all-the-agents-long-form/ Where are the Agents?]_ and a follow-up "answer": _[http://www.multiagent.com/where-semantic-agents Where are the Semantic Agents?]_.  Furthermore, I feel that with all the inference capabilities FuXi is now equipped with, if there are no 'killer apps' that can immediately become cannon fodder, then there is something vacuous about the notion of a web of data with infinite value to autonomous agents.  At the very least, some consensus on an agent protocol that addresses the mechanisms that Web Architecture alone is not able facilitate is needed.  Agentem is an experimental python-dlp module to investigate what such a protocol should look like.  Much of this design sketch is motivated by the ESW wiki: [http://esw.w3.org/topic/HCLS/WebClosureSocialConvention A "Humane" Policy for Intelligent Web Agents and Interpretation via RDF/OWL]
+The motivation is a lack of any coherence in how a _semantic web agent_ (with more sophistication than just a [http://wiki.foaf-project.org/Scutter scutter]) might go about consuming, processing, and acting upon RDF content retrieved from a "semantic web."  Much of this is motivated by Jim Hendler's must-read article _[http://www.mindswap.org/blog/2007/04/23/where-are-all-the-agents-long-form/ Where are the Agents?]_ and a follow-up "answer": _[http://www.multiagent.com/where-semantic-agents Where are the Semantic Agents?]_.  
+
+Furthermore, I feel that with all the inference capabilities FuXi is now equipped with, if there are no 'killer apps' that can immediately become cannon fodder, then there is something vacuous about the notion of a web of data with infinite value to autonomous agents.  At the very least, some consensus on an agent protocol that addresses the mechanisms that Web Architecture alone is not able facilitate is needed.  Agentem is an experimental python-dlp module to investigate what such a protocol should look like.  Much of this design sketch is motivated by the ESW wiki: [http://esw.w3.org/topic/HCLS/WebClosureSocialConvention A "Humane" Policy for Intelligent Web Agents and Interpretation via RDF/OWL] as well as an older article on a scutter protocol for Redfoot (one of the "original" semantic web agent frameworks): _[http://copia.ogbuji.net/blog/2006-01-29/A_RESTful_ A RESTful Scutter Protocol for Redfoot Kernel]_
 
 = Parameters =
 
@@ -16,12 +18,26 @@ The finite state machine documented below is meant to be a parameterized process
 = FSM Diagram =
 
 [http://python-dlp.googlecode.com/files/agentem.jpg]
+
+
 [http://python-dlp.googlecode.com/files/agentem2.jpg]
 
 == Notes ==
 
 The process states marked with an asterix are further discussed below (going in top-down order):
 
+=== Default, Provenance Graph for REST Metadata  ===
 
+This FSM is meant to _drive_ a single [http://www.w3.org/TR/rdf-sparql-query/#rdfDataset RDF dataset].  In particular, the default graph is used for persisting HTTP request headers for use in constructing RESTful, subsequent requests for RDF graphs.  This allows strong-caching such that the same graph (linked from distinct directions) will only be parsed once if the server supports HTTP headers such as If-Modified-By, and Etags, etc...  See _[http://copia.ogbuji.net/blog/2006-01-29/A_RESTful_ A RESTful Scutter Protocol for Redfoot Kernel]_ for more on this mechanism.  Currently, _[http://www.w3.org/TR/HTTP-in-RDF/ "HTTP Vocabulary in RDF"]_ seems like the most promising vocabulary to use in this regard.
 
-= Details =
+=== "Lazy" Content Negotiation ===
+
+In addition to storing HTTP response headers, the protocol also requires that an indication of the set of Accept headers that resulted in a successful dereference of an RDF graph serialization be stored in the provenance graph and used to determine whether or not to attempt subsequent content negotiated requests.
+
+=== Parameterized graph traversal ===
+
+As mentioned in at the top of this document, a set of predetermined RDF predicates should serve as input to the graph traversal "loop."  
+
+=== A Graph Naming Convention ===
+
+Upon successful parsing of the Graph IRI, the agent should update / create (depending on the result of the "guided" request) a named graph in the data set with an IRI which corresponds to the racine of the full source IRI.  

@@ -1,0 +1,13 @@
+#labels Phase-Design
+#This is an architectural overview of a finite state machine for semantic web agents
+
+= Introduction =
+
+The motivation is a lack of any coherence in how a _semantic web agent_ (with more sophistication than just a [http://wiki.foaf-project.org/Scutter scutter]) might go about consuming, processing, and acting upon RDF content retrieved from a "semantic web."  Much of this is motivated by Jim Hendler's must-read article _[http://www.mindswap.org/blog/2007/04/23/where-are-all-the-agents-long-form/ Where are the Agents?]_ and a follow-up "answer": _[http://www.multiagent.com/where-semantic-agents Where are the Semantic Agents?]_.  Furthermore, I feel that with all the inference capabilities FuXi is now equipped with, if there are no 'killer apps' that can immediately become cannon fodder, then there is something vacuous about the notion of a web of data with infinite value to autonomous agents.  At the very least, some consensus on an agent protocol that addresses the mechanisms that Web Architecture alone is not able facilitate is needed.  Agentem is an experimental python-dlp module to investigate what such a protocol should look like.
+
+= FSM Diagram =
+
+[http://python-dlp.googlecode.com/files/agentem.jpg]
+[http://python-dlp.googlecode.com/files/agentem2.jpg]
+
+= Details =

@@ -49,8 +49,7 @@ nsMap = {
 
 testHarness = {
     'DL Test': [
-      #[('DL-SHIOF-test.n3','n3'),],
-      [('test.n3','n3'),],
+      [('DL-SHIOF-test.n3','n3'),],
       [],
       [
         (TEST_NS.Nozze_di_Figaro,RDF.type,TEST_NS.DaPonteOperaOfMozart),

@@ -8,6 +8,7 @@ from FuXi.Rete.BetaNode import PartialInstanciation, LEFT_MEMORY, RIGHT_MEMORY
 from FuXi.Rete.RuleStore import N3RuleStore
 from FuXi.Rete.Util import renderNetwork,generateTokenSet, xcombine
 from FuXi.DLP import MapDLPtoNetwork, non_DHL_OWL_Semantics
+from FuXi.Horn import ComplementExpansion
 from FuXi.Syntax.InfixOWL import *
 from rdflib.Namespace import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,URIRef,Literal,Variable
@@ -66,10 +67,12 @@ Options:
   --rules=FILE1,FILE2,..     The Notation 3 documents to use as rulesets for the
                              RETE network
                              
-  ---ruleFacts               Determines whether or not to attempt to parse 
+  --ruleFacts               Determines whether or not to attempt to parse 
                              initial facts from the rule graph.  Default by default
                              
-   --dlp                     This switch turns on Description Logic Programming 
+  --complementExpand         Perform a closed-world expansion of all use of owl:complementOf                             
+                              
+  --dlp                      This switch turns on Description Logic Programming 
                              (DLP) inference.  In this mode, the input document 
                              is considered an OWL ontology mostly comprised of
                              Description Horn Logic (DHL) axioms. ontology.  An 
@@ -94,6 +97,7 @@ def main():
                                                       "normalize",
                                                       "man-owl",
                                                       "dlp",
+                                                      "complementExpand",
                                                       "stdin",
                                                       "help",
                                                       "ruleFacts",
@@ -105,6 +109,7 @@ def main():
         print e
         usage()
         sys.exit(2)
+    complementExpansion = False
     proove=None
     factGraphs = args
     ruleGraphs = []
@@ -145,6 +150,8 @@ def main():
             sys.exit()
         elif o == '--dlp':
             dlp = True
+        elif o == '--complementExpand':
+            complementExpansion = True
         elif o == "--rules":
             ruleGraphs = a.split(',')
         elif o == '--ruleFacts':
@@ -180,6 +187,25 @@ def main():
         factGraph.parse(sys.stdin,format=factFormat)
     workingMemory = generateTokenSet(factGraph)
     if dlp:
+        if complementExpansion:
+            Individual.factoryGraph = factGraph
+            def topList(node,g):
+                for s in g.subjects(RDF.rest,node):
+                    yield s
+            for negativeClass in factGraph.subjects(predicate=OWL_NS.complementOf):
+                containingList = first(factGraph.subjects(RDF.first,negativeClass))
+                prevLink = None
+                while containingList:
+                    prevLink = containingList
+                    containingList = first(factGraph.subjects(RDF.rest,containingList))
+                for s,p,o in factGraph.triples_choices((None,
+                                                    [OWL_NS.intersectionOf,
+                                                     OWL_NS.unionOf],
+                                                     prevLink)):
+                    _class = Class(s)
+        #            print _class.__repr__(True,True)            
+                    ComplementExpansion(_class)        
+        
         #ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
         network = ReteNetwork(ruleStore,
                               inferredTarget = closureDeltaGraph,

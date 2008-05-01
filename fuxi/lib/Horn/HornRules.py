@@ -48,7 +48,7 @@ class Rule:
     
     """
     def __init__(self,clause,declare=None,nsMapping=None):
-        nsMapping = nsMapping and nsMapping or {}
+        self.nsMapping = nsMapping and nsMapping or {}
         self.formula = clause
         self.declare = declare and declare or []
 
@@ -63,7 +63,8 @@ class Rule:
         u'{ ?C rdfs:subClassOf ?SC. ?M a ?C. } => { ?M a ?SC. }'
                 
         """
-        return u'{ %s } => { %s }'%(self.formula.body.n3(),self.formula.head.n3())
+        return u'{ %s } => { %s }'%(self.formula.body.n3(),
+                                    self.formula.head.n3())
 #        "Forall %s ( %r )"%(' '.join([var.n3() for var in self.declare]),
 #                               self.formula)
     def __repr__(self):

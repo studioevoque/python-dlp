@@ -58,7 +58,13 @@ class And(QNameManager,SetOperator,Condition):
         u'rdfs:comment a rdf:Property. owl:Class a rdfs:Class.'
         
         """
-        return u' '.join([i.n3() for i in self])
+#        if not [term for term in self if not isinstance(term,Uniterm)]:
+#            g= Graph(namespace_manager = self.nsMgr)
+#            g.namespace_manager= self.nsMgr
+#            [g.add(term.toRDFTuple()) for term in self]
+#            return g.serialize(format='n3')
+#        else:
+        return u' . '.join([i.n3() for i in self])
         
     def __repr__(self):
         return self.repr('And')
@@ -95,12 +101,12 @@ class Exists(Condition):
     def n3(self):
         """
         """
-        return u"@forSome %s %s"%(','.join(self.declare),self.formula.n3())
+        return self.formula.n3()
+        #return u"@forSome %s %s"%(','.join(self.declare),self.formula.n3())
     
     def __repr__(self):
         return "Exists %s ( %r )"%(' '.join([var.n3() for var in self.declare]),
                                    self.formula )
-
 class Atomic(Condition):
     """
     ATOMIC ::= Uniterm | Equal
@@ -145,6 +151,14 @@ class Uniterm(QNameManager,Atomic):
             for k,v in newNss:
                 self.nsMgr.bind(k,v)
         
+    def renderTermAsN3(self,term):
+        if term == RDF.type:
+            return 'a'
+        elif isinstance(term, (BNode,Literal,Variable)):
+            return term.n3()
+        else:
+            return self.nsMgr.qname(term)
+        
     def n3(self):
         """
         Serialize as N3 (using available namespace managers)
@@ -153,9 +167,8 @@ class Uniterm(QNameManager,Atomic):
         'rdfs:comment a rdf:Property.'
 
         """
-        g=Graph(namespace_manager=self.nsMgr)
-        g.add((self.arg[0],self.op,self.arg[1]))
-        return ' '.join(g.serialize(format='n3').split(' ')[-4:-1])
+        return ' '.join([ self.renderTermAsN3(term) 
+                         for term in [self.arg[0],self.op,self.arg[1]]])
         
     def toRDFTuple(self):
         subject,_object = self.arg

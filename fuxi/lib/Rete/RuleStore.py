@@ -332,6 +332,7 @@ def test2():
     s._finalize()
 
 if __name__ == '__main__':
-    test()
+    pass
+    #test()
     #test2()
     

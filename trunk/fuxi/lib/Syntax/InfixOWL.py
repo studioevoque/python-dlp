@@ -379,10 +379,8 @@ def AllProperties(graph):
                            graph=graph,
                            baseType=bType)            
     
-def CastClass(c,graph):
-#    for kind in graph.triples_choices((classOrIdentifier(c),
-#                                       Restriction.restrictionKinds,
-#                                       None)):         
+def CastClass(c,graph=None):
+    graph = graph is None and c.factoryGraph or graph
     for kind in graph.objects(subject=classOrIdentifier(c),
                               predicate=RDF.type):
         if kind == OWL_NS.Restriction:
@@ -453,6 +451,12 @@ class Class(AnnotatibleTerms):
         assert isinstance(other,Class)
         self.graph.remove((classOrIdentifier(other),RDFS.subClassOf,self.identifier))
         return self
+    
+    def __invert__(self):
+        """
+        Shorthand for Manchester syntax's not operator
+        """
+        return Class(complementOf=self)
 
     def __or__(self,other):
         """
@@ -695,6 +699,36 @@ class BooleanClass(Class,OWLRDFListProxy):
 
     def isPrimitive(self):
         return False
+
+    def changeOperator(self,newOperator):
+        """
+        Converts a unionOf / intersectionOf class expression into one 
+        that instead uses the given operator
+        
+        
+        >>> testGraph = Graph()
+        >>> Individual.factoryGraph = testGraph
+        >>> EX = Namespace("http://example.com/")
+        >>> namespace_manager = NamespaceManager(Graph())
+        >>> namespace_manager.bind('ex', EX, override=False)
+        >>> testGraph.namespace_manager = namespace_manager
+        >>> fire  = Class(EX.Fire)
+        >>> water = Class(EX.Water) 
+        >>> testClass = BooleanClass(members=[fire,water])
+        >>> testClass
+        ( ex:Fire and ex:Water )
+        >>> testClass.changeOperator(OWL_NS.unionOf)
+        >>> testClass
+        ( ex:Fire or ex:Water )
+        >>> try: testClass.changeOperator(OWL_NS.unionOf)
+        ... except Exception, e: print e
+        The new operator is already being used!
+        
+        """
+        assert newOperator != self._operator,"The new operator is already being used!"
+        self.graph.remove((self.identifier,self._operator,self._rdfList))
+        self.graph.add((self.identifier,newOperator,self._rdfList))        
+        self._operator = newOperator
 
     def __repr__(self):
         """

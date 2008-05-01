@@ -66,7 +66,7 @@ from rdflib.Collection import Collection
 from rdflib.store import Store,VALID_STORE, CORRUPTED_STORE, NO_STORE, UNKNOWN
 from rdflib import Literal, URIRef
 from pprint import pprint, pformat
-import sys
+import sys, copy
 #from rdflib.term_utils import *
 from rdflib.Graph import QuotedGraph, Graph
 from rdflib.store.REGEXMatching import REGEXTerm, NATIVE_REGEX, PYTHON_REGEX
@@ -167,7 +167,7 @@ class Clause:
     """
     The RETE-UL algorithm supports conjunctions of facts in the head of a rule
     i.e.:   H1 ^ H2 ^ ... ^ H3 :- B1 ^  ^ Bm
-    The Clause definition os overridden to permit this syntax (not allowed
+    The Clause definition is overridden to permit this syntax (not allowed
     in definite LP or Horn rules)
     
     In addition, since we allow (in definite Horn) entailments beyond simple facts
@@ -198,6 +198,7 @@ def MapDLPtoNetwork(network,factGraph):
             disj = [i for i in breadth_first(tx_horn_clause.body) if isinstance(i,Or)]
             import warnings
             if len(disj)>1:
+                raise
                 warnings.warn("No support for multiple disjunctions in the body:\n"+repr(tx_horn_clause),UserWarning,1)
             elif disj:
                 #Disjunctions in the body
@@ -205,20 +206,24 @@ def MapDLPtoNetwork(network,factGraph):
 #                print tx_horn_clause
                 disj = disj[0]
                 for item in disj:
+#                    print "\tDisjunction operand: ", item
                     #replace disj with item in tx_horn_clause.body
                     list(breadth_first_replace(tx_horn_clause.body,candidate=disj,replacement=item))
-#                    print tx_horn_clause
-                    for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause)):
+                    #Then we want to clone the horn clause with the replacement
+                    tx_clause_clone = copy.deepcopy(tx_horn_clause)
+#                    print "\tClause after replacement: ", tx_clause_clone
+                    for hc in ExtendN3Rules(network,NormalizeClause(tx_clause_clone)):
                         ruleset.append(makeRule(hc,network.nsMap))
-                    #restore
-                    for item in breadth_first_replace(tx_horn_clause.body,candidate=item,replacement=disj):
-                        pass
+                    #restore the replaced term (for the subsequent iteration)
+                    list(breadth_first_replace(tx_horn_clause.body,candidate=item,replacement=disj))
             else:
+#                print "No Disjunction in the body"
 #                print tx_horn_clause
                 for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause)):
                     ruleset.append(makeRule(hc,network.nsMap))                    
             #Extract free variables anre add rule to ruleset
 #        print "#######################"
+    print "########## Finished Building decision network from DLP ##########"
     #renderNetwork(network).write_graphviz('out.dot')
     return ruleset
 

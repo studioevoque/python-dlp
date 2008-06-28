@@ -27,6 +27,43 @@ def normalizeTerm(term):
         return term.identifier
     else:
         return term
+        
+from cPickle import dumps, PicklingError # for memoize
+class memoize(object):
+    """Decorator that caches a function's return value each time it is called.
+    If called later with the same arguments, the cached value is returned, and
+    not re-evaluated. Slow for mutable types."""
+    # Ideas from MemoizeMutable class of Recipe 52201 by Paul Moore and
+    # from memoized decorator of http://wiki.python.org/moin/PythonDecoratorLibrary
+    # For a version with timeout see Recipe 325905
+    # For a self cleaning version see Recipe 440678
+    # Weak references (a dict with weak values) can be used, like this:
+    #   self._cache = weakref.WeakValueDictionary()
+    #   but the keys of such dict can't be int
+    def __init__(self, func):
+        self.func = func
+        self._cache = {}
+    def __call__(self, *args, **kwds):
+        key = args
+        if kwds:
+            items = kwds.items()
+            items.sort()
+            key = key + tuple(items)
+        try:
+            if key in self._cache:
+                return self._cache[key]
+            self._cache[key] = result = self.func(*args, **kwds)
+            return result
+        except TypeError:
+            try:
+                dump = dumps(key)
+            except PicklingError:
+                return self.func(*args, **kwds)
+            else:
+                if dump in self._cache:
+                    return self._cache[dump]
+                self._cache[dump] = result = self.func(*args, **kwds)
+                return result
 
 class ReteToken:
     """
@@ -39,9 +76,8 @@ class ReteToken:
         self.predicate = (None,normalizeTerm(predicate))
         self.object_   = (None,normalizeTerm(object_))
         self.bindingDict = {}
-        self._termConcat = self.concatenateTerms()
+        self._termConcat = self.concatenateTerms([self.subject,self.predicate,self.object_])
         self.hash = hash(self._termConcat) 
-        self.divergentVariables = {}
         self.inferred = False
 
     def __hash__(self):
@@ -56,8 +92,9 @@ class ReteToken:
         """
         return self.hash 
 
-    def concatenateTerms(self):
-        return reduce(lambda x,y:str(x)+str(y),[term[VALUE] for term in [self.subject,self.predicate,self.object_]])
+    @memoize
+    def concatenateTerms(terms):
+        return reduce(lambda x,y:str(x)+str(y),[term[VALUE] for term in terms])
 
     def __eq__(self,other):
         return hash(self) == hash(other)   
@@ -96,7 +133,7 @@ class ReteToken:
     def bindVariables(self,alphaNode):
         """
         This function, called when a token passes a node test, associates token terms with variables
-        in the node test 
+        in the node test         
         """
         self.pattern = alphaNode.triplePattern
         self.subject   = (alphaNode.triplePattern[SUBJECT],self.subject[VALUE])
@@ -110,13 +147,8 @@ class ReteToken:
                 bindHashItems.append(var + val)
             else:
                 bindHashItems.append(val)
+        #self.bindingDict := { var1 -> val1, var2 -> val2, ..  }
         self.hash = hash(reduce(lambda x,y:x+y,bindHashItems))
-        if len(self.bindingDict.values()) != len(Set(self.bindingDict.values())):
-            for key,val in self.bindingDict.items():
-                self.divergentVariables.setdefault(val,[]).append(key)
-            for val,keys in self.divergentVariables.items():
-                if len(keys) == 1:
-                    del self.divergentVariables[val]
         return self            
     
 def defaultIntraElementTest(aReteToken,triplePattern):
@@ -200,14 +232,14 @@ class AlphaNode(Node):
                 memory.addToken(aReteToken)                
             if memory.successor.leftUnlinkedNodes and len(memory) == 1 and LEFT_UNLINKING:
                 #Relink left memory of successor
-                from Util import renderNetwork
-                from md5 import md5
-                from datetime import datetime
-                import os                                
-                print "Re-linking %s"%(memory.successor)
-                print "Re-linking triggered from %s"%(repr(self))
+#                from Util import renderNetwork
+#                from md5 import md5
+#                from datetime import datetime
+#                import os                                
+#                print "Re-linking %s"%(memory.successor)
+#                print "Re-linking triggered from %s"%(repr(self))
                 for node in memory.successor.leftUnlinkedNodes:
-                    print "\trelinking to ", node, " from ", memory.position
+#                    print "\trelinking to ", node, " from ", memory.position
                     #aReteToken.debug = True
                     if node.unlinkedMemory is None:
                         assert len(node.descendentMemory) == 1,"%s %s %s"%(node,
@@ -219,8 +251,8 @@ class AlphaNode(Node):
                         disconnectedMemory = node.unlinkedMemory
                         node.descendentMemory.append(disconnectedMemory)
                         node.unlinkedMemory = None
-                    if aReteToken.debug:
-                        print "\t reattached memory ",str(disconnectedMemory) 
+#                    if aReteToken.debug:
+#                        print "\t reattached memory ",str(disconnectedMemory) 
                     memory.successor.memories[LEFT_MEMORY] = disconnectedMemory                    
                     node.descendentBetaNodes.add(memory.successor)
                     #print memory.successor.memories[LEFT_MEMORY]

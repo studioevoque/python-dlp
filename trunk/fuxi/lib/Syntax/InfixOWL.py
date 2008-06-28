@@ -186,11 +186,31 @@ def manchesterSyntax(thing,store,boolean=None,transientList=False):
     assert thing is not None
     if boolean:
         if transientList:
+            liveChildren=iter(thing)
             children = [manchesterSyntax(child,store) for child in thing ]
         else:
+            liveChildren=iter(Collection(store,thing))
             children = [manchesterSyntax(child,store) for child in Collection(store,thing)]
         if boolean == OWL_NS.intersectionOf:
-            return '( '+ ' and '.join(children) + ' )'
+            childList=[]
+            named = []
+            for child in liveChildren:
+                if isinstance(child,URIRef):
+                    named.append(child)
+                else:
+                    childList.append(child)
+            if named:
+                def castToQName(x):
+                    prefix,uri,localName = store.compute_qname(x) 
+                    return u':'.join([prefix,localName])
+                
+                if len(named) > 1:
+                    prefix = '( '+ ' and '.join(map(castToQName,named)) + ' )'                
+                else:
+                    prefix = manchesterSyntax(named[0],store)
+                return prefix+ ' that '+' and '.join(map(lambda x:manchesterSyntax(x,store),childList))
+            else:
+                return '( '+ ' and '.join(children) + ' )'
         elif boolean == OWL_NS.unionOf:
             return '( '+ ' or '.join(children) + ' )'
         elif boolean == OWL_NS.oneOf:

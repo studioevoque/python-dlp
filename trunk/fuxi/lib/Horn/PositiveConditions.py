@@ -64,7 +64,7 @@ class And(QNameManager,SetOperator,Condition):
 #            [g.add(term.toRDFTuple()) for term in self]
 #            return g.serialize(format='n3')
 #        else:
-        return u' . '.join([i.n3() for i in self])
+        return u' .\n '.join([i.n3() for i in self])
         
     def __repr__(self):
         return self.repr('And')

@@ -10,7 +10,7 @@ except:
     pass
 from rdflib.Graph import Graph
 from rdflib.syntax.NamespaceManager import NamespaceManager
-from rdflib import BNode, Namespace
+from rdflib import BNode, Namespace, Collection
 from sets import Set
 
 LOG = Namespace("http://www.w3.org/2000/10/swap/log#")
@@ -59,11 +59,19 @@ def generateTokenSet(graph,debugTriples=[],skipImplies=True):
     """
     from FuXi.Rete import ReteToken
     rt = Set()    
+    def normalizeGraphTerms(term):
+        if isinstance(term,Collection.Collection):
+            return term.uri
+        else:
+            return term
     for s,p,o in graph:
+        
         if not skipImplies or p != LOG.implies:
             #print s,p,o             
-            debug = (s,p,o) in debugTriples
-            rt.add(ReteToken((s,p,o),debug))
+            debug = debugTriples and (s,p,o) in debugTriples
+            rt.add(ReteToken((normalizeGraphTerms(s),
+                              normalizeGraphTerms(p),
+                              normalizeGraphTerms(o)),debug))
     return rt
 
 def generateBGLNode(node,bglGraph,vertexMaps,namespace_manager,identifier,edgeMaps = {}):

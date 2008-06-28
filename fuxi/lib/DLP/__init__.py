@@ -62,6 +62,7 @@ T(owl:TransitiveProperty(P))   -> P(x,z) :- P(x,y) ^ P(y,z)
 from __future__ import generators
 from sets import Set
 from rdflib import BNode, RDF, Namespace, Variable, RDFS
+from rdflib.util import first
 from rdflib.Collection import Collection
 from rdflib.store import Store,VALID_STORE, CORRUPTED_STORE, NO_STORE, UNKNOWN
 from rdflib import Literal, URIRef
@@ -147,15 +148,13 @@ def reduceAnd(left,right):
     
 def NormalizeClause(clause):
     def fetchFirst(gen):
-        gen=list(gen)
-        assert len(gen)==1
-        return gen[0]
+        return first(gen)
     if hasattr(clause.head,'next') and not isinstance(clause.head,Condition):
         clause.head = fetchFirst(clause.head)
     if hasattr(clause.body,'next') and not isinstance(clause.body,Condition):
         clause.body = fetchFirst(clause.body)
-    assert isinstance(clause.head,(Atomic,And,Clause)),repr(clause.head)
-    assert isinstance(clause.body,Condition),repr(clause.body)
+#    assert isinstance(clause.head,(Atomic,And,Clause)),repr(clause.head)
+#    assert isinstance(clause.body,Condition),repr(clause.body)
     if isinstance(clause.head,And):
         clause.head.formulae = reduce(reduceAnd,clause.head)
     if isinstance(clause.body,And):
@@ -180,6 +179,9 @@ class Clause:
     def __repr__(self):
         return "%r :- %r"%(self.head,self.body)
 
+    def n3(self):
+        return u'{ %s } => { %s }'%(self.body.n3(),self.head.n3())    
+
 def makeRule(clause,nsMap):
     vars=set()
     for condition in [clause.head,clause.body]:
@@ -188,9 +190,9 @@ def makeRule(clause,nsMap):
             vars.update([term for term in child.toRDFTuple() if isinstance(term,Variable)])
     return Rule(clause,declare=vars,nsMapping=nsMap)
 
-def MapDLPtoNetwork(network,factGraph):
+def MapDLPtoNetwork(network,factGraph,complementExpansions=[]):
     ruleset=[]
-    for horn_clause in T(factGraph):
+    for horn_clause in T(factGraph,complementExpansions=complementExpansions):
 #        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
 #        print "## RIF BLD Horn Rules: After LloydTopor: ##"
         for tx_horn_clause in LloydToporTransformation(horn_clause):
@@ -368,15 +370,20 @@ def generatorFlattener(gen):
     else:
         return i
 
-def T(owlGraph):
+def T(owlGraph,complementExpansions=[]):
     """
+    #Subsumption (purely for TBOX classification)
+    {?C rdfs:subClassOf ?SC. ?A rdfs:subClassOf ?C} => {?A rdfs:subClassOf ?SC}.
+    {?C owl:equivalentClass ?A} => {?C rdfs:subClassOf ?A. ?A rdfs:subClassOf ?C}.
+    {?C rdfs:subClassOf ?SC. ?SC rdfs:subClassOf ?C} => {?C owl:equivalentClass ?SC}.
+    
     T(rdfs:subClassOf(C,D))       -> Th(D(y)) :- Tb(C(y))
     
     T(owl:equivalentClass(C,D)) -> { T(rdfs:subClassOf(C,D) 
                                      T(rdfs:subClassOf(D,C) }
     
     A generator over the Logic Programming rules which correspond
-    to the DL subsumption axiom described via rdfs:subClassOf
+    to the DL  ( unary predicate logic ) subsumption axiom described via rdfs:subClassOf
     """
     for c,p,d in owlGraph.triples((None,RDFS.subClassOf,None)):
         yield NormalizeClause(Clause(Tb(owlGraph,c),Th(owlGraph,d)))
@@ -385,14 +392,28 @@ def T(owlGraph):
         yield NormalizeClause(Clause(Tb(owlGraph,c),Th(owlGraph,d)))
         yield NormalizeClause(Clause(Tb(owlGraph,d),Th(owlGraph,c)))
     for s,p,o in owlGraph.triples((None,OWL_NS.intersectionOf,None)):
-        if isinstance(s,URIRef):
-            #special case, owl:intersectionOf is a neccessary and sufficient
-            #criteria and should thus work in *both* directions
-            body = And([Uniterm(RDF.type,[Variable("X"),i],newNss=owlGraph.namespaces()) \
-                           for i in Collection(owlGraph,o)])
+        if s not in complementExpansions:
+            conjunction=[]
+            for bodyTerm in Collection(owlGraph,o):
+                bodyUniTerm = Uniterm(RDF.type,[Variable("X"),bodyTerm],
+                                           newNss=owlGraph.namespaces())
+                conjunction.append(bodyUniTerm)
+                if first(owlGraph.triples_choices((bodyTerm,
+                                                   [OWL_NS.unionOf,
+                                                    OWL_NS.someValuesFrom],
+                                                   None))):
+                    yield NormalizeClause(Clause(Tb(owlGraph,bodyTerm),
+                                                 bodyUniTerm))
+            body = And(conjunction)
             head = Uniterm(RDF.type,[Variable("X"),s],newNss=owlGraph.namespaces())
+#            O1 ^ O2 ^ ... ^ On => S(?X)            
             yield Clause(body,head)
-            yield Clause(head,body)
+            if isinstance(s,URIRef):
+#                S(?X) => O1 ^ O2 ^ ... ^ On                
+    #            special case, owl:intersectionOf is a neccessary and sufficient
+    #            criteria and should thus work in *both* directions 
+    #            This rule is not added for anonymous classes
+                yield Clause(head,body)
         
     for s,p,o in owlGraph.triples((None,OWL_NS.unionOf,None)):
         if isinstance(s,URIRef):
@@ -442,6 +463,9 @@ def T(owlGraph):
             
 def LloydToporTransformation(clause,fullReduction=False):
     """
+    Tautological, common horn logic forms (useful for normalizing 
+    conjunctive & disjunctive clauses)
+    
     (H ^ H0) :- B                 -> { H  :- B
                                        H0 :- B }
     (H :- H0) :- B                -> H :- B ^ H0
@@ -475,7 +499,7 @@ def LloydToporTransformation(clause,fullReduction=False):
 def commonConjunctionMapping(owlGraph,conjuncts,innerFunc,variable=Variable("X")):
     """
     DHL: T*((C1 ^ C2 ^ ... ^ Cn),x)    -> T*(C1,x) ^ T*(C2,x) ^ ... ^ T*(Cn,x)
-    OWL: intersectionOf(c1 … cn) =>  EC(c1) ∩ … ∩ EC(cn)
+    OWL: intersectionOf(c1 � c2 ,..,cn) =>  EC(c1) ∩ … ∩ EC(cn)
     """
     conjuncts = Collection(owlGraph,conjuncts)
     return And([generatorFlattener(innerFunc(owlGraph,c,variable)) 
@@ -483,19 +507,14 @@ def commonConjunctionMapping(owlGraph,conjuncts,innerFunc,variable=Variable("X")
 
 def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
     """
+    DLP head (antecedent) knowledge assertional forms (ABox assertions, conjunction of
+    ABox assertions, and universal role restriction assertions)
     Th(A,x)                      -> A(x)
     Th((C1 ^ C2 ^ ... ^ Cn),x)   -> Th(C1,x) ^ Th(C2,x) ^ ... ^ Th(Cn,x) 
     Th((∀R.C),x)                -> Th(C(y)) :- R(x,y)
     """
     props = list(set(owlGraph.predicates(subject=_class)))
-    if OWL_NS.intersectionOf in props:
-        #http://www.w3.org/TR/owl-semantics/#owl_intersectionOf
-        for s,p,o in owlGraph.triples((_class,OWL_NS.intersectionOf,None)):
-            rt=commonConjunctionMapping(owlGraph,o,Th,variable=variable)
-            if isinstance(s,URIRef):
-                rt = rt.formulae.append(Uniterm(RDF.type,[variable,s],newNss=owlGraph.namespaces()))
-            yield rt
-    elif OWL_NS.allValuesFrom in props:
+    if OWL_NS.allValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#owl_allValuesFrom
         #restriction(p allValuesFrom(r))    {x ∈ O | <x,y> ∈ ER(p) implies y ∈ EC(r)}
         for s,p,o in owlGraph.triples((_class,OWL_NS.allValuesFrom,None)):
@@ -518,20 +537,16 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
     
 def Tb(owlGraph,_class,variable=Variable('X')):
     """
+    DLP body (consequent knowledge assertional forms (ABox assertions, 
+    conjunction / disjunction of ABox assertions, and exisential role restriction assertions)
+    These are all common EL++ templates for KR
     Tb(A(x))                      -> A(x)
     Tb((C1 ^ C2 ^ ... ^ Cn),x)    -> Tb(C1,x) ^ Tb(C2,x) ^ ... ^ Tb(Cn,x)
     Tb((C1 v C2 v ... v Cn),x)    -> Tb(C1,x) v Tb(C2,x) v ... v Tb(Cn,x)
     Tb((∃R.C),x)                 ->  R(x,y) ^ Tb(C,y) 
     """
     props = list(set(owlGraph.predicates(subject=_class)))
-    if OWL_NS.intersectionOf in props:
-        #http://www.w3.org/TR/owl-semantics/#owl_intersectionOf
-        for s,p,o in owlGraph.triples((_class,OWL_NS.intersectionOf,None)):
-            rt=commonConjunctionMapping(owlGraph,o,Tb,variable=variable)
-            if isinstance(s,URIRef):
-                rt = rt.formulae.append(Uniterm(RDF.type,[variable,s],newNss=owlGraph.namespaces()))
-            yield rt
-    elif OWL_NS.unionOf in props:
+    if OWL_NS.unionOf in props and not isinstance(_class,URIRef):
         #http://www.w3.org/TR/owl-semantics/#owl_unionOf
         #OWL semantics: unionOf(c1 … cn) => EC(c1) ∪ … ∪ EC(cn)
         for s,p,o in owlGraph.triples((_class,OWL_NS.unionOf,None)):
@@ -549,4 +564,5 @@ def Tb(owlGraph,_class,variable=Variable('X')):
                     generatorFlattener(Tb(owlGraph,o,variable=newVar))])
     else:
         #simple class
+        #"Named" Uniterm
         yield Uniterm(RDF.type,[variable,_class],newNss=owlGraph.namespaces())

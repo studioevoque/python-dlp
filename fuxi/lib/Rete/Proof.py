@@ -1,20 +1,136 @@
+#!/usr/local/bin/python
+# -*- coding: utf-8 -*-
 """
 Proof Markup Language Construction: Proof Level Concepts (Abstract Syntax)
 
 A set of Python objects which create a PML instance in order to serialize as OWL/RDF
 
 """
+try:    
+    import boost.graph as bgl
+    bglGraph = bgl.Digraph()
+except:
+    try:
+        from pydot import Node,Edge,Dot
+        dot=Dot(graph_type='digraph')
+    except:
+        raise NotImplementedError("Boost Graph Library & Python bindings (or pydot) not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
+
+from itertools import izip,ifilter,ifilterfalse
 from FuXi.Syntax.InfixOWL import *
 from FuXi.Horn.HornRules import Clause, Ruleset
-from FuXi.Horn.PositiveConditions import Uniterm, buildUniTerm
-from BetaNode import BetaNode, LEFT_MEMORY, RIGHT_MEMORY, PartialInstanciation
-from FuXi.Rete.AlphaNode import AlphaNode
+from FuXi.Horn.PositiveConditions import Uniterm, buildUniTerm, SetOperator, Exists
+from BetaNode import BetaNode, LEFT_MEMORY, RIGHT_MEMORY, PartialInstanciation, project
+from FuXi.Rete.AlphaNode import AlphaNode, ReteToken
 from FuXi.Rete.Network import _mulPatternWithSubstitutions
 from rdflib.Graph import Graph
 from rdflib.syntax.NamespaceManager import NamespaceManager
-from rdflib import BNode, Namespace
+from rdflib import BNode, Namespace, Variable
 from sets import Set
 from pprint import pprint,pformat
+
+#From itertools recipes
+def iteritems(mapping): 
+    return izip(mapping.iterkeys(),mapping.itervalues())
+
+def any(seq,pred=None):
+    """Returns True if pred(x) is true for at least one element in the iterable"""
+    for elem in ifilter(pred,seq):
+        return True
+    return False
+
+def all(seq, pred=None):
+    "Returns True if pred(x) is true for every element in the iterable"
+    for elem in ifilterfalse(pred, seq):
+        return False
+    return True
+
+def fillBindings(terms,bindings):
+    for term in terms:
+        if isinstance(term,Variable):
+            yield bindings[term]
+        else:
+            yield term 
+def termIterator(term):
+    if isinstance(term,(Exists,SetOperator)):
+        for i in term:
+            yield i
+    else:
+        yield term
+        
+class ImmutableDict(dict):
+    '''
+    A hashable dict.
+    
+    >>> a=[ImmutableDict([('one',1),('three',3)]),ImmutableDict([('two',2),('four' ,4)])]
+    >>> b=[ImmutableDict([('two',2),('four' ,4)]),ImmutableDict([('one',1),('three',3)])]
+    >>> a.sort(key=lambda d:hash(d))
+    >>> b.sort(key=lambda d:hash(d))
+    >>> a == b
+    True
+    
+    '''
+    def __init__(self,*args,**kwds):
+        dict.__init__(self,*args,**kwds)
+        self._items=list(self.iteritems())
+        self._items.sort()
+        self._items=tuple(self._items)
+    def __setitem__(self,key,value):
+        raise NotImplementedError, "dict is immutable"
+    def __delitem__(self,key):
+        raise NotImplementedError, "dict is immutable"
+    def clear(self):
+        raise NotImplementedError, "dict is immutable"
+    def setdefault(self,k,default=None):
+        raise NotImplementedError, "dict is immutable"
+    def popitem(self):
+        raise NotImplementedError, "dict is immutable"
+    def update(self,other):
+        raise NotImplementedError, "dict is immutable"
+    def __hash__(self):
+        return hash(self._items)
+                
+def fetchRETEJustifications(goal,nodeset,builder,antecedent=None):
+    """
+    Takes a goal, a nodeset and an inference step the nodeset is the
+    premise for the corresponding rule.  Returns a generator
+    over the valid terminal nodes that are responsible for inferring
+    the conclusion represented by the nodeset
+    """
+    #The justification indicated by the RETE network
+    justificationForGoal =  nodeset.network.justifications[goal]
+    if antecedent:
+        yielded = False
+        #might not be a valid justification
+        for reteJustification in justificationForGoal:
+            validJustification = True
+            for bodyTerm in reteJustification.clause.body:
+                #is the premise already proven?
+                failedCheck = True
+                try:
+                    failedCheck = any(termIterator(bodyTerm),lambda x:
+                                          tuple(fillBindings(x.toRDFTuple(),antecedent.bindings))
+                                             in builder.goals)
+                except KeyError:
+                    failedCheck = False
+                validJustification = not failedCheck
+            if validJustification:
+                yielded = True
+                yield reteJustification
+        if not yielded:
+            for tNode in nodeset.network.terminalNodes:
+                if tNode not in justificationForGoal:
+                    try:
+                        if any(termIterator(tNode.clause.head),
+                               lambda x:
+                                  tuple(fillBindings(x.toRDFTuple(),
+                                                     antecedent.bindings)) == goal):
+                            yield tNode 
+                    except Exception,e:
+                        pass
+    else:
+        for tNode in justificationForGoal:
+            yield tNode
 
 PML = Namespace('http://inferenceweb.stanford.edu/2004/07/iw.owl#')
 FUXI=URIRef('http://purl.org/net/chimezie/FuXi')
@@ -31,12 +147,12 @@ class ProofBuilder(object):
     Handles the recursive building of a proof tree (from a 'fired' RETE-UL network), 
     keeping the state of the goals already processed
 
-    We begin by defining a proof as a sequence of “proof steps”, where each
+    We begin by defining a proof as a sequence of ‚Äúproof steps‚Äù, where each
     proof step consists of a conclusion, a justification for that conclusion, and a set
-    of assumptions discharged by the step. “A proof of C” is defined to be a proof
+    of assumptions discharged by the step. ‚ÄúA proof of C‚Äù is defined to be a proof
     whose last step has conclusion C. A proof of C is conditional on an assumption
     A if and only if there is a step in the proof that has A as its conclusion and
-    “assumption” as its justification, and A is not discharged by a later step in the
+    ‚Äúassumption‚Äù as its justification, and A is not discharged by a later step in the
     proof.    
     
     """
@@ -58,12 +174,16 @@ class ProofBuilder(object):
             import boost.graph as bgl
             bglGraph = bgl.Digraph()
         except:
-            raise NotImplementedError("Boost Graph Library & Python bindings not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
+            try:
+                from pydot import Node,Edge,Dot
+                dot=Dot(graph_type='digraph')
+            except:
+                raise NotImplementedError("Boost Graph Library & Python bindings (or pydot) not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
         namespace_manager = NamespaceManager(Graph())
         vertexMaps   = {}
         edgeMaps     = {}
-        for prefix,uri in nsMap.items():
-            namespace_manager.bind(prefix, uri, override=False)
+#        for prefix,uri in nsMap.items():
+#            namespace_manager.bind(prefix, uri, override=False)
         visitedNodes = {}
         edges = []
         idx = 0
@@ -71,50 +191,37 @@ class ProofBuilder(object):
         for nodeset in self.goals.values():
             if not nodeset in visitedNodes:
                 idx += 1
-                visitedNodes[nodeset] = nodeset.generateBGLNode(bglGraph,vertexMaps,namespace_manager,str(idx),edgeMaps,nodeset is proof)
+                visitedNodes[nodeset] = nodeset.generateGraphNode(str(idx),nodeset is proof)
             #register the justification steps
             for justification in nodeset.steps:
                 if not justification in visitedNodes:
                     idx += 1
-                    visitedNodes[justification] = justification.generateBGLNode(bglGraph,vertexMaps,namespace_manager,str(idx),edgeMaps)
+                    visitedNodes[justification] = justification.generateGraphNode(str(idx))
                     for ant in justification.antecedents:
                         if ant not in visitedNodes:
                             idx += 1
-                            visitedNodes[ant] = ant.generateBGLNode(bglGraph,vertexMaps,namespace_manager,str(idx),edgeMaps)
-                        
-        nodeIdxs = {}                        
+                            visitedNodes[ant] = ant.generateGraphNode(str(idx))
+        for node in visitedNodes.values():
+            dot.add_node(node)
         for nodeset in self.goals.values():
             for justification in nodeset.steps:
-                edge = bglGraph.add_edge(visitedNodes[nodeset],visitedNodes[justification])
-                edges.append((nodeset,justification))
-                
-                labelMap         = edgeMaps.get('label',bglGraph.edge_property_map('string'))
-                colorMap         = edgeMaps.get('color',bglGraph.edge_property_map('string'))
-                labelMap[edge]   = "is the consequence of"
-                colorMap[edge]   = "red"
-                idMap            = edgeMaps.get('ids',bglGraph.edge_property_map('string'))
-                idMap[edge]      = str(visitedNodes[nodeset]) + str(visitedNodes[justification]) + 'edge'                        
-                edgeMaps['ids']   = idMap
-                edgeMaps['color'] = colorMap
-                edgeMaps['label'] = labelMap
-                bglGraph.edge_properties['label'] = labelMap
-                
+                #pydot implementation
+                if True:#(visitedNodes[nodeset],visitedNodes[justification]) not in edges:
+                    edge = Edge(visitedNodes[nodeset],visitedNodes[justification])
+                    edge.label = "is the consequence of"
+                    edge.color = 'red'
+                    dot.add_edge(edge)
+                    #edges.append((visitedNodes[nodeset],visitedNodes[justification]))
+                                
                 for ant in justification.antecedents:
-                    edge = bglGraph.add_edge(visitedNodes[justification],visitedNodes[ant])
-                    edges.append((justification,ant))
-                    
-                    labelMap         = edgeMaps.get('label',bglGraph.edge_property_map('string'))
-                    colorMap         = edgeMaps.get('color',bglGraph.edge_property_map('string'))
-                    labelMap[edge]   = "has antecedent"
-                    colorMap[edge]   = "blue"
-                    idMap            = edgeMaps.get('ids',bglGraph.edge_property_map('string'))
-                    idMap[edge]      = str(visitedNodes[justification]) + str(visitedNodes[ant]) + 'edge'                        
-                    edgeMaps['ids']   = idMap
-                    edgeMaps['color'] = colorMap
-                    edgeMaps['label'] = labelMap
-                    bglGraph.edge_properties['label'] = labelMap
-                                            
-        return bglGraph
+                    if True:#(visitedNodes[nodeset],visitedNodes[justification]) not in edges:
+                        edge = Edge(visitedNodes[justification],visitedNodes[ant])
+                        edge.label="has antecedents"
+                        edge.color='blue'
+                        dot.add_edge(edge)
+                        #edges.append((visitedNodes[nodeset],visitedNodes[justification]))
+                                                                
+        return dot#bglGraph
                 
     def buildInferenceStep(self,parent,terminalNode,goal):
         """
@@ -127,27 +234,36 @@ class ProofBuilder(object):
         """
         #iterate over the tokens which caused the instanciation of this terminalNode
         step = InferenceStep(parent,terminalNode.clause)
-        #assert len(terminalNode.instanciatingTokens) == 1,repr(terminalNode.instanciatingTokens)
-        for token in terminalNode.instanciatingTokens:
-            if isinstance(token,PartialInstanciation):
-                _iter=token
-            else:
-                _iter=[token]
-            for token in _iter:
-                properBindings = self.network.dischargedBindings.get(goal)
-#                assert properBindings
-#                print properBindings, token
-                if not [k for k,v in token.bindingDict.items() if properBindings[k] == v]:
-                    continue
-#                if not [k for k,v in token.bindingDict.items() if self.network.dischargedBindings.get(goal,{}) == v]:
-#                print token
-#                print token.asTuple()
-                step.bindings.update(token.bindingDict)
-                step.antecedents.append(self.buildNodeSet(token.asTuple(),antecedent=step))
-                self.trace.append("Building inference step for %s"%parent)
-                self.trace.append("Inferred from RETE node via %s"%(terminalNode.clause))                
-                self.trace.append("Bindings: %s"%step.bindings)                
-        assert step.antecedents
+        bindings={}
+        for _dict in self.network.proofTracers[goal]:
+            bindings.update(_dict)
+        step.bindings.update(bindings)      
+        if ReteToken(goal) in self.network.workingMemory:
+            step.source='some RDF graph'
+            self.trace.append("Marking justification from assertion for "+repr(goal))
+        for tNode in fetchRETEJustifications(goal,parent,self,step):
+            if self.network.instanciations[tNode]:
+                for bodyTerm in tNode.clause.body:
+                    step.rule = tNode.clause
+                    for termVar in termIterator(bodyTerm):       
+                        assert isinstance(termVar,Uniterm)
+                        a=[x for x in termVar.toRDFTuple() if isinstance(x,Variable) and x not in step.bindings]
+                    binds=[]
+                    for t in tNode.instanciatingTokens:
+                        binds.extend([project(binding,a) for binding in t.bindings])
+                    binds=set([ImmutableDict([(k,v) for k,v in bind.items()]) for bind in binds])
+                    assert len(binds)<2
+                    for b in binds:
+                        step.bindings.update(b)
+                    for termVar in termIterator(bodyTerm):       
+                        assert isinstance(termVar,Uniterm)
+                        assert all(termVar.toRDFTuple(), 
+                                   lambda x:isinstance(x,Variable) and x in step.bindings or not isinstance(x, Variable))      
+                    groundAntecedentAssertion = tuple(fillBindings(bodyTerm.toRDFTuple(), step.bindings))
+                    self.trace.append("Building inference step for %s"%parent)
+                    self.trace.append("Inferred from RETE node via %s"%(tNode.clause))
+                    self.trace.append("Bindings: %s"%step.bindings)
+                    step.antecedents.append(self.buildNodeSet(groundAntecedentAssertion,antecedent=step))                    
         return step
         
     def buildNodeSet(self,goal,antecedent=None,proof=False):
@@ -157,29 +273,29 @@ class ProofBuilder(object):
             self.trace.append("Building %s around%sgoal (justified by a direct assertion): %s"%(proof and 'proof' or 'nodeset',
                                                                                               antecedent and ' antecedent ' or '',str(buildUniTerm(goal,self.network.nsMap))))
             assertedSteps = [token.asTuple() for token in self.network.workingMemory]
-            assert goal in assertedSteps
+            #assert goal in assertedSteps
             if goal in self.goals:
                 ns=self.goals[goal]
+                self.trace.append("Retrieving prior nodeset %s for %s"%(ns,goal))
             else:
                 idx=BNode()
                 ns=NodeSet(goal,network=self.network,identifier=idx)
                 self.goals[goal]=ns
                 ns.steps.append(InferenceStep(ns,source='some RDF graph'))
+                self.trace.append("Marking justification from assertion for "+repr(goal))
         else:
             if goal in self.goals:
                 ns=self.goals[goal]
+                self.trace.append("Retrieving prior nodeset %s for %s"%(ns,goal))
             else:
+                self.trace.append("Building %s around%sgoal: %s"%(proof and 'proof' or 'nodeset',
+                                                                antecedent and ' antecedent ' or ' ',str(buildUniTerm(goal,self.network.nsMap))))                
                 idx=BNode()
                 ns=NodeSet(goal,network=self.network,identifier=idx)
                 self.goals[goal]=ns
-                #(register) the instanciations of justifications of the goal 
-                ns.steps = [self.buildInferenceStep(ns,tNode,goal) \
-                              for tNode in self.network.justifications[goal] \
-                                 if self.network.instanciations[tNode]
-                           ]
-                self.trace.append("Building %s around%sgoal: %s"%(proof and 'proof' or 'nodeset',
-                                                                antecedent and ' antecedent ' or ' ',str(buildUniTerm(goal,self.network.nsMap))))
-            assert ns.steps
+                ns.steps = [self.buildInferenceStep(ns,tNode,goal) 
+                                for tNode in fetchRETEJustifications(goal,ns,self)]
+                assert ns.steps
         return ns
 
 class NodeSet(object):
@@ -192,7 +308,7 @@ class NodeSet(object):
     set is of type Expression.
     
     Each inference step of a node set represents an application of an inference
-    rule that justifies the node set’s conclusion. A node set can have any
+    rule that justifies the node set‚Äôs conclusion. A node set can have any
     number of inference steps, including none, and each inference step of a
     node set is of type InferenceStep. A node set without inference steps is of a special kind identifying an
     unproven goal in a reasoning process as described in Section 4.1.2 below.
@@ -217,42 +333,13 @@ class NodeSet(object):
             builder.serializedNodeSets.add(self.identifier)
             step.serialize(builder,proofGraph)
 
-    def generateBGLNode(self,bglGraph,vertexMaps,namespace_manager,idx,edgeMaps,proofRoot=False):
-        vertex = bglGraph.add_vertex()
-        labelMap   = vertexMaps.get('label',bglGraph.vertex_property_map('string'))        
-        shapeMap   = vertexMaps.get('shape',bglGraph.vertex_property_map('string'))
-        sizeMap   = vertexMaps.get('size',bglGraph.vertex_property_map('string'))
-        rootMap    = vertexMaps.get('root',bglGraph.vertex_property_map('string'))
-        outlineMap = vertexMaps.get('peripheries',bglGraph.vertex_property_map('string'))
-        idMap      = vertexMaps.get('ids',bglGraph.vertex_property_map('string'))
-        widthMap   = vertexMaps.get('width',bglGraph.vertex_property_map('string'))
-        idMap[vertex] = idx
-        shapeMap[vertex] = 'rectangle'
-#        sizeMap[vertex] = 10
-        widthMap[vertex] = '5em'
-        if proofRoot:     
-            rootMap[vertex] = 'true'
-            outlineMap[vertex] = '1'
-            labelMap[vertex] = str(repr(self))
-        else:
-            rootMap[vertex] = 'true'
-            outlineMap[vertex] = '1'
-            labelMap[vertex] = str(repr(self))
-            #shapeMap[vertex] = 'plaintext'
-                
-        vertexMaps['ids'] = idMap
-        vertexMaps['label'] = labelMap
-        vertexMaps['shape'] = shapeMap
-        vertexMaps['width'] = widthMap
-        vertexMaps['root'] = rootMap
-        vertexMaps['peripheries'] = outlineMap
-#        vertexMaps['size'] = sizeMap[vertex]
-        bglGraph.vertex_properties['node_id'] = idMap
-        bglGraph.vertex_properties['label'] = labelMap
-        bglGraph.vertex_properties['shape'] = shapeMap
-    #    bglGraph.vertex_properties['width'] = widthMap
-        bglGraph.vertex_properties['root'] = rootMap
-        bglGraph.vertex_properties['peripheries'] = outlineMap
+    def generateGraphNode(self,idx,proofRoot=False):
+        vertex = Node(idx,label='"%s"'%repr(self),shape='plaintext')
+#        vertex.shape = 'plaintext'
+#        vertex.width = '5em'
+        if proofRoot:
+            vertex.root = 'true'
+#        vertex.peripheries = '1'
         return vertex
     
     def __repr__(self):
@@ -272,27 +359,27 @@ class InferenceStep(object):
     Assumption, DirectAssertion, and UnregisteredRule.    
 
     The antecedents of an inference step is a sequence of node sets each of
-    whose conclusions is a premise of the application of the inference step’s
+    whose conclusions is a premise of the application of the inference step‚Äôs
     rule. The sequence can contain any number of node sets including none.
     The sequence is the value of the property hasAntecedent of the inference
     step.
     
     Each binding of an inference step is a mapping from a variable to a term
     specifying the substitutions performed on the premises before the application
-    of the step’s rule. For instance, substitutions may be required to
+    of the step‚Äôs rule. For instance, substitutions may be required to
     unify terms in premises in order to perform resolution. An inference step
     can have any number of bindings including none, and each binding is of
     type VariableBinding. The bindings are members of a collection that is the
     value of the property hasVariableMapping of the inference step.    
 
     Each discharged assumption of an inference step is an expression that is
-    discharged as an assumption by application of the step’s rule. An inference
+    discharged as an assumption by application of the step‚Äôs rule. An inference
     step can have any number of discharged assumptions including none,
     and each discharged assumption is of type Expression. The discharged assumptions
     are members of a collection that is the value of the property
     hasDischargeAssumption of the inference step. This property supports
     the application of rules requiring the discharging of assumptions such as
-    natural deduction’s implication introduction. An assumption that is discharged
+    natural deduction‚Äôs implication introduction. An assumption that is discharged
     at an inference step can be used as an assumption in the proof
     of an antecedent of the inference step without making the proof be conditional
     on that assumption.
@@ -327,41 +414,16 @@ class InferenceStep(object):
             proofGraph.add((mapping,PML.mapFrom,k))
             proofGraph.add((mapping,PML.mapTo,v))
 
-    def generateBGLNode(self,bglGraph,vertexMaps,namespace_manager,idx,edgeMaps):
-        vertex = bglGraph.add_vertex()
-        labelMap   = vertexMaps.get('label',bglGraph.vertex_property_map('string'))        
-        shapeMap   = vertexMaps.get('shape',bglGraph.vertex_property_map('string'))
-        #sizeMap   = vertexMaps.get('size',bglGraph.vertex_property_map('string'))
-        rootMap    = vertexMaps.get('root',bglGraph.vertex_property_map('string'))
-        outlineMap = vertexMaps.get('peripheries',bglGraph.vertex_property_map('string'))
-        idMap      = vertexMaps.get('ids',bglGraph.vertex_property_map('string'))
-        #widthMap   = vertexMaps.get('width',bglGraph.vertex_property_map('string'))
-        idMap[vertex] = idx
+    def generateGraphNode(self,idx):
+        vertex = Node(idx,label='"%s"'%repr(self))
+        vertex.shape = 'plaintext'
+        return vertex
         #shapeMap[vertex] = 'box'
-        shapeMap[vertex] = 'plaintext'
         #sizeMap[vertex] = '10'
         #outlineMap[vertex] = '1'
-        if self.source:
-            labelMap[vertex]=str(self)
-        else:
-            labelMap[vertex]=str(self)
-        vertexMaps['ids'] = idMap
-        vertexMaps['label'] = labelMap
-        vertexMaps['shape'] = shapeMap
-    #    vertexMaps['width'] = widthMap
-        vertexMaps['root'] = rootMap
-        vertexMaps['peripheries'] = outlineMap
-        #vertexMaps['size'] = sizeMap[vertex]
-        bglGraph.vertex_properties['node_id'] = idMap
-        bglGraph.vertex_properties['label'] = labelMap
-        bglGraph.vertex_properties['shape'] = shapeMap
-    #    bglGraph.vertex_properties['width'] = widthMap
-        bglGraph.vertex_properties['root'] = rootMap
-        bglGraph.vertex_properties['peripheries'] = outlineMap
-        return vertex
 
     def __repr__(self):
-        rt=self.source and "[Parsing RDF source]" or repr(self.rule)#"%s\n%s"%(repr(self.rule),'\n'.join(['%s=%s'%(k,v) for k,v in self.bindings.items()]))
+        rt=self.source and "[Parsing RDF source]" or repr(self.rule.n3())#"%s\n%s"%(repr(self.rule),'\n'.join(['%s=%s'%(k,v) for k,v in self.bindings.items()]))
         return rt
 
 class Expression(object):

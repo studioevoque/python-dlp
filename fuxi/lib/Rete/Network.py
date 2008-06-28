@@ -1,5 +1,8 @@
 """
 A Rete Network Building and 'Evaluation' Implementation for RDFLib Graphs of Notation 3 rules.
+The DLP implementation uses this network to automatically building RETE decision trees for OWL forms of
+DLP
+
 Uses Python hashing mechanism to maximize the efficiency of the built pattern network.
 
 The network :
@@ -8,6 +11,7 @@ The network :
     - stores inferred triples in provided triple source (an RDFLib graph) or a temporary IOMemory Graph by default
 
 """
+from itertools import izip,ifilter
 import time,sys
 from sets import Set
 from pprint import pprint
@@ -27,6 +31,16 @@ from RuleStore import N3RuleStore,N3Builtin
 OWL_NS    = Namespace("http://www.w3.org/2002/07/owl#")
 Any = None
 LOG = Namespace("http://www.w3.org/2000/10/swap/log#")
+
+#From itertools recipes
+def iteritems(mapping): 
+    return izip(mapping.iterkeys(),mapping.itervalues())
+
+def any(seq,pred=None):
+    """Returns True if pred(x) is true for at least one element in the iterable"""
+    for elem in ifilter(pred,seq):
+        return True
+    return False
 
 class HashablePatternList(object):
     """
@@ -100,25 +114,29 @@ def _mulPatternWithSubstitutions(tokens,consequent,termNode):
     >>> token2 = token2.bindVariables(aNode)
     >>> inst = PartialInstanciation([token1,token2])
     >>> list(_mulPatternWithSubstitutions(inst,[Variable('O'),Variable('P'),Variable('S')]))
-    [(u'urn:uuid:alpha', u'http://www.w3.org/2002/07/owl#differentFrom', u'urn:uuid:beta'), (u'urn:uuid:beta', u'http://www.w3.org/2002/07/owl#differentFrom', u'urn:uuid:alpha')]
+    [(u'urn:uuid:alpha', 
+      u'http://www.w3.org/2002/07/owl#differentFrom', 
+      u'urn:uuid:beta'), 
+     (u'urn:uuid:beta', 
+      u'http://www.w3.org/2002/07/owl#differentFrom', 
+      u'urn:uuid:alpha')]
     """
     success = False
     for binding in tokens.bindings:        
         tripleVals = []
-        mismatchedTerms = [term for term in consequent if isinstance(term,Variable) and term not in binding]         
-        if not mismatchedTerms:
-            for term in consequent:
-                if isinstance(term,Variable):
-                    #try:                
-                    tripleVals.append(binding[term])
-                    #except:
-                    #    pass
-                else:                    
-                    tripleVals.append(term)
-            success = True
-            yield tuple(tripleVals),binding
-        else:
-            return
+        # if any(consequent,
+        #        lambda term:isinstance(term,Variable) and term not in binding):#  not mismatchedTerms:
+        #     return
+        # else:
+        for term in consequent:
+            if isinstance(term,Variable) and term in binding:
+                #try:                
+                tripleVals.append(binding[term])
+                #except:
+                #    pass
+            else:                    
+                tripleVals.append(term)
+        yield tuple(tripleVals),binding
 
 class ReteNetwork:
     """
@@ -146,6 +164,7 @@ class ReteNetwork:
         else:            
             self.inferredFacts = inferredTarget
         self.workingMemory = initialWorkingMemory and initialWorkingMemory or Set()
+        self.proofTracers = {}
         self.terminalNodes  = []
         self.instanciations = {}        
         start = time.time()
@@ -189,7 +208,11 @@ class ReteNetwork:
         
     def closureGraph(self,sourceGraph,readOnly=True):
         if readOnly:
-            return ReadOnlyGraphAggregate([sourceGraph,self.inferredFacts])
+            roGraph=ReadOnlyGraphAggregate([sourceGraph,self.inferredFacts])
+            for srcGraph in [sourceGraph,self.inferredFacts]:
+                for prefix,uri in srcGraph.namespaces():
+                    roGraph.namespace_manager.bind(prefix,uri)
+            return roGraph
         else:
             cg=ConjunctiveGraph()
             cg+=sourceGraph
@@ -239,18 +262,19 @@ class ReteNetwork:
                     tokens._generateBindings()
             for inferredTriple,binding in _mulPatternWithSubstitutions(tokens,rhsTriple,termNode):
                 #print inferredTriple
-                if inferredTriple not in self.inferredFacts and ReteToken(inferredTriple) not in self.workingMemory:
-                    self.dischargedBindings[inferredTriple]=binding
-                    self.justifications.setdefault(inferredTriple,set()).add(termNode)
-                    currIdx = self.instanciations.get(termNode,0)
-                    currIdx+=1
-                    self.instanciations[termNode] = currIdx
+                inferredToken=ReteToken(inferredTriple)
+                self.proofTracers.setdefault(inferredTriple,[]).append(binding)
+                self.justifications.setdefault(inferredTriple,set()).add(termNode)
+                currIdx = self.instanciations.get(termNode,0)
+                currIdx+=1
+                self.instanciations[termNode] = currIdx
+                if inferredTriple not in self.inferredFacts and inferredToken not in self.workingMemory:                    
                     if debug:
                         print "Inferred triple: ", inferredTriple, " from ",termNode 
                     self.inferredFacts.add(inferredTriple)
-                    self.addWME(ReteToken(inferredTriple))
-                    if inferredTriple == self.goal:
-                        return                    
+                    self.addWME(inferredToken)
+#                    if self.goal is not None and self.goal in self.inferredFacts:
+#                        return                    
                 elif debug:
                     print "Inferred triple skipped: ", inferredTriple
     
@@ -270,7 +294,7 @@ class ReteNetwork:
         end        
         """
 #        print wme.asTuple()       
-        for termComb,termDict in self.alphaPatternHash.items():
+        for termComb,termDict in iteritems(self.alphaPatternHash):
             for alphaNode in termDict.get(wme.alphaNetworkHash(termComb),[]):
 #                print "\t## Activated AlphaNode ##"
 #                print "\t\t",termComb,wme.alphaNetworkHash(termComb)

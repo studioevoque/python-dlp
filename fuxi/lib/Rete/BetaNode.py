@@ -4,7 +4,7 @@ Implements the behavior associated with the 'join' (Beta) node in a RETE network
     - Tokens in memories are checked for consistent bindings (unification) for variables in common *across* both
     - Network 'trigger' is propagated downward
     
-This implementation follows,  quite closely, the algorithms presented in the PhD thesis (1995) of Robert Doorenbos:
+This reference implementation follows,  quite closely, the algorithms presented in the PhD thesis (1995) of Robert Doorenbos:
     Production Matching for Large Learning Systems (RETE/UL)
     
 A N3 Triple is a working memory element (WME)
@@ -13,6 +13,7 @@ The Memories are implemented with consistent binding hashes. Unlinking is not im
 activations are mitigated (somewhat) by the hash / Set mechanism.
               
 """
+from itertools import izip, ifilter
 from pprint import pprint
 from AlphaNode import AlphaNode, BuiltInAlphaNode, ReteToken
 from Node import Node
@@ -55,6 +56,16 @@ def collectVariables(node):
         return combinedVars
     else:
         return Set()
+        
+#From itertools recipes
+def iteritems(mapping): 
+    return izip(mapping.iterkeys(),mapping.itervalues())
+    
+def any(seq,pred=None):
+    """Returns True if pred(x) is true for at least one element in the iterable"""
+    for elem in ifilter(pred,seq):
+        return True
+    return False
 
 class ReteMemory(Set):
     """
@@ -221,7 +232,6 @@ class PartialInstanciation(object):
         self.inconsistentVars = Set()
         self.debug = debug
         self.tokens = Set()
-        #self.divergentVariables = {}
         self.bindings = []
         if tokens:
             for token in tokens:
@@ -336,21 +346,27 @@ class PartialInstanciation(object):
         forcedBindings = []
         isolatedBindings = {}
         for token in self.tokens:
-            inconsistentVars = [key for key in token.bindingDict.keys() if key not in self.joinedBindings]
-            if len(inconsistentVars) > 1:
-                forcedBindings.append(dict([(var,token.bindingDict[var]) for var in inconsistentVars]))
-            elif inconsistentVars:
-                var = inconsistentVars[0]
+            noIterations = 0
+            newDict = {}
+            for key in ifilter(
+                    lambda x:x not in self.joinedBindings,
+                    token.bindingDict.keys()):            
+                var = key
+                newDict[var] = token.bindingDict[var]
+                noIterations+=1
+            if noIterations == 1:
                 isolatedBindings.setdefault(var,Set()).add(token.bindingDict[var])
-        combs = [tuple([(key,val) for val in vals]) for key,vals in isolatedBindings.items() ]
+            elif noIterations > 1:
+                forcedBindings.append(newDict)
         revIsolBindings = {}
-        for key,vals in isolatedBindings.items():
+        for vals in isolatedBindings.itervalues():
             for val in vals:
                 revIsolBindings.setdefault(val,Set()).add(var)
         if isolatedBindings:
-            for i in xcombine(*tuple(combs)):
+            for i in xcombine(*tuple([tuple([(key,val) for val in vals]) 
+                        for key,vals in iteritems(isolatedBindings) ])):
                 isolatedDict = dict(i)                
-                for key,val in isolatedDict.items():
+                for val in isolatedDict.itervalues():
                     keysForVal = revIsolBindings[val] 
                     if len(keysForVal) <= 1:
                         newDict = isolatedDict.copy()
@@ -382,8 +398,6 @@ class PartialInstanciation(object):
             newDict.update(self.joinedBindings)
             if newDict not in bindings:
                 bindings.append(newDict)
-            else:
-                pass                
         self.bindings = reduce(collapse,bindings,[])
         if not self.bindings:
             self.bindings = [self.joinedBindings]
@@ -453,15 +467,14 @@ class PartialInstanciation(object):
             newJoinDict.update(project(rightWME.bindingDict,newJoinVariables))
             newPInst = PartialInstanciation([],consistentBindings=newJoinDict)
             for token in self.tokens:
-                commonVars = [var for var in newJoinVariables if var in token.bindingDict]
-                if commonVars:
-                    #there are common variables between this token and the WME, so
-                    #include it only if the bindings are consistent
-                    for newVar in commonVars:
-                        if rightWME.bindingDict[newVar] == token.bindingDict[newVar]:                        
-                            #consistent token
-                            newPInst.add(token,noPostProcessing=True)
-                else:
+                commonVars = False
+                for newVar in ifilter(
+                    lambda x:x in token.bindingDict and rightWME.bindingDict[x] == token.bindingDict[x],
+                    newJoinVariables):
+                    #consistent token
+                    commonVars = True
+                    newPInst.add(token,noPostProcessing=True)
+                if not commonVars:
                     #there are no common variables, no need to check
                     newPInst.add(token,noPostProcessing=True)
         else:
@@ -643,7 +656,7 @@ class BetaNode(Node):
                 #candidate for left unlinking
                 self.leftUnlinkedNodes.add(leftNode) 
                 leftNode.unlinkedMemory = ReteMemory(self,LEFT_MEMORY)
-                print "unlinked %s from %s"%(leftNode,self)
+#                print "unlinked %s from %s"%(leftNode,self)
             elif self.leftNode:            
                 leftNode.descendentMemory.append(self.memories[LEFT_MEMORY])
                 leftNode.descendentBetaNodes.add(self)        
@@ -778,7 +791,11 @@ class BetaNode(Node):
                     print commonDict,rWMEs, self.memories[RIGHT_MEMORY].substitutionDict.keys()
                 for rightWME in rWMEs:
                     if isinstance(rightWME,ReteToken):
-                        matches.add(partialInst.newJoin(rightWME,[var for var in self.commonVariables if var not in partialInst.joinedBindings]))
+                        matches.add(partialInst.newJoin(
+                            rightWME,
+                            ifilter(lambda x:x not in partialInst.joinedBindings,
+                                self.commonVariables)))
+                        # [var for var in self.commonVariables if var not in partialInst.joinedBindings]))
                     else:
                         #Joining two Beta/Join nodes!
                         joinedTokens = list(partialInst.tokens | rightWME.tokens)
@@ -786,10 +803,11 @@ class BetaNode(Node):
                         #pprint(joinedTokens)
                         if self.consequent:
                             for consequent in self.consequent:
-                                consVars = [i for i in consequent if isinstance(i,Variable)]                                
+                                consVars = ifilter(lambda x:isinstance(x,Variable),consequent)
+                                # [i for i in consequent if isinstance(i,Variable)]                                
                             failed = True
                             for binding in PartialInstanciation(joinedTokens,consistentBindings=commonDict).bindings:
-                                if [key for key in consVars if key not in binding]:
+                                if any(consVars,lambda x:x not in binding):# [key for key in consVars if key not in binding]:
                                     continue
                                 else:
                                     failed = False                                                                    
@@ -819,7 +837,11 @@ class BetaNode(Node):
                         matches.add(singleToken)
                     else:
                         assert isinstance(partialInst,PartialInstanciation),repr(partialInst)
-                        matches.add(partialInst.newJoin(wme,[var for var in self.commonVariables if var not in partialInst.joinedBindings]))
+                        matches.add(partialInst.newJoin(
+                                        wme,
+                                        ifilter(lambda x:x not in partialInst.joinedBindings,
+                                                self.commonVariables)))
+                                        # [var for var in self.commonVariables if var not in partialInst.joinedBindings]))
             for pInst in matches:
                 self._activate(pInst,debug)                    
 def test():

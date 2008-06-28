@@ -96,6 +96,9 @@ class Clause:
         
     def __repr__(self):
         return "%r :- %r"%(self.head,self.body)
+    
+    def n3(self):
+        return u'{ %s } => { %s }'%(self.body.n3(),self.head.n3())    
         
 def test():
     import doctest

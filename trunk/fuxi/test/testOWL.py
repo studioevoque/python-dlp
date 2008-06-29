@@ -4,6 +4,7 @@ from FuXi.Rete import *
 from FuXi.Rete.AlphaNode import SUBJECT,PREDICATE,OBJECT,VARIABLE
 from FuXi.Rete.RuleStore import N3RuleStore
 from FuXi.Rete.Util import renderNetwork,generateTokenSet
+from FuXi.DLP import MapDLPtoNetwork, non_DHL_OWL_Semantics
 from rdflib.Namespace import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,URIRef
 from rdflib.store import Store
@@ -97,14 +98,14 @@ class OwlTestSuite(unittest.TestCase):
         store.open(RDFLIB_CONNECTION)
         self.ruleStore=N3RuleStore()
         self.ruleGraph = Graph(self.ruleStore)
-        self.ruleFactsGraph = Graph(store)            
-        for fileN in ['pD-rules.n3']:
-            self.ruleGraph.parse(open(fileN),format='n3')        
-            self.ruleFactsGraph.parse(open(fileN),format='n3')
+        self.ruleFactsGraph = Graph(store)
+        self.ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
         self.network = ReteNetwork(self.ruleStore)
+        
         #renderNetwork(self.network,nsMap=nsMap).write_graphviz('owl-rules.dot')
     def tearDown(self):
         pass
+    
     
     def testOwl(self): 
         testData = {}       
@@ -145,9 +146,9 @@ class OwlTestSuite(unittest.TestCase):
                     factGraph = Graph(store)
                     factGraph.parse(open('.'.join([premiseFile,'rdf'])))
                     allFacts = ReadOnlyGraphAggregate([factGraph,self.ruleFactsGraph])
+                    MapDLPtoNetwork(self.network,factGraph)
                     print self.network                                      
                     start = time.time()  
-                    self.network.feedFactsToAdd(generateTokenSet(self.ruleFactsGraph))                    
                     self.network.feedFactsToAdd(generateTokenSet(factGraph))                    
                     sTime = time.time() - start
                     if sTime > 1:

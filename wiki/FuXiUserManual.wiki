@@ -19,13 +19,13 @@ The Horn module was originally meant as a reference implementation of the W3C's 
 
 The Horn module includes Python classes for each of the major components of the RIF BLD abstract syntax ([http://www.w3.org/TR/rif-bld/#EBNF_Grammar_for_the_Presentation_Syntax_of_RIF-BLD EBNF Grammar for the Presentation Syntax of RIF-BLD]):
 
-  * FuXi.Horn.HornRules.Ruleset
-  * FuXi.Horn.HornRules.Rule
-  * FuXi.Horn.HornRules.Clause
-  * FuXi.Horn.PositiveConditions.Condition
-  * FuXi.Horn.PositiveConditions.And
-  * FuXi.Horn.PositiveConditions.Or
-  * FuXi.Horn.PositiveConditions.Uniterm
+  * !FuXi.Horn.HornRules.Ruleset
+  * !FuXi.Horn.HornRules.Rule
+  * !FuXi.Horn.HornRules.Clause
+  * !FuXi.Horn.PositiveConditions.Condition
+  * !FuXi.Horn.PositiveConditions.And
+  * !FuXi.Horn.PositiveConditions.Or
+  * !FuXi.Horn.PositiveConditions.Uniterm
   * ... etc ..
   
 Horn rulesets can be built from the ground up by instantiating the objects piecemeal:
@@ -62,7 +62,7 @@ RIF BLD objects can also be constructed by parsing a Notation 3 document like so
 >>> from rdflib.syntax.NamespaceManager import NamespaceManager
 }}}
 
-First, we instantiate an N3RuleStore which will be the recipient of the parsed Notation 3 assertions.  Then we instantiate an rdflib NamespaceManager
+First, we instantiate an !N3RuleStore which will be the recipient of the parsed Notation 3 assertions.  Then we instantiate an rdflib !NamespaceManager
 passing on a Graph that makes use of the instantiated rulestore ( so that any namespace prefix definitions are picked up ).  Then an rdflib Graph is instanciated
 using the rule store instance and namespace manager and the rdfs-rules.n3 Notation 3 document is parsed from the web:
 
@@ -75,7 +75,7 @@ using the rule store instance and namespace manager and the rdfs-rules.n3 Notati
 >>> ruleStore._finalize()
 }}}
 
-Finally, a Ruleset object is instantiated, passing the rule store and the namespace mappings.  The RuleSet object is iterated over and each
+Finally, a !Ruleset object is instantiated, passing the rule store and the namespace mappings.  The !RuleSet object is iterated over and each
 of the rules parsed from the Notation 3 document are printed (which serializes each rule using the RIF BLD syntax)
 
 {{{
@@ -98,11 +98,23 @@ From the example(s) above, instantiated RIF BLD objects can be serialized in one
 
 The Horn module simplifies the process of serializing appropriate QNames (or [http://www.w3.org/TR/curie/ curies]) for the URIs associated with Uniterms.  Uniterms can be thought of as the RIF equivalent of RDF statements or Logic Programming _atoms_.  In order to associate a namespace mapping dictionary (a Python dictionary of prefixes to rdflib.URIRef instances of the corresponding fully qualified namespace URI), a Uniterm constructor can be invoked and passed such a dictionary via the _newNss_ keyword argument
   
-== FuXi.Syntax ==  
+== !FuXi.Syntax ==  
 
-== FuXi.DLP ==  
+The !FuXi.Syntax module incorporates the InfixOwl library (see the linked Wiki for more information). 
 
-== FuXi.Rete ==    
+== !FuXi.DLP ==  
+
+This module is a Description Horn Logic implementation as defined by Grosof, B. et.al. ("Description Logic Programs: Combining Logic Programs with 
+Description Logic" [1]) in section 4.4.  As such, it implements recursive mapping functions "T", "Th" and "Tb" which result in "custom" (dynamic) rulesets, RIF Basic 
+Logic Dialect: Horn rulesets [2], [3].  
+
+For the non logic-inclined, this essentially allows OWL ontologies (or a subset of OWL ontologies) to be automatically converted to a set of rules that exactly capture the semantics of the OWL document.  This mechanism is fundamental to the larger framework that FuXi is a part of (python-dlp).  The premise is three-fold.  
+
+First (and most importantly), the ruleset(s) generated from an OWL ontology will be much more tailored to the specific constraints of the ontology than a general-purpose ruleset would.  As such, the inference mechanism will be several orders of magnitude more efficient.
+
+Secondly, tools that are used for authoring OWL ontologies are significantly more mature than those used for authoring Notation 3 rulesets (or any other comparable semantic web rule language).  In addition, ...
+
+== !FuXi.Rete ==    
 
  
  

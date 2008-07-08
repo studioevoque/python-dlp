@@ -1,18 +1,17 @@
 #summary End User Manual for FuXi
-#labels Phase-Implementation,Featured,Phase-Design
 
 = Introduction =
 
-FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 3 Description Logic Programming.  FuXi was originally meant as a Python swiss army knife for all things semantic web related.  It works as a companion to RDFLib, a Python library for working with RDF.
+!FuXi (pronounced foo-shee) is a forward-chaining production system for Notation 3 Description Logic Programming.  FuXi was originally meant as a Python swiss army knife for all things semantic web related.  It works as a companion to RDFLib, a Python library for working with RDF.
 
 = The Primary Modules =
 
 An overview of the top-level modules in FuXi serves as an introduction to the general features of FuXi.  The FuXi libraries are divided as follows:
 
-  * FuXi.Horn 
-  * FuXi.Syntax
-  * FuXi.DLP  
-  * FuXi.Rete
+  * !FuXi.Horn 
+  * !FuXi.Syntax
+  * !FuXi.DLP  
+  * !FuXi.Rete
 
 == FuXi.Horn ==  
 
@@ -60,43 +59,51 @@ RIF BLD objects can also be constructed by parsing a Notation 3 document like so
 >>> from FuXi.Rete.RuleStore import N3RuleStore
 >>> from FuXi.Horn.HornRules import Ruleset
 >>> from rdflib.Graph import Graph
->>> ruleStore = N3RuleStore()
 >>> from rdflib.syntax.NamespaceManager import NamespaceManager
+}}}
+
+First, we instantiate an N3RuleStore which will be the recipient of the parsed Notation 3 assertions.  Then we instantiate an rdflib NamespaceManager
+passing on a Graph that makes use of the instantiated rulestore ( so that any namespace prefix definitions are picked up ).  Then an rdflib Graph is instanciated
+using the rule store instance and namespace manager and the rdfs-rules.n3 Notation 3 document is parsed from the web:
+
+{{{
+>>> ruleStore = N3RuleStore()
 >>> nsMgr = NamespaceManager(Graph(ruleStore))
 >>> ruleGraph = Graph(ruleStore,namespace_manager=nsMgr)
 >>> ruleGraph.parse('http://www.agfa.com/w3c/euler/rdfs-rules.n3',format='n3')
-<Graph identifier=LXhacuts7 (<class 'rdflib.Graph.Graph'>)>
+<Graph identifier=... (<class 'rdflib.Graph.Graph'>)>
 >>> ruleStore._finalize()
->>> for rule in Ruleset(n3StoreSrc=ruleStore.rules,nsMapping=ruleStore.nsMgr): print rule
+}}}
+
+Finally, a Ruleset object is instantiated, passing the rule store and the namespace mappings.  The RuleSet object is iterated over and each
+of the rules parsed from the Notation 3 document are printed (which serializes each rule using the RIF BLD syntax)
+
+{{{
+>>> for rule in Ruleset(n3StoreSrc=ruleStore,nsMapping=ruleStore.nsMgr): print rule
 ... 
 Forall ?Q ?P ?S ?O ( ?Q(?O ?S) :- And( owl:inverseOf(?P ?Q) ?P(?S ?O) ) )
 Forall ?P ?S ?O ( ?P(?O ?S) :- And( owl:SymmetricProperty(?P) ?P(?S ?O) ) )
 Forall ?P ?S ?O ?X ( ?P(?S ?O) :- And( owl:TransitiveProperty(?P) ?P(?X ?O) ?P(?S ?X) ) )
 Forall ?Y ?P ?R ?X ( ?P(?X ?Y) :- And( owl:onProperty(?R ?P) owl:hasValue(?R ?Y) ?R(?X) ) )
-Forall ?Y ?P ?O ?X ( owl:sameAs(?X ?Y) :- And( owl:InverseFunctionalProperty(?P) ?P(?X ?O) ?P(?Y ?O) ) )
-Forall ?Y ?P ?S ?X ( owl:sameAs(?X ?Y) :- And( owl:FunctionalProperty(?P) ?P(?S ?X) ?P(?S ?Y) ) )
-Forall ?A ?C ?B ?D ?M ?L ( owl:sameAs(?L ?M) :- And( rdf:first(?L ?A) rdf:rest(?L ?B) rdf:first(?M ?C) rdf:rest(?M ?D) owl:sameAs(?A ?C) owl:sameAs(?B ?D) ) )
-Forall ?P ?S ?O ( rdf:Property(?P) :- ?P(?S ?O) )
-Forall ?P ?C ?S ?O ( ?C(?S) :- And( rdfs:domain(?P ?C) ?P(?S ?O) ) )
-Forall ?P ?C ?S ?O ( ?C(?O) :- And( rdfs:range(?P ?C) ?P(?S ?O) ) )
-Forall ?P ?S ?O ( rdfs:Resource(?S) :- ?P(?S ?O) )
-Forall ?P ?S ?O ( rdfs:Resource(?O) :- ?P(?S ?O) )
-Forall ?Q ?P ?R ( rdfs:subPropertyOf(?P ?R) :- And( rdfs:subPropertyOf(?Q ?R) rdfs:subPropertyOf(?P ?Q) ) )
+... snip ...
 Forall ?P ?S ?R ?O ( ?R(?S ?O) :- And( rdfs:subPropertyOf(?P ?R) ?P(?S ?O) ) )
 Forall ?C ( rdfs:subClassOf(?C rdfs:Resource) :- rdfs:Class(?C) )
 Forall ?A ?S ?B ( ?B(?S) :- And( rdfs:subClassOf(?A ?B) ?A(?S) ) )
 Forall ?A ?C ?B ( rdfs:subClassOf(?A ?C) :- And( rdfs:subClassOf(?B ?C) rdfs:subClassOf(?A ?B) ) )
-Forall ?X ( rdfs:subPropertyOf(?X rdfs:member) :- rdfs:ContainerMembershipProperty(?X) )
-Forall ?X ( rdfs:subClassOf(?X rdfs:Literal) :- rdfs:Datatype(?X) )
-Forall ?S ( And(  ) :- And( rdf:XMLLiteral(?S) e:clashesWith(?S rdf:XMLLiteral) ) )
-
 }}}
 
 === Serialization ===
 
-From the example above, instantiated RIF BLD objects can be serialized in one of two ways: as human-readable RIF syntax or as Notation 3.  The former serialization is built in by overriding the __repr__ class method; a standard mechanism used in order to ".. compute the ``official'' string representation of an object.".  The latter serialization can be achieved by invoking the n3 method on any RIF BLD Python object.
+From the example(s) above, instantiated RIF BLD objects can be serialized in one of two ways: as human-readable RIF syntax or as Notation 3.  The former serialization is built in by overriding the __repr__ class method; a standard mechanism used in order to ".. compute the ``official'' string representation of an object.".  The latter serialization can be achieved by invoking the _n3_ method on any RIF BLD Python object.
 
-The Horn module simplifies the process of serializing appropriate QNames (or [http://www.w3.org/TR/curie/ curies]) for the URIs associated with Uniterms.  Uniterms can be thought of as the RIF equivalent of RDF statements or Logic Programming _atoms_.  In order to associate a namespace mapping dictionary (a Python dictionary of prefixes to rdflib.URIRef instances of the corresponding fully qualified namespace URI), a Uniterm constructor can be invoked and passed such a dictionary via the _newNss_ keyword
+The Horn module simplifies the process of serializing appropriate QNames (or [http://www.w3.org/TR/curie/ curies]) for the URIs associated with Uniterms.  Uniterms can be thought of as the RIF equivalent of RDF statements or Logic Programming _atoms_.  In order to associate a namespace mapping dictionary (a Python dictionary of prefixes to rdflib.URIRef instances of the corresponding fully qualified namespace URI), a Uniterm constructor can be invoked and passed such a dictionary via the _newNss_ keyword argument
   
+== FuXi.Syntax ==  
+
 == FuXi.DLP ==  
-  
+
+== FuXi.Rete ==    
+
+ 
+ 
+ 

@@ -28,6 +28,10 @@ class N3Builtin(object):
         self.variables = [arg for arg in [self.argument,self.result] if isinstance(arg,Variable)]
     def render(self,argument,result):
         return "<%s>(%s,%s)"%(self.uri,argument,result)
+    def __iter__(self):
+        for f in [self.uri,self.argument,self.result]:
+            yield f
+    
     def __repr__(self):
         return "<%s>(%s,%s)"%(self.uri,
                               isinstance(self.argument,Variable) and '?%s'%self.argument or self.argument,
@@ -75,7 +79,9 @@ class N3RuleStore(Store):
     >>> s=N3RuleStore()
     >>> g=Graph(s)
     >>> src = \"\"\"
+    ... @prefix str:   <http://www.w3.org/2000/10/swap/string#>.
     ... @prefix math: <http://www.w3.org/2000/10/swap/math#>.
+    ... @prefix log:   <http://www.w3.org/2000/10/swap/log#>.
     ... @prefix : <http://metacognition.info/FuXi/test#>.
     ... @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
     ... @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
@@ -99,7 +105,7 @@ class N3RuleStore(Store):
     >>> print len(s.rules[0][RULE_RHS])
     5
     >>> print s.rules[0][RULE_LHS][1]
-    (u'X', u'http://metacognition.info/FuXi/test#prop1', u'M')
+    (?X, rdflib.URIRef('http://metacognition.info/FuXi/test#prop1'), ?M)
     >>> print s.rules[0][RULE_LHS][-1]
     <http://www.w3.org/2000/10/swap/math#equalTo>(?N,3)
 
@@ -199,6 +205,18 @@ BuiltIn used out of order
         self._listBuffer = []
         self.rules = []
         self.referencedVariables = Set()
+        self.nsMgr = {}
+        
+    def namespace(self,prefix):
+        return self.nsMgr.get(prefix)
+    
+    def bind(self, prefix, namespace, override=True):
+        if override or prefix not in self.nsMgr:
+            self.nsMgr[prefix]=namespace
+
+    def prefix(self,namespace):
+        return dict([(v,k) for 
+                       k,v in self.nsMgr.items()]).get(namespace)
         
     def _unrollList(self,l,listName):
         listTriples = []
@@ -332,7 +350,7 @@ def test2():
     s._finalize()
 
 if __name__ == '__main__':
-    pass
-    #test()
+#    pass
+    test()
     #test2()
     

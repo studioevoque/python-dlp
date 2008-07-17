@@ -120,6 +120,9 @@ non_DHL_OWL_Semantics=\
 {?S owl:differentFrom ?O} => {?O owl:differentFrom ?S}.
 {?S owl:complementOf ?O} => {?O owl:complementOf ?S}.
 {?S owl:disjointWith ?O} => {?O owl:disjointWith ?S}.
+
+#owl:hasValue (pD*) semantics (used for controlled vocabulary semantics)
+{ ?V owl:hasValue ?W . ?V owl:onProperty ?P . ?U ?P ?W } => { ?U a ?V }
 """
 
 OWL_NS    = Namespace("http://www.w3.org/2002/07/owl#")

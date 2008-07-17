@@ -3,14 +3,17 @@ Utility functions for a Boost Graph Library (BGL) DiGraph via the BGL Python Bin
 """
 from FuXi.Rete.AlphaNode import AlphaNode
 
-try:
+try:    
     import boost.graph as bgl
+    bglGraph = bgl.Digraph()
 except:
-    #Don't have BGL Python library installed
-    pass
+    try:
+        from pydot import Node,Edge,Dot
+    except:
+        raise NotImplementedError("Boost Graph Library & Python bindings (or pydot) not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
 from rdflib.Graph import Graph
 from rdflib.syntax.NamespaceManager import NamespaceManager
-from rdflib import BNode, Namespace, Collection
+from rdflib import BNode, Namespace, Collection, Variable
 from sets import Set
 
 LOG = Namespace("http://www.w3.org/2000/10/swap/log#")
@@ -74,93 +77,68 @@ def generateTokenSet(graph,debugTriples=[],skipImplies=True):
                               normalizeGraphTerms(o)),debug))
     return rt
 
-def generateBGLNode(node,bglGraph,vertexMaps,namespace_manager,identifier,edgeMaps = {}):
+def generateBGLNode(dot,node,namespace_manager,identifier):
     from FuXi.Rete import ReteNetwork,BetaNode,BuiltInAlphaNode,AlphaNode
     from BetaNode import LEFT_MEMORY, RIGHT_MEMORY, LEFT_UNLINKING
-    vertex = bglGraph.add_vertex()
-    labelMap   = vertexMaps.get('label',bglGraph.vertex_property_map('string'))        
-    shapeMap   = vertexMaps.get('shape',bglGraph.vertex_property_map('string'))
-    #sizeMap   = vertexMaps.get('size',bglGraph.vertex_property_map('string'))
-    rootMap    = vertexMaps.get('root',bglGraph.vertex_property_map('string'))
-    outlineMap = vertexMaps.get('peripheries',bglGraph.vertex_property_map('string'))
-    idMap      = vertexMaps.get('ids',bglGraph.vertex_property_map('string'))
-    #widthMap   = vertexMaps.get('width',bglGraph.vertex_property_map('string'))
-    idMap[vertex] = identifier
-    shapeMap[vertex] = 'circle'
-    #sizeMap[vertex] = '10'
+    vertex = Node(identifier)
+
+    shape = 'circle'
+    root        = False
     if isinstance(node,ReteNetwork):     
-        rootMap[vertex] = 'true'
-        outlineMap[vertex] = '3'
+        root        = True
+        peripheries = '3'
     elif isinstance(node,BetaNode) and not node.consequent:     
-        outlineMap[vertex] = '1'
+        peripheries = '1'
         if node.aPassThru:
-            labelMap[vertex] = str("Pass-thru Beta node\\n")
+            label = "Pass-thru Beta node\\n"
         elif node.commonVariables:
-            labelMap[vertex] = str("Beta node\\n(%s)"%(','.join(["?%s"%i for i in node.commonVariables])))
+            label = "Beta node\\n(%s)"%(','.join(["?%s"%i for i in node.commonVariables]))
         else:
-            labelMap[vertex] = "Beta node"
-
-
-        if isinstance(node,BuiltInAlphaNode):
-            raise NotImplemented("N3 builtins not supported") 
-            builtInsVertex = bglGraph.add_vertex() 
-            edge = bglGraph.add_edge(builtInsVertex,vertex)
-            funcList = node.functionIndex and reduce(lambda x,y: x+y,node.functionIndex.values()) or []
-            labelMap[builtInsVertex] = '\\n'.join([repr(builtIn) for builtIn in funcList + node.filters])
-            shapeMap[builtInsVertex] = 'plaintext'
+            label = "Beta node"
 
     elif isinstance(node,BetaNode) and node.consequent:     
         #rootMap[vertex] = 'true'
-        outlineMap[vertex] = '2'        
+        peripheries = '2'
         stmts = []
         for s,p,o in node.consequent:
             stmts.append(' '.join([str(namespace_manager.normalizeUri(s)),
               str(namespace_manager.normalizeUri(p)),
               str(namespace_manager.normalizeUri(o))]))
               
-        rhsVertex = bglGraph.add_vertex() 
-        edge = bglGraph.add_edge(vertex,rhsVertex)
-        labelMap[rhsVertex] = '\\n'.join(stmts)
-        shapeMap[rhsVertex] = 'plaintext'
-        idMap[rhsVertex]    = str(BNode())
+        rhsVertex = Node(BNode(),
+                         label='"'+'\\n'.join(stmts)+'"',
+                         shape='plaintext') 
+        edge = Edge(vertex,rhsVertex)
+        #edge.color = 'red'
+        dot.add_edge(edge)              
+        dot.add_node(rhsVertex)      
         if node.commonVariables:
-            labelMap[vertex] = str("Terminal node\\n(%s)"%(','.join(["?%s"%i for i in node.commonVariables])))
+            label = str("Terminal node\\n(%s)"%(','.join(["?%s"%i for i in node.commonVariables])))
         else:
-            labelMap[vertex] = "Terminal node"
-
-        if isinstance(node,BuiltInAlphaNode):
-            raise NotImplemented("N3 builtins not supported") 
-            builtInsVertex = bglGraph.add_vertex() 
-            edge = bglGraph.add_edge(builtInsVertex,vertex)
-            funcList = node.functionIndex and reduce(lambda x,y: x+y,node.functionIndex.values()) or []
-            labelMap[builtInsVertex] = '\\n'.join([repr(builtIn) for builtIn in funcList + node.filters])
-            shapeMap[builtInsVertex] = 'plaintext'
+            label = "Terminal node"
         
     elif isinstance(node,BuiltInAlphaNode):
-        outlineMap[vertex] = '1'
-        shapeMap[vertex] = 'plaintext'
-        labelMap[vertex] = '..Builtin Source..'
+        peripheries = '1'
+        shape = 'plaintext'
+        #label = '..Builtin Source..'
+        label = repr(node.n3builtin)
+        canonicalFunc = namespace_manager.normalizeUri(node.n3builtin.uri)
+        canonicalArg1 = namespace_manager.normalizeUri(node.n3builtin.argument)
+        canonicalArg2 = namespace_manager.normalizeUri(node.n3builtin.result)
+        label = '%s(%s,%s)'%(canonicalFunc,canonicalArg1,canonicalArg2)
         
     elif isinstance(node,AlphaNode):
-        outlineMap[vertex] = '1'
-        shapeMap[vertex] = 'plaintext'
+        peripheries = '1'
+        shape = 'plaintext'
 #        widthMap[vertex] = '50em'
-        labelMap[vertex] = ' '.join([str(namespace_manager.normalizeUri(i)) for i in node.triplePattern])    
+        label = ' '.join([isinstance(i,BNode) and i.n3() or str(namespace_manager.normalizeUri(i)) 
+                           for i in node.triplePattern])    
 
-
-    vertexMaps['ids'] = idMap
-    vertexMaps['label'] = labelMap
-    vertexMaps['shape'] = shapeMap
-#    vertexMaps['width'] = widthMap
-    vertexMaps['root'] = rootMap
-    vertexMaps['peripheries'] = outlineMap
-    #vertexMaps['size'] = sizeMap[vertex]
-    bglGraph.vertex_properties['node_id'] = idMap
-    bglGraph.vertex_properties['label'] = labelMap
-    bglGraph.vertex_properties['shape'] = shapeMap
-#    bglGraph.vertex_properties['width'] = widthMap
-    bglGraph.vertex_properties['root'] = rootMap
-    bglGraph.vertex_properties['peripheries'] = outlineMap
+    vertex.set_shape(shape)
+    vertex.set_label('"%s"'%label)
+    vertex.set_peripheries(peripheries)
+    if root:
+        vertex.set_root('true')
     return vertex
 
 def renderNetwork(network,nsMap = {}):
@@ -171,13 +149,8 @@ def renderNetwork(network,nsMap = {}):
     """
     from FuXi.Rete import BuiltInAlphaNode
     from BetaNode import LEFT_MEMORY, RIGHT_MEMORY, LEFT_UNLINKING
-    try:    
-        bglGraph = bgl.Digraph()
-    except:
-        raise NotImplementedError("Boost Graph Library & Python bindings not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
+    dot=Dot(graph_type='digraph')
     namespace_manager = NamespaceManager(Graph())
-    vertexMaps   = {}
-    edgeMaps     = {}
     for prefix,uri in nsMap.items():
         namespace_manager.bind(prefix, uri, override=False)
 
@@ -187,7 +160,8 @@ def renderNetwork(network,nsMap = {}):
     for node in network.nodes.values():
         if not node in visitedNodes and not isinstance(node,BuiltInAlphaNode):
             idx += 1
-            visitedNodes[node] = generateBGLNode(node,bglGraph,vertexMaps,namespace_manager,str(idx),edgeMaps)
+            visitedNodes[node] = generateBGLNode(dot,node,namespace_manager,str(idx))
+            dot.add_node(visitedNodes[node])
     nodeIdxs = {}                        
     for node in network.nodes.values():
         for mem in node.descendentMemory:
@@ -197,30 +171,17 @@ def renderNetwork(network,nsMap = {}):
         for bNode in node.descendentBetaNodes:
             for otherNode in [bNode.leftNode,bNode.rightNode]:
                 if node == otherNode and (node,otherNode) not in edges:
-#                    print "adding (%s,%s) to edges"%(node,otherNode)
-                    if isinstance(node,BuiltInAlphaNode):
-                        continue
                     for i in [node,bNode]:
                         if i not in visitedNodes:
                             idx += 1
                             nodeIdxs[i] = idx 
-                            visitedNodes[i] = generateBGLNode(i,bglGraph,vertexMaps,namespace_manager,str(idx))
-                            
-                    edge = bglGraph.add_edge(visitedNodes[node],visitedNodes[bNode])
+                            visitedNodes[i] = generateBGLNode(dot,i,namespace_manager,str(idx))
+                            dot.add_node(visitedNodes[i])
+                    edge = Edge(visitedNodes[node],visitedNodes[bNode])
+                    dot.add_edge(edge)                                        
                     edges.append((node,bNode))
-                    if node in bNode.leftUnlinkedNodes:
-                        labelMap         = edgeMaps.get('label',bglGraph.edge_property_map('string'))
-                        colorMap         = edgeMaps.get('color',bglGraph.edge_property_map('string'))
-                        labelMap[edge]   = "left re-linked"
-                        colorMap[edge]   = "red"
-                        idMap            = edgeMaps.get('ids',bglGraph.edge_property_map('string'))
-                        idMap[edge]      = str(visitedNodes[node]) + str(visitedNodes[bNode]) + 'edge'                        
-                        edgeMaps['ids']   = idMap
-                        edgeMaps['color'] = colorMap
-                        edgeMaps['label'] = labelMap
-                        bglGraph.edge_properties['label'] = labelMap
                     
-    return bglGraph
+    return dot
 
 def test():
     import doctest

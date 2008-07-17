@@ -162,7 +162,7 @@ class ReteNetwork:
         self.name = name and name or BNode()
         self.nodes = {}
         self.alphaPatternHash = {}
-        self.antecedentMap = {}
+        self.ruleSet = set()
         for alphaPattern in xcombine(('1','0'),('1','0'),('1','0')):
             self.alphaPatternHash[tuple(alphaPattern)] = {}
         if inferredTarget is None:
@@ -366,7 +366,13 @@ class ReteNetwork:
         return node
     
     def _resetinstanciationStats(self):
-        self.instanciations = dict([(tNode,0) for tNode in self.terminalNodes])        
+        self.instanciations = dict([(tNode,0) for tNode in self.terminalNodes])
+        
+    def checkDuplicateRules(self):
+        checkedClauses=set()
+        for tNode in self.terminalNodes:
+            assert tNode.clause not in checkedClauses
+            checkedClauses.add(tNode.clause) 
     
     def buildNetwork(self,lhsIterator,rhsIterator,clause):
         """
@@ -404,24 +410,29 @@ class ReteNetwork:
                     else:
                         paddedLHSPattern = HashablePatternList([None])+attachedPatterns[0]                    
                         terminalNode = self.nodes.get(paddedLHSPattern,BetaNode(None,node,aPassThru=True))
-                        self.nodes[paddedLHSPattern] = terminalNode    
-                        node.connectToBetaNode(terminalNode,RIGHT_MEMORY)
-                    terminalNode.rule = (LHS,consequents)
-                    terminalNode.consequent.update(consequents)
-                    terminalNode.network    = self
-                    terminalNode.clause = clause
-                    self.terminalNodes.append(terminalNode)                    
+                        if clause not in self.ruleSet:
+                            self.nodes[paddedLHSPattern] = terminalNode    
+                            node.connectToBetaNode(terminalNode,RIGHT_MEMORY)                            
+                    if clause not in self.ruleSet:
+                        self.ruleSet.add(clause)                        
+                        terminalNode.rule = (LHS,consequents)
+                        terminalNode.consequent.update(consequents)
+                        terminalNode.network    = self
+                        terminalNode.clause = clause
+                        self.terminalNodes.append(terminalNode)                    
                 else:              
                     for aP in attachedPatterns:
                         assert isinstance(aP,HashablePatternList),repr(aP)                    
                     terminalNode = self.attachBetaNodes(iter(attachedPatterns))
-                    terminalNode.rule = (LHS,consequents)
-                    terminalNode.consequent.update(consequents)
-                    terminalNode.network    = self
-                    terminalNode.clause = clause
-                    self.terminalNodes.append(terminalNode)
-                    self._resetinstanciationStats()                        
-
+                    if clause not in self.ruleSet:
+                        self.ruleSet.add(clause)
+                        terminalNode.rule = (LHS,consequents)
+                        terminalNode.consequent.update(consequents)
+                        terminalNode.network    = self
+                        terminalNode.clause = clause
+                        self.terminalNodes.append(terminalNode)
+                        self._resetinstanciationStats()                        
+                #self.checkDuplicateRules()
                 return
             if HashablePatternList([currentPattern]) in self.nodes:
                 #Current pattern matches an existing alpha node

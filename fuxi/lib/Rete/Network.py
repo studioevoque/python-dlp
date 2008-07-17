@@ -179,14 +179,12 @@ class ReteNetwork:
         # Rather than automatically adding them to the working set, alpha nodes are 'notified'
         # of them, so they can be checked for while performing inter element tests.
         self.universalTruths = []
-        rs=Ruleset(n3StoreSrc=self.ruleStore.rules,nsMapping=self.nsMap)
-        for rule in rs:
-            if isinstance(rule.formula.body,SetOperator) and not len(rule.formula.body):
-                raise
+        for rule in Ruleset(n3Rules=self.ruleStore.rules,nsMapping=self.nsMap):
             self.buildNetwork(iter(rule.formula.body),
                               iter(rule.formula.head),
                               rule.formula)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
+        self.alphaBuiltInNodes = [node for node in self.nodes.values() if isinstance(node,BuiltInAlphaNode)]
         self._setupDefaultRules()
         print >>sys.stderr,"Time to build production rule (RDFLib): %s seconds"%(time.time() - start)
         if initialWorkingMemory:            
@@ -195,7 +193,20 @@ class ReteNetwork:
             print >>sys.stderr,"Time to calculate closure on working memory: %s m seconds"%((time.time() - start) * 1000)            
         if graphVizOutFile:
             print >>sys.stderr,"Writing out RETE network to ", graphVizOutFile
-            renderNetwork(self,nsMap=nsMap).write_graphviz(graphVizOutFile)
+            renderNetwork(self,nsMap=nsMap).write(graphVizOutFile)
+            
+    def parseN3Logic(self,src):
+        store=N3RuleStore(additionalBuiltins=self.ruleStore.filters)
+        Graph(store).parse(src,format='n3')
+        store._finalize()
+        assert len(store.rules),"There are no rules passed in!"
+        for rule in Ruleset(n3Rules=store.rules,
+                            nsMapping=self.nsMap):
+            self.buildNetwork(iter(rule.formula.body),
+                              iter(rule.formula.head),
+                              rule.formula)
+        self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
+        self.alphaBuiltInNodes = [node for node in self.nodes.values() if isinstance(node,BuiltInAlphaNode)]        
 
     def __repr__(self):
         total = 0 
@@ -206,9 +217,10 @@ class ReteNetwork:
         
         return "<Network: %s rules, %s nodes, %s tokens in working memory, %s inferred tokens>"%(len(self.ruleStore.rules),len(self.nodes),total,len(self.inferredFacts))
         
-    def closureGraph(self,sourceGraph,readOnly=True):
+    def closureGraph(self,sourceGraph,readOnly=True,store=None):
         if readOnly:
-            roGraph=ReadOnlyGraphAggregate([sourceGraph,self.inferredFacts])
+            roGraph=ReadOnlyGraphAggregate([sourceGraph,self.inferredFacts],
+                                           store=store)
             for srcGraph in [sourceGraph,self.inferredFacts]:
                 for prefix,uri in srcGraph.namespaces():
                     roGraph.namespace_manager.bind(prefix,uri)
@@ -227,13 +239,14 @@ class ReteNetwork:
             if isinstance(node,AlphaNode):                
                 node.checkDefaultRule(self.universalTruths)
         
-    def reset(self):
+    def reset(self,newinferredFacts=None):
         "Reset the network by emptying the memory associated with all Beta Nodes nodes"
         for node in self.nodes.values():
             if isinstance(node,BetaNode):
                 node.memories[LEFT_MEMORY].reset()
                 node.memories[RIGHT_MEMORY].reset()
-        self.inferredFacts = Graph('IOMemory')
+        self.inferredFacts = newinferredFacts and newinferredFacts or Graph('IOMemory')
+        self.workingMemory = Set()        
                                 
     def fireConsequent(self,tokens,termNode,debug=False):
         """
@@ -261,6 +274,9 @@ class ReteNetwork:
                 if not tokens.bindings:
                     tokens._generateBindings()
             for inferredTriple,binding in _mulPatternWithSubstitutions(tokens,rhsTriple,termNode):
+                if [term for term in inferredTriple if isinstance(term,Variable)]:
+                    #Unfullfilled bindings
+                    continue
                 #print inferredTriple
                 inferredToken=ReteToken(inferredTriple)
                 self.proofTracers.setdefault(inferredTriple,[]).append(binding)

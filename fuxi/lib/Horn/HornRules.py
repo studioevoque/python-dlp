@@ -65,7 +65,7 @@ class Rule:
         ...                      Uniterm(RDF.type,[Variable('M'),Variable('C')])]),
         ...                 Uniterm(RDF.type,[Variable('M'),Variable('SC')]))        
         >>> Rule(clause,[Variable('M'),Variable('SC'),Variable('C')]).n3()
-        u'{ ?C rdfs:subClassOf ?SC. ?M a ?C. } => { ?M a ?SC. }'
+        u'{ ?C rdfs:subClassOf ?SC .\\n ?M a ?C } => { ?M a ?SC }'
                 
         """
         return u'{ %s } => { %s }'%(self.formula.body.n3(),
@@ -95,6 +95,33 @@ class Clause:
         self.head = head
         #assert isinstance(head,Atomic),repr(head)
         assert isinstance(body,Condition)
+        from FuXi.Rete.Network import HashablePatternList
+        antHash=HashablePatternList([term.toRDFTuple() 
+                            for term in body])
+        consHash=HashablePatternList([term.toRDFTuple() 
+                            for term in head])                                                                                            
+        self._hash = hash(antHash) ^ hash(consHash)
+        
+    def __eq__(self,other):
+        return hash(self)==hash(other)
+        
+    def __hash__(self):
+        """
+        >>> a=Clause(And([Uniterm(RDFS.subClassOf,[Variable('C'),Variable('SC')]),
+        ...             Uniterm(RDF.type,[Variable('M'),Variable('C')])]),
+        ...        Uniterm(RDF.type,[Variable('M'),Variable('SC')]))
+        >>> b=Clause(And([Uniterm(RDFS.subClassOf,[Variable('C'),Variable('SC')]),
+        ...             Uniterm(RDF.type,[Variable('M'),Variable('C')])]),
+        ...        Uniterm(RDF.type,[Variable('M'),Variable('SC')]))
+        >>> d=set()
+        >>> d.add(a)
+        >>> b in d
+        True
+        >>> hash(a) == hash(b)
+        True
+        
+        """
+        return self._hash
         
     def asTuple(self):
         return (self.body,self.head)

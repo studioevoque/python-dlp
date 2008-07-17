@@ -13,6 +13,7 @@ The Memories are implemented with consistent binding hashes. Unlinking is not im
 activations are mitigated (somewhat) by the hash / Set mechanism.
               
 """
+import unittest, os, time, sys
 from itertools import izip, ifilter
 from pprint import pprint
 from AlphaNode import AlphaNode, BuiltInAlphaNode, ReteToken
@@ -26,6 +27,7 @@ from sets import Set
 from itertools import izip
 from ReteVocabulary import RETE_NS
 from rdflib.Graph import QuotedGraph, Graph
+from rdflib.Literal import _XSD_NS
 from rdflib import BNode, RDF, Namespace, URIRef, Literal, Variable
 OWL_NS    = Namespace("http://www.w3.org/2002/07/owl#")
 Any = None
@@ -109,8 +111,9 @@ class ReteMemory(Set):
     end    
      
     """
-    def __init__(self,betaNode,position):
+    def __init__(self,betaNode,position,filter=None):
         super(ReteMemory, self).__init__()
+        self.filter                = filter
         self.successor             = betaNode
         self.position              = position
         self.substitutionDict      = {} #hashed 
@@ -435,6 +438,22 @@ class PartialInstanciation(object):
     def __len(self):
         return len(self.tokens)
 
+    def addConsistentBinding(self,newJoinVariables):
+        #newJoinDict = self.joinedBindings.copy()
+        #only a subset of the tokens in this partial instanciation will be 'merged' with
+        #the new token - joined on the new join variables
+        newJoinDict = dict([(v,None) for v in newJoinVariables])
+        #newJoinDict.update(dict([(v,None) for v in newJoinVariables]))
+        for binding in self.bindings:
+            for key,val in newJoinDict.iteritems():
+                boundVal = binding.get(key)
+                if boundVal is not None:
+                    assert val is None or boundVal == val
+                    if val is None:
+                        newJoinDict[key]=boundVal
+        self.joinedBindings.update(newJoinDict)
+        self._generateBindings()             
+        
     def newJoin(self,rightWME,newJoinVariables):
         """
         >>> aNode1 = AlphaNode((Variable('P1'),RDF.type,URIRef('urn:uuid:Prop1')))
@@ -528,9 +547,9 @@ class BetaNode(Node):
     >>> joinNode3.connectIncomingNodes(joinNode2,aNode3)
 
     >>> joinNode1
-    <BetaNode (pass-thru): CommonVariables: [u'X'] (0 in left, 0 in right memories)>
+    <BetaNode (pass-thru): CommonVariables: [?X] (0 in left, 0 in right memories)>
     >>> joinNode2
-    <BetaNode : CommonVariables: [u'X'] (0 in left, 0 in right memories)>
+    <BetaNode : CommonVariables: [?X] (0 in left, 0 in right memories)>
 
     Setup tokens (RDF triples):
         
@@ -575,13 +594,13 @@ class BetaNode(Node):
     <AlphaMemory: 0 item(s)>
     >>> aNode1.descendentMemory[0].position
     2
-    >>> aNode1.intraElementTest(token1)
-    >>> aNode1.intraElementTest(token2)
-    >>> joinNode1.memories[LEFT_MEMORY]
+    >>> aNode1.activate(token1.unboundCopy())
+    >>> aNode1.activate(token2.unboundCopy())
+\    >>> joinNode1.memories[LEFT_MEMORY]
     <BetaMemory: 0 item(s)>
     >>> joinNode2.memories[LEFT_MEMORY]
     <BetaMemory: 2 item(s)>
-    >>> aNode2.intraElementTest(token3)
+    >>> aNode1.activate(token3.unboundCopy())
     Propagated from <AlphaNode: (u'X', u'http://www.w3.org/1999/02/22-rdf-syntax-ns#type', u'Y'). Feeds 1 beta nodes>
     (u'urn:uuid:Foo', u'http://www.w3.org/1999/02/22-rdf-syntax-ns#type', u'urn:uuid:Baz')
     <BetaNode : CommonVariables: [u'X'] (2 in left, 1 in right memories)>.propagate(right,None,<ReteToken: X->urn:uuid:Foo,Y->urn:uuid:Baz>)
@@ -589,16 +608,16 @@ class BetaNode(Node):
     
     Add the remaining 3 tokens (each fires the network)
     
-    >>> aNode2.intraElementTest(token4)
+    >>> aNode2.activate(token4.unboundCopy())
     >>> list(joinNode3.memories[LEFT_MEMORY])[0]
     <PartialInstanciation (joined on ?X): Set([<ReteToken: X->urn:uuid:Foo>, <ReteToken: X->urn:uuid:Foo,Y->urn:uuid:Baz>])>
-    >>> aNode3.intraElementTest(token5)
+    >>> aNode3.activate(token5.unboundCopy()))
     Propagated from <AlphaNode: (u'Z', u'urn:uuid:Prop1', u'W'). Feeds 1 beta nodes>
     (u'urn:uuid:Bar', u'urn:uuid:Prop1', u'urn:uuid:Beezle')
     <TerminalNode : CommonVariables: [] (1 in left, 1 in right memories)>.propagate(right,None,<ReteToken: Z->urn:uuid:Bar,W->urn:uuid:Beezle>)
     activating with <PartialInstanciation (joined on ?X): Set([<ReteToken: Z->urn:uuid:Bar,W->urn:uuid:Beezle>, <ReteToken: X->urn:uuid:Foo>, <ReteToken: X->urn:uuid:Foo,Y->urn:uuid:Baz>])>
 
-    >>> aNode3.intraElementTest(token6)
+    >>> aNode3.activate(token6.unboundCopy())
     >>> joinNode3
     <TerminalNode : CommonVariables: [] (1 in left, 2 in right memories)>
     >>> testHelper.firings
@@ -780,43 +799,75 @@ class BetaNode(Node):
             #             for each child in node.children do left-activation (child, t, w)
             # end            
             matches = Set()
-            for binding in partialInst.bindings:
-                #iterate over the binding combinations 
-                #and use the substitutionDict in the right memory to find matching WME'a
-                if debug:
-                    print "\t", binding
-                rWMEs = self.memories[RIGHT_MEMORY].substitutionDict.get(tuple([binding[var] for var in self.commonVariables]),Set())
-                commonDict = dict([(var,binding[var]) for var in self.commonVariables])
-                if debug:
-                    print commonDict,rWMEs, self.memories[RIGHT_MEMORY].substitutionDict.keys()
-                for rightWME in rWMEs:
-                    if isinstance(rightWME,ReteToken):
-                        matches.add(partialInst.newJoin(
-                            rightWME,
-                            ifilter(lambda x:x not in partialInst.joinedBindings,
-                                self.commonVariables)))
-                        # [var for var in self.commonVariables if var not in partialInst.joinedBindings]))
-                    else:
-                        #Joining two Beta/Join nodes!
-                        joinedTokens = list(partialInst.tokens | rightWME.tokens)
-                        #print "### joining two tokens ###"
-                        #pprint(joinedTokens)
-                        if self.consequent:
-                            for consequent in self.consequent:
-                                consVars = ifilter(lambda x:isinstance(x,Variable),consequent)
-                                # [i for i in consequent if isinstance(i,Variable)]                                
-                            failed = True
-                            for binding in PartialInstanciation(joinedTokens,consistentBindings=commonDict).bindings:
-                                if any(consVars,lambda x:x not in binding):# [key for key in consVars if key not in binding]:
-                                    continue
-                                else:
-                                    failed = False                                                                    
-                            if not failed:                                        
+            if self.fedByBuiltin:
+                filter = self.memories[self._oppositeMemory(self.fedByBuiltin)].filter
+                newConsistentBindings = [term for term in [filter.argument,
+                                                           filter.result] 
+                                                if isinstance(term,Variable) and \
+                                                term not in partialInst.joinedBindings]
+                partialInst.addConsistentBinding(newConsistentBindings)
+                for binding in partialInst.bindings:
+                    lhs = filter.argument
+                    rhs = filter.result
+    #                if (isinstance(lhs,Variable) and lhs not in binding) or\
+    #                   (isinstance(rhs,Variable) and rhs not in binding):
+        #                        if self.consequent:
+    #                    print "^ \t",partialInst,self, filter
+    #                    pprint(binding)
+    #                    raise 
+                    lhs = isinstance(lhs,Variable) and binding[lhs] or lhs
+                    rhs = isinstance(rhs,Variable) and binding[rhs] or rhs
+                    assert lhs is not None and rhs is not None
+                    if filter.func(lhs,rhs):
+                        matches.add(partialInst)
+            else:
+                for binding in partialInst.bindings:
+                    #iterate over the binding combinations 
+                    #and use the substitutionDict in the right memory to find matching WME'a
+                    if debug:
+                        print "\t", binding
+                        
+                    substitutedTerm=[]
+                    commonDictKV=[]
+                    for var in self.commonVariables:
+                        if var not in binding:
+                            continue
+                        else:
+                            commonDictKV.append((var,binding[var]))
+                            substitutedTerm.append(binding[var])
+                    rWMEs = self.memories[RIGHT_MEMORY].substitutionDict.get(tuple(substitutedTerm),
+                                                                             Set())
+                    commonDict = dict(commonDictKV)
+                    if debug:
+                        print commonDict,rWMEs, self.memories[RIGHT_MEMORY].substitutionDict.keys()
+                    for rightWME in rWMEs:
+                        if isinstance(rightWME,ReteToken):
+                            matches.add(partialInst.newJoin(
+                                rightWME,
+                                ifilter(lambda x:x not in partialInst.joinedBindings,
+                                    self.commonVariables)))
+                            # [var for var in self.commonVariables if var not in partialInst.joinedBindings]))
+                        else:
+                            #Joining two Beta/Join nodes!
+                            joinedTokens = list(partialInst.tokens | rightWME.tokens)
+                            #print "### joining two tokens ###"
+                            #pprint(joinedTokens)
+                            if self.consequent:
+                                for consequent in self.consequent:
+                                    consVars = ifilter(lambda x:isinstance(x,Variable),consequent)
+                                    # [i for i in consequent if isinstance(i,Variable)]                                
+                                failed = True
+                                for binding in PartialInstanciation(joinedTokens,consistentBindings=commonDict).bindings:
+                                    if any(consVars,lambda x:x not in binding):# [key for key in consVars if key not in binding]:
+                                        continue
+                                    else:
+                                        failed = False                                                                    
+                                if not failed:                                        
+                                    newP = PartialInstanciation(joinedTokens,consistentBindings=commonDict)
+                                    matches.add(newP)
+                            else:
                                 newP = PartialInstanciation(joinedTokens,consistentBindings=commonDict)
                                 matches.add(newP)
-                        else:
-                            newP = PartialInstanciation(joinedTokens,consistentBindings=commonDict)
-                            matches.add(newP)
                                 
             for pInst in matches:
                 self._activate(pInst,debug)                    
@@ -843,10 +894,96 @@ class BetaNode(Node):
                                                 self.commonVariables)))
                                         # [var for var in self.commonVariables if var not in partialInst.joinedBindings]))
             for pInst in matches:
-                self._activate(pInst,debug)                    
+                self._activate(pInst,debug)  
+
+TEST_NS = Namespace('http://example.com/text1/')
+
+def PopulateTokenFromANode(aNode,bindings):
+    #print aNode, bindings
+    termList = [isinstance(term,Variable) and bindings[term] or term
+                    for term in aNode.triplePattern]
+    token = ReteToken(tuple(termList))
+    token.bindVariables(aNode)
+    return token
+
+class PartialInstanciationTests(unittest.TestCase):
+    def testConsistentBinding(self):
+        allBindings = {}
+        allBindings.update(self.joinedBindings)
+        allBindings.update(self.unJoinedBindings)
+        aNodes = [self.aNode1,
+                  self.aNode2,
+                  self.aNode5,
+                  self.aNode6,
+                  self.aNode7,
+                  self.aNode8,
+                  self.aNode9,
+                  self.aNode10,
+                  self.aNode11]
+        pToken = PartialInstanciation(
+                      tokens = [PopulateTokenFromANode(aNode,
+                                                       allBindings) 
+                                  for aNode in aNodes],
+                      consistentBindings = self.joinedBindings)
+        #print pToken
+        pToken.addConsistentBinding(self.unJoinedBindings.keys())
+        #print pToken.joinedBindings
+        for binding in pToken.bindings:
+            for key in self.unJoinedBindings:
+                self.failUnless(key in binding, "Missing key %s from %s"%(key,binding))
+                        
+    def setUp(self):
+        self.aNode1 = AlphaNode((Variable('HOSP'),
+                                 TEST_NS.contains,
+                                 Variable('HOSP_START_DATE')))                
+        self.aNode2 = AlphaNode((Variable('HOSP'),
+                                 RDF.type,
+                                 TEST_NS.Hospitalization))                
+        self.aNode5 = AlphaNode((Variable('HOSP_START_DATE'),
+                                 TEST_NS.dateTimeMin,
+                                 Variable('ENCOUNTER_START')))                
+        self.aNode6 = AlphaNode((Variable('HOSP_STOP_DATE'),
+                                 RDF.type,
+                                 TEST_NS.EventStopDate))                
+        self.aNode7 = AlphaNode((Variable('HOSP_STOP_DATE'),
+                                 TEST_NS.dateTimeMax,
+                                 Variable('ENCOUNTER_STOP')))                
+        self.aNode8 = AlphaNode((Variable('EVT_DATE'),
+                                 RDF.type,
+                                 TEST_NS.EventStartDate))                
+        self.aNode9 = AlphaNode((Variable('EVT_DATE'),
+                                 TEST_NS.dateTimeMin,
+                                 Variable('EVT_START_MIN')))                
+        self.aNode10 =AlphaNode((Variable('EVT'),
+                                 TEST_NS.contains,
+                                 Variable('EVT_DATE')))                
+        self.aNode11 =AlphaNode((Variable('EVT'),
+                                 RDF.type,
+                                 Variable('EVT_KIND')))
+
+        self.joinedBindings = {Variable('HOSP_START_DATE'):
+                               BNode(),
+                               Variable('HOSP_STOP_DATE'):
+                               BNode(),
+                               Variable('HOSP'):
+                               BNode()}
+        self.unJoinedBindings = {Variable('EVT'):
+                                 BNode(),
+                                 Variable('EVT_DATE'):
+                                 BNode(),
+                                 Variable('EVT_KIND'):
+                                 TEST_NS.ICUStay}
+        for dtVariable in [Variable('ENCOUNTER_START'),
+                           Variable('ENCOUNTER_STOP'),
+                           Variable('EVT_START_MIN')]:
+            self.unJoinedBindings[dtVariable]=Literal("2007-02-14T10:00:00",
+                                                      datatype=_XSD_NS.dateTime)
+                                  
 def test():
-    import doctest
-    doctest.testmod()
+#    import doctest
+#    doctest.testmod()
+    suite = unittest.makeSuite(PartialInstanciationTests)
+    unittest.TextTestRunner(verbosity=5).run(suite)    
 
 if __name__ == '__main__':
     test()

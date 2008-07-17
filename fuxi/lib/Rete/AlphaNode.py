@@ -135,21 +135,38 @@ class ReteToken:
         This function, called when a token passes a node test, associates token terms with variables
         in the node test         
         """
-        self.pattern = alphaNode.triplePattern
-        self.subject   = (alphaNode.triplePattern[SUBJECT],self.subject[VALUE])
-        self.predicate = (alphaNode.triplePattern[PREDICATE],self.predicate[VALUE])
-        self.object_   = (alphaNode.triplePattern[OBJECT],self.object_[VALUE])
-        assert not self.bindingDict,self.bindingDict
-        bindHashItems = []
-        for var,val in [self.subject,self.predicate,self.object_]:
-            if var and isinstance(var,(Variable,BNode)) and var not in self.bindingDict:
-                self.bindingDict[var] = val
-                bindHashItems.append(var + val)
-            else:
-                bindHashItems.append(val)
-        #self.bindingDict := { var1 -> val1, var2 -> val2, ..  }
-        self.hash = hash(reduce(lambda x,y:x+y,bindHashItems))
-        return self            
+        if isinstance(alphaNode,BuiltInAlphaNode):
+            self.pattern = list(alphaNode.n3builtin)
+            self.subject   = (alphaNode.n3builtin.argument,self.subject[VALUE])
+            self.predicate = (alphaNode.n3builtin.uri,self.predicate[VALUE])
+            self.object_   = (alphaNode.n3builtin.result,self.object_[VALUE])
+            assert not self.bindingDict,self.bindingDict
+            bindHashItems = []
+            for var,val in [self.subject,self.predicate,self.object_]:
+                if var and isinstance(var,(Variable,BNode)) and var not in self.bindingDict:
+                    self.bindingDict[var] = val
+                    bindHashItems.append(var + val)
+                else:
+                    bindHashItems.append(val)
+            #self.bindingDict := { var1 -> val1, var2 -> val2, ..  }
+            self.hash = hash(reduce(lambda x,y:x+y,bindHashItems))
+            return self            
+        else:
+            self.pattern = alphaNode.triplePattern
+            self.subject   = (alphaNode.triplePattern[SUBJECT],self.subject[VALUE])
+            self.predicate = (alphaNode.triplePattern[PREDICATE],self.predicate[VALUE])
+            self.object_   = (alphaNode.triplePattern[OBJECT],self.object_[VALUE])
+            assert not self.bindingDict,self.bindingDict
+            bindHashItems = []
+            for var,val in [self.subject,self.predicate,self.object_]:
+                if var and isinstance(var,(Variable,BNode)) and var not in self.bindingDict:
+                    self.bindingDict[var] = val
+                    bindHashItems.append(var + val)
+                else:
+                    bindHashItems.append(val)
+            #self.bindingDict := { var1 -> val1, var2 -> val2, ..  }
+            self.hash = hash(reduce(lambda x,y:x+y,bindHashItems))
+            return self            
     
 def defaultIntraElementTest(aReteToken,triplePattern):
     """
@@ -298,7 +315,21 @@ class BuiltInAlphaNode(AlphaNode):
         self.n3builtin = n3builtin
         self.descendentMemory = []
         self.descendentBetaNodes = Set()
-        self.universalTruths = []        
+        self.universalTruths = [] 
+    def __iter__(self):
+        yield self.n3builtin.argument
+        yield self.n3builtin.result       
+
+    def alphaNetworkHash(self,groundTermHash=False):
+        if groundTermHash:
+            return ''.join([term for term in self.n3builtin if not isinstance(term,(BNode,Variable))])
+        else:
+            return tuple([isinstance(term,(BNode,Variable)) and '0' or '1' for term in self.n3builtin])
+
+    def __repr__(self):
+        return "<BuiltInAlphaNode %s(%s),%s : Feeds %s beta nodes>"%(self.n3builtin.func,
+                                                                     self.n3builtin.argument,
+                                                                     self.n3builtin.result,len(self.descendentBetaNodes))
     
     def intraElementTest(self,aReteToken):
         pass    

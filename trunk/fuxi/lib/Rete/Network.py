@@ -260,7 +260,8 @@ class ReteNetwork:
                 node.memories[LEFT_MEMORY].reset()
                 node.memories[RIGHT_MEMORY].reset()
         self.inferredFacts = newinferredFacts and newinferredFacts or Graph('IOMemory')
-        self.workingMemory = Set()        
+        self.workingMemory = Set()
+        self._resetinstanciationStats()        
                                 
     def fireConsequent(self,tokens,termNode,debug=False):
         """
@@ -369,10 +370,10 @@ class ReteNetwork:
         self.instanciations = dict([(tNode,0) for tNode in self.terminalNodes])
         
     def checkDuplicateRules(self):
-        checkedClauses=set()
+        checkedClauses={}
         for tNode in self.terminalNodes:
-            assert tNode.clause not in checkedClauses
-            checkedClauses.add(tNode.clause) 
+            assert tNode.clause not in checkedClauses,"%s collides with %s"%(tNode,checkedClauses[tNode.clause])
+            checkedClauses.setdefault(tNode.clause,[]).append(tNode) 
     
     def buildNetwork(self,lhsIterator,rhsIterator,clause):
         """
@@ -432,7 +433,7 @@ class ReteNetwork:
                         terminalNode.clause = clause
                         self.terminalNodes.append(terminalNode)
                         self._resetinstanciationStats()                        
-                #self.checkDuplicateRules()
+#                self.checkDuplicateRules()
                 return
             if HashablePatternList([currentPattern]) in self.nodes:
                 #Current pattern matches an existing alpha node

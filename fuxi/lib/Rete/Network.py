@@ -15,14 +15,19 @@ from itertools import izip,ifilter
 import time,sys
 from sets import Set
 from pprint import pprint
+from cStringIO import StringIO
 from Util import xcombine
 from BetaNode import BetaNode, LEFT_MEMORY, RIGHT_MEMORY, PartialInstanciation
 from AlphaNode import AlphaNode, ReteToken, SUBJECT, PREDICATE, OBJECT, BuiltInAlphaNode
 from FuXi.Horn.HornRules import Clause, Ruleset
+from FuXi.Horn import ComplementExpansion
+from FuXi.Syntax.InfixOWL import *
 from FuXi.Horn.PositiveConditions import Uniterm, SetOperator
+from FuXi.DLP import MapDLPtoNetwork,non_DHL_OWL_Semantics
 #from FuXi.Rete.RuleStore import N3Builtin
 from Util import generateTokenSet,renderNetwork
 from rdflib import Variable, BNode, URIRef, Literal, Namespace,RDF,RDFS
+from rdflib.util import first
 from rdflib.Collection import Collection
 from rdflib.Graph import ConjunctiveGraph,QuotedGraph,ReadOnlyGraphAggregate, Graph
 from rdflib.syntax.NamespaceManager import NamespaceManager
@@ -157,6 +162,7 @@ class ReteNetwork:
         self.name = name and name or BNode()
         self.nodes = {}
         self.alphaPatternHash = {}
+        self.antecedentMap = {}
         for alphaPattern in xcombine(('1','0'),('1','0'),('1','0')):
             self.alphaPatternHash[tuple(alphaPattern)] = {}
         if inferredTarget is None:
@@ -194,6 +200,14 @@ class ReteNetwork:
         if graphVizOutFile:
             print >>sys.stderr,"Writing out RETE network to ", graphVizOutFile
             renderNetwork(self,nsMap=nsMap).write(graphVizOutFile)
+                        
+    def setupDescriptionLogicProgramming(self,owlN3Graph,expanded):
+        noRules=len([rule 
+                    for rule in MapDLPtoNetwork(self,owlN3Graph,complementExpansions=expanded)])
+        self.parseN3Logic(StringIO(non_DHL_OWL_Semantics))
+        print "##### DLP rules setup",network
+        self.feedFactsToAdd(generateTokenSet(owlN3Graph))
+        print "##### DLP rules fired against OWL/RDF TBOX",network
             
     def parseN3Logic(self,src):
         store=N3RuleStore(additionalBuiltins=self.ruleStore.filters)
@@ -391,25 +405,23 @@ class ReteNetwork:
                         paddedLHSPattern = HashablePatternList([None])+attachedPatterns[0]                    
                         terminalNode = self.nodes.get(paddedLHSPattern,BetaNode(None,node,aPassThru=True))
                         self.nodes[paddedLHSPattern] = terminalNode    
-                        node.connectToBetaNode(terminalNode,RIGHT_MEMORY) 
-
+                        node.connectToBetaNode(terminalNode,RIGHT_MEMORY)
+                    terminalNode.rule = (LHS,consequents)
+                    terminalNode.consequent.update(consequents)
+                    terminalNode.network    = self
+                    terminalNode.clause = clause
+                    self.terminalNodes.append(terminalNode)                    
+                else:              
+                    for aP in attachedPatterns:
+                        assert isinstance(aP,HashablePatternList),repr(aP)                    
+                    terminalNode = self.attachBetaNodes(iter(attachedPatterns))
                     terminalNode.rule = (LHS,consequents)
                     terminalNode.consequent.update(consequents)
                     terminalNode.network    = self
                     terminalNode.clause = clause
                     self.terminalNodes.append(terminalNode)
-                    
-                else:              
-                    for aP in attachedPatterns:
-                        assert isinstance(aP,HashablePatternList),repr(aP)                    
-                    terminalNode = self.attachBetaNodes(iter(attachedPatterns))
-                    
-                terminalNode.rule = (LHS,consequents)
-                terminalNode.consequent.update(consequents)
-                terminalNode.network    = self
-                terminalNode.clause = clause
-                self.terminalNodes.append(terminalNode)
-                self._resetinstanciationStats()
+                    self._resetinstanciationStats()                        
+
                 return
             if HashablePatternList([currentPattern]) in self.nodes:
                 #Current pattern matches an existing alpha node
@@ -487,6 +499,27 @@ class ReteNetwork:
 
         newBetaNode.connectIncomingNodes(firstNode,secondNode)
         return self.attachBetaNodes(patternIterator,newBNodePattern)
+    
+def ComplementExpand(tBoxGraph,complementAnnotation):
+    complementExpanded=[]
+    for negativeClass in tBoxGraph.subjects(predicate=OWL_NS.complementOf):
+        containingList = first(tBoxGraph.subjects(RDF.first,negativeClass))
+        prevLink = None
+        while containingList:
+            prevLink = containingList
+            containingList = first(tBoxGraph.subjects(RDF.rest,containingList))
+        if prevLink:
+            for s,p,o in tBoxGraph.triples_choices((None,
+                                                [OWL_NS.intersectionOf,
+                                                 OWL_NS.unionOf],
+                                                 prevLink)):
+                if (s,complementAnnotation,None) in tBoxGraph:
+                    continue
+                _class = Class(s)
+                complementExpanded.append(s)
+                print "Added %s to complement expansion"%_class
+                ComplementExpansion(_class)
+    
     
 def test():
     import doctest

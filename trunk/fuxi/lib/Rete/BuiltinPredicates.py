@@ -1,8 +1,11 @@
 """
 See: http://www.w3.org/2000/10/swap/doc/CwmBuiltins
 """
-
-from rdflib import Namespace, Variable, Literal
+import unittest, os, time, sys
+from cStringIO import StringIO
+from rdflib import Namespace, Variable, Literal, URIRef
+from rdflib.Graph import Graph,ReadOnlyGraphAggregate,ConjunctiveGraph
+from rdflib.util import first
 STRING_NS = Namespace("http://www.w3.org/2000/10/swap/string#")
 LOG_NS = Namespace("http://www.w3.org/2000/10/swap/log#")
 MATH_NS = Namespace("http://www.w3.org/2000/10/swap/math#")
@@ -28,10 +31,25 @@ def StringContains(subject,object_):
     return subject[-1].contains(object_[-1])
 
 def StringGreaterThan(subject,object_):
-    pass
+    for term in [subject,object_]:
+        if not isinstance(term,Variable):
+            assert isinstance(term,Literal),"str:greaterThan can only be used with Literals! (%s)"%term
+    def greaterThanF(s,o):
+        for term in [s,o]:
+            assert isinstance(term,Literal),"str:greaterThan can only be used with Literals!: %s %s"%(s,0)
+        return str(s) > str(o)
+    return greaterThanF
 
 def StringLessThan(subject,object_):
-    pass
+    for term in [subject,object_]:
+        if not isinstance(term,Variable):
+            assert isinstance(term,Literal),"str:lessThan can only be used with Literals! (%s)"%term
+    def lessThanF(s,o):
+        for term in [s,o]:
+            assert isinstance(term,Literal),"str:lessThan can only be used with Literals!"
+        return s < o
+        #return str(s) < str(o)
+    return lessThanF
 
 def StringEqualIgnoringCase(subject,object_):
     pass
@@ -88,15 +106,6 @@ def MathNotLessThan(subject,object_):
     return nLessThanF
 
 FUNCTIONS = {
-#    MATH_NS.absoluteValue : None,
-#    MATH_NS.negation : None,
-#    MATH_NS.difference  : MathDifference,
-#    MATH_NS.product : MathProduct,
-#    MATH_NS.sum : MathSum,    
-#    MATH_NS.integerQuotient : MathIntegerQuotient,
-#    STRING_NS.concatenation : None,
-    #{} => {rdf:nil :memberCount 0}.
-    #EULER_NS.memberCount: None,    
 }
 FILTERS = {
     LOG_NS.equalTo : LogEqualTo,
@@ -122,3 +131,47 @@ FILTERS = {
     STRING_NS.notMatches : None,
     STRING_NS.startsWith : None,    
 }
+
+testN3="""
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix : <http://test/> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+{ ?NODE rdf:value ?VAL. ?VAL math:greaterThan 2} => {?NODE :pred1 ?VAL}.
+_:foo rdf:value 1;
+      rdf:value 2;
+      rdf:value 3.
+"""
+
+class NonEqualityPredicatesTestSuite(unittest.TestCase):
+    def setUp(self):
+        from FuXi.Rete.RuleStore import N3RuleStore
+        from FuXi.Rete import ReteNetwork
+        from FuXi.Rete.Util import generateTokenSet
+        self.testGraph = Graph()
+        self.ruleStore=N3RuleStore()
+        self.ruleGraph = Graph(self.ruleStore)           
+        self.ruleGraph.parse(StringIO(testN3),format='n3')
+        self.testGraph.parse(StringIO(testN3),format='n3')        
+        self.closureDeltaGraph = Graph()
+        self.network = ReteNetwork(self.ruleStore,
+                                   initialWorkingMemory=generateTokenSet(self.testGraph),
+                                   inferredTarget = self.closureDeltaGraph,
+                                   nsMap = {})
+    def testParseBuiltIns(self):
+        from FuXi.Rete.RuleStore import N3Builtin
+        from FuXi.Rete.AlphaNode import BuiltInAlphaNode
+        self.failUnless(self.ruleStore.rules>0, "No rules parsed out form N3!")
+        for alphaNode in self.network.alphaNodes:
+            if isinstance(alphaNode, BuiltInAlphaNode):
+                self.failUnless(alphaNode.n3builtin.uri == MATH_NS.greaterThan, 
+                                "Unable to find math:greaterThan func")
+
+    def testEvaluateBuiltIns(self):
+        from FuXi.Rete.RuleStore import N3Builtin
+        from FuXi.Rete.AlphaNode import BuiltInAlphaNode
+        self.failUnless(first(self.closureDeltaGraph.triples((None,URIRef('http://test/pred1'),Literal(3)))),
+                            "Missing inferred :pred1 assertions")
+    
+if __name__ == '__main__':
+    unittest.main()    

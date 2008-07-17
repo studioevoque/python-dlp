@@ -75,7 +75,6 @@ Tests2Skip = [
     'OWL/oneOf/Manifest003.rdf', #logical set equivalence?  Probably needs a built-in to support
     'OWL/differentFrom/Manifest002.rdf'  ,#needs log:notEqualTo
     'OWL/distinctMembers/Manifest001.rdf',#needs log:notEqualTo
-    #'OWL/intersectionOf/Manifest001.rdf' ,#can't calculate identical class extensions
     'OWL/unionOf/Manifest002.rdf',#can't implement set theoretic union for owl:unionOf.
     'OWL/InverseFunctionalProperty/Manifest001.rdf',#owl:sameIndividualAs deprecated
     'OWL/FunctionalProperty/Manifest001.rdf', #owl:sameIndividualAs deprecated
@@ -158,7 +157,7 @@ class OwlTestSuite(unittest.TestCase):
                         sTimeStr = "%s milli seconds"%sTime
                     print "Time to calculate closure on working memory: ",sTimeStr
                     print self.network
-                    tNodeOrder = [tNode for tNode in self.network.terminalNodes if self.network.instanciations[tNode]]
+                    tNodeOrder = [tNode for tNode in self.network.terminalNodes if tNode in self.network.instanciations]
                     tNodeOrder.sort(key=lambda x:self.network.instanciations[x],reverse=True)
                     for termNode in []:#tNodeOrder:
                         lhsF,rhsF = termNode.ruleFormulae

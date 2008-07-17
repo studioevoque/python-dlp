@@ -39,7 +39,7 @@ Options:
                              a value of 'rif' will cause the generated ruleset to be rendered
                              in the RIF format.  If the proof generation mechanism is
                              activated then a value of 'pml' will trigger a serialization
-                             of the proof in PML. 
+                             of the proof in PML.  
                              
   --man-owl                  If present, either the closure (or just the inferred triples) are serialized 
                              using an extension of the manchester OWL syntax
@@ -168,15 +168,21 @@ def main():
     for prefix,uri in nsBinds.items():
         namespace_manager.bind(prefix, uri, override=False)    
     ruleStore=N3RuleStore()
-    ruleGraph = Graph(ruleStore)            
+    nsMgr = NamespaceManager(Graph(ruleStore))
+    ruleGraph = Graph(ruleStore,namespace_manager=nsMgr)
     closureDeltaGraph = Graph(store)
     closureDeltaGraph.namespace_manager = namespace_manager
     factGraph = Graph(store) 
     factGraph.namespace_manager = namespace_manager
     for fileN in ruleGraphs:
-        ruleGraph.parse(fileN,format='n3')
+        print >>sys.stderr,"Parsed %s N3 rules from %s"%(len(ruleGraph.parse(open(fileN),
+                                                                             format='n3')), 
+                                                         fileN)
+        print len(Graph().parse(open(fileN),format='n3'))
         if useRuleFacts:
-            factGraph.parse(fileN,format='n3')
+            factGraph.parse(open(fileN),format='n3')
+            print >>sys.stderr,"Parsing RDF facts from ", fileN
+    assert not ruleGraphs or len(ruleGraph),"Nothing parsed from %s"%(ruleGraphs)
     if optimize:
         ruleStore.optimizeRules()
         sys.exit(1)
@@ -186,6 +192,7 @@ def main():
     if stdIn:
         factGraph.parse(sys.stdin,format=factFormat)
     workingMemory = generateTokenSet(factGraph)
+    nsBinds.update(ruleStore.nsMgr)
     if dlp:
         if complementExpansion:
             Individual.factoryGraph = factGraph
@@ -233,7 +240,6 @@ def main():
                               inferredTarget = closureDeltaGraph,
                               graphVizOutFile = gVizOut,
                               nsMap = nsBinds)
-    
     start = time.time()  
     network.feedFactsToAdd(workingMemory)
     sTime = time.time() - start
@@ -280,7 +286,7 @@ def main():
                                                                                     c.qname,
                                                                                     Class(child).qname,
                                                                                     Class(otherChild).qname),UserWarning,1)
-                if not isinstance(c,BNode):
+                if not isinstance(c.identifier,BNode):
                     print c.__repr__(True)
         elif closure:
             #FIXME: The code below *should* work

@@ -6,7 +6,7 @@ incorporates RIF Positive Conditions defined in Section Positive Conditions
 """
 from PositiveConditions import *
 from rdflib import Variable, BNode, URIRef, Literal, Namespace,RDF,RDFS
-
+from FuXi.Rete.RuleStore import N3Builtin
 def ExtractVariables(clause):
     pass
 
@@ -14,17 +14,22 @@ class Ruleset:
     """
     Ruleset ::= RULE*
     """
-    def __init__(self,formulae=None,n3StoreSrc=None,nsMapping=None):
+    def __init__(self,formulae=None,n3Rules=None,nsMapping=None):
         self.nsMapping = nsMapping and nsMapping or {}        
         self.formulae = formulae and formulae or []
-        if n3StoreSrc:
+        if n3Rules:
             #Convert a N3 abstract model (parsed from N3) into a RIF BLD 
-            for lhs,rhs in n3StoreSrc:
+            for lhs,rhs in n3Rules:
                 allVars = set()
                 for ruleCondition in [lhs,rhs]:
                     for stmt in ruleCondition:
+                        if isinstance(stmt,N3Builtin):
+                            ExternalFunction(stmt,newNss=self.nsMapping)
+#                            print stmt;raise
                         allVars.update([term for term in stmt if isinstance(term,Variable)])
-                body = [Uniterm(p,[s,o],newNss=nsMapping) for s,p,o in lhs]
+                body = [isinstance(term,N3Builtin) and term or
+                         Uniterm(list(term)[1],[list(term)[0],list(term)[-1]],
+                                 newNss=nsMapping) for term in lhs]
                 body = len(body) == 1 and body[0] or And(body)
                 head = [Uniterm(p,[s,o],newNss=nsMapping) for s,p,o in rhs]
                 head = len(head) == 1 and head[0] or And(head)

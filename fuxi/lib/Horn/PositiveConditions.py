@@ -21,6 +21,7 @@ class QNameManager:
         self.nsDict = nsDict and nsDict or {}
         self.nsMgr = NamespaceManager(Graph())
         self.nsMgr.bind('owl','http://www.w3.org/2002/07/owl#')
+        self.nsMgr.bind('math','http://www.w3.org/2000/10/swap/math#')
         
     def bind(self,prefix,namespace):
         self.nsMgr.bind(prefix,namespace)
@@ -55,7 +56,7 @@ class And(QNameManager,SetOperator,Condition):
         """
         >>> And([Uniterm(RDF.type,[RDFS.comment,RDF.Property]),
         ...      Uniterm(RDF.type,[OWL.Class,RDFS.Class])]).n3()
-        u'rdfs:comment a rdf:Property. owl:Class a rdfs:Class.'
+        u'rdfs:comment a rdf:Property .\\n owl:Class a rdfs:Class'
         
         """
 #        if not [term for term in self if not isinstance(term,Uniterm)]:
@@ -107,9 +108,10 @@ class Exists(Condition):
     def __repr__(self):
         return "Exists %s ( %r )"%(' '.join([var.n3() for var in self.declare]),
                                    self.formula )
+        
 class Atomic(Condition):
     """
-    ATOMIC ::= Uniterm | Equal
+    ATOMIC ::= Uniterm | Equal | Member | Subclass (| Frame)
     """
     def __iter__(self):
         yield self
@@ -117,7 +119,7 @@ class Atomic(Condition):
 class Equal(QNameManager,Atomic):
     """
     Equal ::= TERM '=' TERM
-    TERM ::= Const | Var | Uniterm
+    TERM ::= Const | Var | Uniterm | 'External' '(' Expr ')'
     
     >>> Equal(RDFS.Resource,OWL.Thing)
     rdfs:Resource =  owl:Thing
@@ -164,7 +166,7 @@ class Uniterm(QNameManager,Atomic):
         Serialize as N3 (using available namespace managers)
         
         >>> Uniterm(RDF.type,[RDFS.comment,RDF.Property]).n3()
-        'rdfs:comment a rdf:Property.'
+        u'rdfs:comment a rdf:Property'
 
         """
         return ' '.join([ self.renderTermAsN3(term) 
@@ -194,7 +196,28 @@ class Uniterm(QNameManager,Atomic):
             return "%s(%s %s)"%(pred,
                                 subj,
                                 obj)
-
+            
+class ExternalFunction(Uniterm):
+    """
+    An External(ATOMIC) is a call to an externally defined predicate, equality, 
+    membership, subclassing, or frame. Likewise, External(Expr) is a call to an 
+    externally defined function.
+    >>> ExternalFunction(Uniterm(URIRef('http://www.w3.org/2000/10/swap/math#greaterThan'),[Variable('VAL'),Literal(2)]))
+    math:greaterThan(?VAL 2)
+    """
+    def __init__(self,builtin,newNss=None):
+        from FuXi.Rete.RuleStore import N3RuleStore,N3Builtin
+        self.builtin= builtin
+        if isinstance(builtin,N3Builtin):
+            Uniterm.__init__(self,builtin.uri,[builtin.argument,builtin.result])
+        else:
+            Uniterm.__init__(self,builtin.op,builtin.arg)
+        QNameManager.__init__(self)
+        if newNss is not None:
+            newNss = isinstance(newNss,dict) and newNss.items() or newNss
+            for k,v in newNss:
+                self.nsMgr.bind(k,v)
+            
 def test():
     import doctest
     doctest.testmod()

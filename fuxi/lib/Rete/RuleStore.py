@@ -26,6 +26,8 @@ class N3Builtin(object):
         self.result = result
         self.func = func
         self.variables = [arg for arg in [self.argument,self.result] if isinstance(arg,Variable)]
+    def toRDFTuple(self):
+        return (self.argument,self.uri,self.result)
     def render(self,argument,result):
         return "<%s>(%s,%s)"%(self.uri,argument,result)
     def __iter__(self):
@@ -196,7 +198,7 @@ BuiltIn used out of order
     context_aware = True
     formula_aware = True
 
-    def __init__(self, identifier=None, configuration=None):
+    def __init__(self, identifier=None, configuration=None,additionalBuiltins=None):
         self.formulae = {}
         self.facts = []
         self.rootFormula = None
@@ -206,6 +208,9 @@ BuiltIn used out of order
         self.rules = []
         self.referencedVariables = Set()
         self.nsMgr = {}
+        self.filters=FILTERS
+        if additionalBuiltins:
+            self.filters.update(additionalBuiltins)
         
     def namespace(self,prefix):
         return self.nsMgr.get(prefix)

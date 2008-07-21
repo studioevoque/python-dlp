@@ -59,9 +59,8 @@ def ComplementExpansion(owlClass,debug=False):
                 oldList.append(classOrIdentifier(allowedClasses))
             owlClass.changeOperator(OWL_NS.unionOf)        
             if debug:
-                if debug:
-                    print "Incoming boolean class: ", oldRepr             
-                    print "Expanded boolean class: ", owlClass.__repr__()
+                print "Incoming boolean class: ", oldRepr             
+                print "Expanded boolean class: ", owlClass.__repr__()
             return owlClass
         else:
             if debug:

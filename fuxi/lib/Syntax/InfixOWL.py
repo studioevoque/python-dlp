@@ -80,6 +80,8 @@ The '&' operator can be used to construct class intersection:
 >>> woman.identifier = exNs.Woman
 >>> woman
 ( ex:Female and ex:Human )
+>>> len(woman)
+2
 
 Enumerated classes can also be manipulated
 
@@ -208,7 +210,11 @@ def manchesterSyntax(thing,store,boolean=None,transientList=False):
                     prefix = '( '+ ' and '.join(map(castToQName,named)) + ' )'                
                 else:
                     prefix = manchesterSyntax(named[0],store)
-                return prefix+ ' that '+' and '.join(map(lambda x:manchesterSyntax(x,store),childList))
+                if childList:
+                    return prefix+ ' that '+' and '.join(
+                             map(lambda x:manchesterSyntax(x,store),childList))
+                else:
+                    return prefix
             else:
                 return '( '+ ' and '.join(children) + ' )'
         elif boolean == OWL_NS.unionOf:
@@ -653,7 +659,10 @@ class OWLRDFListProxy(object):
         self._rdfList[key] = classOrIdentifier(value)
         
     def __delitem__(self, key):
-        del self._rdfList[key]        
+        del self._rdfList[key]    
+        
+    def clear(self):
+        self._rdfList.clear()    
 
     def __iter__(self):
         for item in self._rdfList:
@@ -746,8 +755,8 @@ class BooleanClass(Class,OWLRDFListProxy):
         
         """
         assert newOperator != self._operator,"The new operator is already being used!"
-        self.graph.remove((self.identifier,self._operator,self._rdfList))
-        self.graph.add((self.identifier,newOperator,self._rdfList))        
+        self.graph.remove((self.identifier,self._operator,self._rdfList.uri))
+        self.graph.add((self.identifier,newOperator,self._rdfList.uri))
         self._operator = newOperator
 
     def __repr__(self):

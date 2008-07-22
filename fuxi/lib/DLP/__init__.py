@@ -399,14 +399,23 @@ def T(owlGraph,complementExpansions=[]):
             conjunction=[]
             for bodyTerm in Collection(owlGraph,o):
                 bodyUniTerm = Uniterm(RDF.type,[Variable("X"),bodyTerm],
-                                           newNss=owlGraph.namespaces())
-                conjunction.append(bodyUniTerm)
-                if first(owlGraph.triples_choices((bodyTerm,
-                                                   [OWL_NS.unionOf,
-                                                    OWL_NS.someValuesFrom],
-                                                   None))):
-                    yield NormalizeClause(Clause(Tb(owlGraph,bodyTerm),
+                                       newNss=owlGraph.namespaces())                                    
+                classifyingClause = NormalizeClause(Clause(Tb(owlGraph,bodyTerm),
                                                  bodyUniTerm))
+                if isinstance(bodyTerm,URIRef):
+                    conjunction.append(bodyUniTerm)
+                elif (bodyTerm,OWL_NS.someValuesFrom,None) in owlGraph:
+                    conjunction.extend(NormalizeClause(Clause(Tb(owlGraph,bodyTerm),None)).body)
+                elif (bodyTerm,OWL_NS.allValuesFrom,None) in owlGraph:
+                    conjunction.append(bodyUniTerm)                    
+                    yield classifyingClause
+                elif (bodyTerm,OWL_NS.hasValue,None) in owlGraph:
+                    #TODO The generation of domain-specific rules for hasValue
+                    #can be achieved via pD semantics
+                    conjunction.append(bodyUniTerm)
+                elif (bodyTerm,OWL_NS.unionOf,None) in owlGraph:
+                    conjunction.append(bodyUniTerm)                    
+                    yield classifyingClause
             body = And(conjunction)
             head = Uniterm(RDF.type,[Variable("X"),s],newNss=owlGraph.namespaces())
 #            O1 ^ O2 ^ ... ^ On => S(?X)            

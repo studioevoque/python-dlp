@@ -14,7 +14,9 @@ except:
         from pydot import Node,Edge,Dot
         dot=Dot(graph_type='digraph')
     except:
-        raise NotImplementedError("Boost Graph Library & Python bindings (or pydot) not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
+        import warnings
+        warnings.warn("Missing pydot library",ImportWarning)                
+#        raise NotImplementedError("Boost Graph Library & Python bindings (or pydot) not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
 
 from itertools import izip,ifilter,ifilterfalse
 from FuXi.Syntax.InfixOWL import *

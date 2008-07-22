@@ -10,7 +10,10 @@ except:
     try:
         from pydot import Node,Edge,Dot
     except:
-        raise NotImplementedError("Boost Graph Library & Python bindings (or pydot) not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
+        import warnings
+        warnings.warn("Missing pydot library",ImportWarning)        
+        #raise NotImplementedError("Boost Graph Library & Python bindings (or pydot) not installed.  See: see: http://www.osl.iu.edu/~dgregor/bgl-python/")
+        
 from rdflib.Graph import Graph
 from rdflib.syntax.NamespaceManager import NamespaceManager
 from rdflib import BNode, Namespace, Collection, Variable

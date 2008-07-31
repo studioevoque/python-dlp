@@ -19,13 +19,13 @@ The Horn module was originally meant as a reference implementation of the W3C's 
 
 The Horn module includes Python classes for each of the major components of the RIF BLD abstract syntax ([http://www.w3.org/TR/rif-bld/#EBNF_Grammar_for_the_Presentation_Syntax_of_RIF-BLD EBNF Grammar for the Presentation Syntax of RIF-BLD]):
 
-  * !FuXi.Horn.HornRules.Ruleset
-  * !FuXi.Horn.HornRules.Rule
-  * !FuXi.Horn.HornRules.Clause
-  * !FuXi.Horn.PositiveConditions.Condition
-  * !FuXi.Horn.PositiveConditions.And
-  * !FuXi.Horn.PositiveConditions.Or
-  * !FuXi.Horn.PositiveConditions.Uniterm
+  * !FuXi.Horn.!HornRules.Ruleset
+  * !FuXi.Horn.!HornRules.Rule
+  * !FuXi.Horn.!HornRules.Clause
+  * !FuXi.Horn.!PositiveConditions.Condition
+  * !FuXi.Horn.!PositiveConditions.And
+  * !FuXi.Horn.!PositiveConditions.Or
+  * !FuXi.Horn.!PositiveConditions.Uniterm
   * ... etc ..
   
 Horn rulesets can be built from the ground up by instantiating the objects piecemeal:
@@ -109,7 +109,7 @@ At the heart of the python-dlp framework is an implementation of most of the RET
 
 Robert's thesis describes a modification of the original Rete algorithm that (amongst other things) limits the fact syntax (referred to as Working Memory Elements) to 3-item tuples (which corresponds quite nicely with the RDF abstract syntax). The thesis also describes methods for using hash tables to improve efficiency of alpha nodes and beta nodes.  
 
-Instances of the FuXi.Rete.ReteNetwork class are RETE-UL networks.  So, to programmatically build a RETE-UL network, a developer would write:
+Instances of the !FuXi.Rete.!ReteNetwork class are RETE-UL networks.  So, to programmatically build a RETE-UL network, a developer would write:
 {{{
 from FuXi.Rete import ReteNetwork
 from FuXi.Rete.RuleStore import N3RuleStore
@@ -125,7 +125,7 @@ ruleGraph = Graph(ruleStore,namespace_manager=nsMgr)
 network = ReteNetwork(ruleStore,inferredTarget = closureDeltaGraph,nsMap = ruleStore.nsMgr)
 }}}
 
-First, a _closure delta graph_ is created.  This is the graph where all the inferred RDF statements will be stored.  Next, an N3RuleStore is instantiated passing in an (optional) dictionary for user-specified built-ins.  For a list of 'standard' CWM builtins, see: [http://www.w3.org/2000/10/swap/doc/CwmBuiltins CWM Builtins].  Note, the RETE-UL implementation doesn't support denoting (or calculating) built-ins.  It only supports built-in predicates that compare existing values.  So, for example math:product is not supported, but math:lessThan is.  The additionalBuiltins keyword argument expects a dictionary where the key is an RDFLib URIRef instance (the URI of the built-in predicate) and the value is a Python callable which should take two arguments as input and return a boolean value that corresponds to the expected semantics for the custom built-in predicate.
+First, a _closure delta graph_ is created.  This is the graph where all the inferred RDF statements will be stored.  Next, an !N3RuleStore is instantiated passing in an (optional) dictionary for user-specified built-ins.  For a list of 'standard' CWM builtins, see: [http://www.w3.org/2000/10/swap/doc/CwmBuiltins CWM Builtins].  Note, the RETE-UL implementation doesn't support denoting (or calculating) built-ins.  It only supports built-in predicates that compare existing values.  So, for example math:product is not supported, but math:lessThan is.  The additionalBuiltins keyword argument expects a dictionary where the key is an RDFLib URIRef instance (the URI of the built-in predicate) and the value is a Python callable which should take two arguments as input and return a boolean value that corresponds to the expected semantics for the custom built-in predicate.
 
 Finally, the network is instanciated, passing in the ruleStore, the closure delta graph, and a namespace mapping.  Here, the ruleStore's namespace mapping is passed in, so the RETE network will inherit any namespace bindings parsed in from the N3 document.  If a closure delta graph is not provided, one will be created.  In either case, the _inferredFacts_ attribute of the network will be set to the closure delta graph.
 
@@ -142,8 +142,7 @@ Here, _someRDFGraph_ is an RDFLib Graph instance that contains the RDF facts to 
 == !FuXi.DLP ==  
 
 This module is a Description Horn Logic implementation as defined by Grosof, B. et.al. ("Description Logic Programs: Combining Logic Programs with 
-Description Logic" [1]) in section 4.4.  As such, it implements recursive mapping functions "T", "Th" and "Tb" which result in "custom" (dynamic) rulesets, RIF Basic 
-Logic Dialect: Horn rulesets [2], [3].  
+Description Logic" ) in section 4.4.  As such, it implements recursive mapping functions "T", "Th" and "Tb" which result in "custom" (dynamic) rulesets.  
 
 For the non logic-inclined, this essentially allows OWL ontologies (or a subset of OWL ontologies) to be automatically converted to a set of rules that exactly capture the semantics of the OWL document.  This mechanism is fundamental to the larger framework that FuXi is a part of (python-dlp).  The premise is two-fold.  
 
@@ -161,9 +160,9 @@ network.feedFactsToAdd(generateTokenSet(tBoxGraph))
 network.feedFactsToAdd(generateTokenSet(someRDFGraph))
 }}} 
 
-The _setupDescriptionLogicProgramming_ method can be invoked on a ReteNetwork instance, passing in an RDFLib Graph that consists of the OWL assertions that we wish to translate to a ruleset as the only argument.  This method will return a list of RuleSet objects each of which represents a rule that was translated from the OWL assertions.
+The _setupDescriptionLogicProgramming_ method can be invoked on a !ReteNetwork instance, passing in an RDFLib Graph that consists of the OWL assertions that we wish to translate to a ruleset as the only argument.  This method will return a list of !RuleSet objects each of which represents a rule that was translated from the OWL assertions.
 
-The second line then sends the OWL RDF assertions through the network.  This is necessary to fully classify the OWL ontology.  Then finally, an RDF graph of facts are sent through the network.  Typically, a user will have an RDF graph with instance-level statements (the [http://en.wikipedia.org/wiki/ABox ABox]) and an OWL RDF graph that describes the vocabulary terms used in the ABox graph.  After following the three steps above, the _network.inferredFacts_ graph will now have all the RDF statements that can be inferred from the combination of the OWL graph and the instance graph.  Note, the DLP algorithm only supports a subset of OWL-DL, so not all OWL graphs will be properly axiomatized.
+The second line then sends the OWL RDF assertions through the network.  This is necessary to fully classify the OWL ontology.  Then finally, an RDF graph of facts are sent through the network.  Typically, a user will have an RDF graph with instance-level statements (the [http://en.wikipedia.org/wiki/ABox ABox]) and an OWL RDF graph that describes the vocabulary terms used in the instance graph (the [http://en.wikipedia.org/wiki/TBox TBox]).  After following the three steps above, the _network.inferredFacts_ graph will now have all the RDF statements that can be inferred from the combination of the OWL graph and the instance graph.  Note, the DLP algorithm only supports a subset of OWL-DL, so not all OWL graphs will be properly axiomatized.
 
 Finally, a network can be _reset_ via the network.reset() method.  This will _clear_ the RETE-UL network, and is useful when you want to setup a network once from an OWL graph and calculate the closure delta graph for multiple instance graphs from the same ruleset.  After resetting the network, the TBox graph will both need to be sent through the network again, followed by the subsequent instance graph:
 

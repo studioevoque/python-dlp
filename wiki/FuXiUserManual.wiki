@@ -1,4 +1,5 @@
 #summary End User Manual for FuXi
+#labels Featured,Phase-Implementation,Phase-Design
 
 = Introduction =
 

@@ -201,14 +201,18 @@ class ReteNetwork:
             print >>sys.stderr,"Writing out RETE network to ", graphVizOutFile
             renderNetwork(self,nsMap=nsMap).write(graphVizOutFile)
                         
-    def setupDescriptionLogicProgramming(self,owlN3Graph,expanded=[]):
+    def setupDescriptionLogicProgramming(self,
+                                         owlN3Graph,
+                                         expanded=[],
+                                         addPDSemantics=True):
         rules=[rule 
                     for rule in MapDLPtoNetwork(self,owlN3Graph,complementExpansions=expanded)]
         noRules=len(rules)
-        self.parseN3Logic(StringIO(non_DHL_OWL_Semantics))
-        print "##### DLP rules setup",network
+        if addPDSemantics:
+            self.parseN3Logic(StringIO(non_DHL_OWL_Semantics))
+        print "##### DLP rules setup",self
         self.feedFactsToAdd(generateTokenSet(owlN3Graph))
-        print "##### DLP rules fired against OWL/RDF TBOX",network
+        print "##### DLP rules fired against OWL/RDF TBOX",self
         return rules
             
     def parseN3Logic(self,src):

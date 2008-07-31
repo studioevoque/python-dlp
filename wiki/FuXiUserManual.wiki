@@ -14,7 +14,7 @@ An overview of the top-level modules in FuXi serves as an introduction to the ge
   * !FuXi.DLP  
   * !FuXi.Rete
 
-== FuXi.Horn ==  
+== !FuXi.Horn ==  
 
 The Horn module was originally meant as a reference implementation of the W3C's Rule Interchange Format Basic Logic Dialect ( work in progress ) but eventually evolved into a Pythonic API for managing an abstract Logic Programming syntax.  This module is heavily used by both the DLP and Rete modules for (respectively) creating the rulesets converted from OWL RDF expressions and creating a Horn ruleset from a parsed Notation 3 graph.
 

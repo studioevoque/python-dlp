@@ -202,12 +202,14 @@ class ReteNetwork:
             renderNetwork(self,nsMap=nsMap).write(graphVizOutFile)
                         
     def setupDescriptionLogicProgramming(self,owlN3Graph,expanded=[]):
-        noRules=len([rule 
-                    for rule in MapDLPtoNetwork(self,owlN3Graph,complementExpansions=expanded)])
+        rules=[rule 
+                    for rule in MapDLPtoNetwork(self,owlN3Graph,complementExpansions=expanded)]
+        noRules=len(rules)
         self.parseN3Logic(StringIO(non_DHL_OWL_Semantics))
         print "##### DLP rules setup",network
         self.feedFactsToAdd(generateTokenSet(owlN3Graph))
         print "##### DLP rules fired against OWL/RDF TBOX",network
+        return rules
             
     def parseN3Logic(self,src):
         store=N3RuleStore(additionalBuiltins=self.ruleStore.filters)

@@ -145,7 +145,8 @@ class OwlTestSuite(unittest.TestCase):
                     factGraph = Graph(store)
                     factGraph.parse(open('.'.join([premiseFile,'rdf'])))
                     allFacts = ReadOnlyGraphAggregate([factGraph,self.ruleFactsGraph])
-                    MapDLPtoNetwork(self.network,factGraph)
+                    #MapDLPtoNetwork(self.network,factGraph)
+                    self.network.setupDescriptionLogicProgramming(factGraph,addPDSemantics=False)
                     print self.network                                      
                     start = time.time()  
                     self.network.feedFactsToAdd(generateTokenSet(factGraph))                    

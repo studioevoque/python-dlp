@@ -201,7 +201,7 @@ class ReteNetwork:
             print >>sys.stderr,"Writing out RETE network to ", graphVizOutFile
             renderNetwork(self,nsMap=nsMap).write(graphVizOutFile)
                         
-    def setupDescriptionLogicProgramming(self,owlN3Graph,expanded):
+    def setupDescriptionLogicProgramming(self,owlN3Graph,expanded=[]):
         noRules=len([rule 
                     for rule in MapDLPtoNetwork(self,owlN3Graph,complementExpansions=expanded)])
         self.parseN3Logic(StringIO(non_DHL_OWL_Semantics))

@@ -51,7 +51,7 @@ Options:
                              serve as the initial facts for the RETE network.
                              One of 'xml','n3','trix', 'nt', or 'rdfa'.  The default
                              is 'xml'.
-                             
+  --pDSemantics              Add pD semantics ruleset?                           
   --optimize                 Suggest inefficiencies in the ruleset and exit
                      
   --stdin                    Parse STDIN as an RDF graph to contribute to the
@@ -97,6 +97,7 @@ def main():
                                                       "normalize",
                                                       "man-owl",
                                                       "dlp",
+                                                      "pDSemantics",
                                                       "complementExpand",
                                                       "stdin",
                                                       "help",
@@ -109,6 +110,7 @@ def main():
         print e
         usage()
         sys.exit(2)
+    pDSemantics=False
     complementExpansion = False
     proove=None
     factGraphs = args
@@ -130,6 +132,8 @@ def main():
     for o, a in opts:
         if o == '--input-format':
             factFormat = a
+        elif o == '--pDSemantics':
+            pDSemantics=True
         elif o == '--stdin':
             stdIn = True
         elif o == '--optimize':
@@ -176,9 +180,8 @@ def main():
     factGraph.namespace_manager = namespace_manager
     for fileN in ruleGraphs:
         print >>sys.stderr,"Parsed %s N3 rules from %s"%(len(ruleGraph.parse(open(fileN),
-                                                                             format='n3')), 
+                                                         format='n3')), 
                                                          fileN)
-        print len(Graph().parse(open(fileN),format='n3'))
         if useRuleFacts:
             factGraph.parse(open(fileN),format='n3')
             print >>sys.stderr,"Parsing RDF facts from ", fileN
@@ -212,8 +215,8 @@ def main():
                     _class = Class(s)
         #            print _class.__repr__(True,True)            
                     ComplementExpansion(_class)        
-        
-        #ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
+        if pDSemantics:
+            ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
         network = ReteNetwork(ruleStore,
                               inferredTarget = closureDeltaGraph,
                               graphVizOutFile = gVizOut,

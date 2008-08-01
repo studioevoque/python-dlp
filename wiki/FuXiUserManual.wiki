@@ -78,7 +78,7 @@ using the rule store instance and namespace manager and the rdfs-rules.n3 Notati
 Note, the latest revision in SVN simplifies this with a utility method called _SetupRuleStore_:
 
 {{{
->>> from FuXi.Rete.RuleStore import N3RuleStore
+>>> from FuXi.Rete.RuleStore import N3RuleStore, SetupRuleStore
 >>> ruleStore,ruleGraph=SetupRuleStore()
 >>> ruleGraph.parse('http://www.agfa.com/w3c/euler/rdfs-rules.n3',format='n3')
 <Graph identifier=... (<class 'rdflib.Graph.Graph'>)>

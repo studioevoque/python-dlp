@@ -75,6 +75,14 @@ using the rule store instance and namespace manager and the rdfs-rules.n3 Notati
 <Graph identifier=... (<class 'rdflib.Graph.Graph'>)>
 }}}
 
+Note, the latest revision in SVN simplifies this with a utility method called _SetupRuleStore_:
+
+{{{
+>>> ruleStore,ruleGraph=SetupRuleStore()
+>>> ruleGraph.parse('http://www.agfa.com/w3c/euler/rdfs-rules.n3',format='n3')
+<Graph identifier=... (<class 'rdflib.Graph.Graph'>)>
+}}}
+
 Finally, a !Ruleset object is instantiated, passing the rule store and the namespace mappings.  The !RuleSet object is iterated over and each
 of the rules parsed from the Notation 3 document are printed (which serializes each rule using the RIF BLD syntax)
 

@@ -116,7 +116,8 @@ def generateBGLNode(dot,node,namespace_manager,identifier):
         dot.add_edge(edge)              
         dot.add_node(rhsVertex)      
         if node.commonVariables:
-            label = str("Terminal node\\n(%s)"%(','.join(["?%s"%i for i in node.commonVariables])))
+            inst=node.network.instanciations.get(node,0)
+            label = str("Terminal node\\n(%s)\\n%d instanciations"%(','.join(["?%s"%i for i in node.commonVariables]),inst))
         else:
             label = "Terminal node"
         

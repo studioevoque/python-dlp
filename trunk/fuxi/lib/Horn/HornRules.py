@@ -127,6 +127,8 @@ class Clause:
         return (self.body,self.head)
         
     def __repr__(self):
+        if isinstance(self.body,SetOperator) and not len(self.body):
+            return "%r :-"%self.head
         return "%r :- %r"%(self.head,self.body)
     
     def n3(self):

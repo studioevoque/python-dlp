@@ -152,7 +152,8 @@ nsBinds = {
     'skos': 'http://www.w3.org/2004/02/skos/core#',
     'rdf' : RDF.RDFNS,
     'rdfs': RDFS.RDFSNS,
-    'owl' : OWL_NS,       
+    'owl' : OWL_NS,
+    'list' : URIRef('http://www.w3.org/2000/10/swap/list#'),       
     'dc'  : "http://purl.org/dc/elements/1.1/",
 }
 

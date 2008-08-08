@@ -1,10 +1,11 @@
 from __future__ import generators
+import sys
 from sets import Set
 from rdflib import BNode, RDF, Namespace
 from rdflib.store import Store,VALID_STORE, CORRUPTED_STORE, NO_STORE, UNKNOWN
 from rdflib.Literal import Literal
 from pprint import pprint
-import sys
+from rdflib.syntax.NamespaceManager import NamespaceManager
 from rdflib.term_utils import *
 from rdflib.Graph import QuotedGraph, Graph
 from rdflib.store.REGEXMatching import REGEXTerm, NATIVE_REGEX, PYTHON_REGEX
@@ -71,7 +72,16 @@ class Rule(object):
 
     def __repr__(self):
         return "{%s} => {%s}"%(self.lhs,self.rhs)
-    
+
+def SetupRuleStore(additionalBuiltins=None):
+    """
+    Sets up a N3RuleStore, a Graph (that uses it as a store, and )
+    """
+    ruleStore = N3RuleStore(additionalBuiltins=additionalBuiltins)
+    nsMgr = NamespaceManager(Graph(ruleStore))
+    ruleGraph = Graph(ruleStore,namespace_manager=nsMgr)
+    return ruleStore,ruleGraph
+        
 class N3RuleStore(Store):
     """    
     A specialized Store which maintains order of statements
@@ -198,7 +208,7 @@ BuiltIn used out of order
     context_aware = True
     formula_aware = True
 
-    def __init__(self, identifier=None, configuration=None,additionalBuiltins=None):
+    def __init__(self, identifier=None, additionalBuiltins=None):
         self.formulae = {}
         self.facts = []
         self.rootFormula = None

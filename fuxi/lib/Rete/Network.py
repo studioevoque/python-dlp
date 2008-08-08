@@ -166,7 +166,12 @@ class ReteNetwork:
         for alphaPattern in xcombine(('1','0'),('1','0'),('1','0')):
             self.alphaPatternHash[tuple(alphaPattern)] = {}
         if inferredTarget is None:
-            self.inferredFacts = Set()#Graph('IOMemory')
+            self.inferredFacts = Graph()
+            namespace_manager = NamespaceManager(self.inferredFacts)
+            for k,v in nsMap.items():
+                namespace_manager.bind(k, v)
+                namespace_manager.bind(k, v)    
+                self.inferredFacts.namespace_manager = namespace_manager    
         else:            
             self.inferredFacts = inferredTarget
         self.workingMemory = initialWorkingMemory and initialWorkingMemory or Set()
@@ -201,20 +206,39 @@ class ReteNetwork:
             print >>sys.stderr,"Writing out RETE network to ", graphVizOutFile
             renderNetwork(self,nsMap=nsMap).write(graphVizOutFile)
                         
+    def getNsBindings(self,nsMgr):
+        for prefix,Uri in nsMgr.namespaces():
+            self.nsMap[prefix]=Uri
+                        
     def setupDescriptionLogicProgramming(self,
                                          owlN3Graph,
                                          expanded=[],
-                                         addPDSemantics=True):
+                                         addPDSemantics=True,
+                                         classifyTBox=False):
         rules=[rule 
                     for rule in MapDLPtoNetwork(self,owlN3Graph,complementExpansions=expanded)]
         noRules=len(rules)
         if addPDSemantics:
             self.parseN3Logic(StringIO(non_DHL_OWL_Semantics))
         print "##### DLP rules setup",self
-        self.feedFactsToAdd(generateTokenSet(owlN3Graph))
+        if classifyTBox:
+            self.feedFactsToAdd(generateTokenSet(owlN3Graph))
         print "##### DLP rules fired against OWL/RDF TBOX",self
         return rules
-            
+    
+    def reportConflictSet(self,closureSummary=False):
+        tNodeOrder = [tNode 
+                        for tNode in self.terminalNodes 
+                            if self.instanciations.get(tNode,0)]
+        tNodeOrder.sort(key=lambda x:self.instanciations[x],reverse=True)
+        for termNode in tNodeOrder:
+            print >>sys.stdout,termNode
+            #print "\t %s => %s"%(lhsF,rhsF)
+            print >>sys.stdout,"\t", termNode.clause
+            print >>sys.stdout,"\t\t%s instanciations"%self.instanciations[termNode]
+        if closureSummary:        
+            print self.inferredFacts.serialize(format='turtle')
+                
     def parseN3Logic(self,src):
         store=N3RuleStore(additionalBuiltins=self.ruleStore.filters)
         Graph(store).parse(src,format='n3')

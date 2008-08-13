@@ -8,9 +8,9 @@ FuXi adopts the semantics of Description Logic Programs _[#1]_.  This combined K
 
   * _Definite_: i.e., no negation operators (either classic or NAF)
   * _Equality-free_: no equals operator (owl:sameAs, or fully communicative owl:equivalentClass)
-  * _Datalog_: no function symbols
+  * _Datalog_: no function symbols (but 'external' predicates are allowed)
 
-The mapping between def-Horn and def-LP is sound and complete (for rules with only ground terms in the head/conclusion).  In particular, LP's cannot express existentially quantified variables in the head of a rule (or a fact).  Also, universally quantified variables that appear in the head of a rule, must appear somewhere in the body of the same rule.
+The mapping between def-Horn and def-LP is sound and complete (for rules with only ground terms in the head/conclusion). _need explanation of semantics of BNodes in the head_  In particular, LP's cannot express existentially quantified variables in the head of a rule (or a fact).  Also, universally quantified variables that appear in the head of a rule, must appear somewhere in the body of the same rule.
 
 = Semantics =
 

@@ -16,7 +16,7 @@ OWL    = Namespace("http://www.w3.org/2002/07/owl#")
 def buildUniTerm((s,p,o),newNss=None):
     return Uniterm(p,[s,o],newNss=newNss)
 
-class QNameManager:
+class QNameManager(object):
     def __init__(self,nsDict=None):
         self.nsDict = nsDict and nsDict or {}
         self.nsMgr = NamespaceManager(Graph())
@@ -26,13 +26,13 @@ class QNameManager:
     def bind(self,prefix,namespace):
         self.nsMgr.bind(prefix,namespace)
 
-class SetOperator:
+class SetOperator(object):
     def repr(self,operator):
         return "%s( %s )"%(operator,' '.join([repr(i) for i in self.formulae]))
     def __len__(self):
         return len(self.formulae)
 
-class Condition:
+class Condition(object):
     """
     CONDITION   ::= CONJUNCTION | DISJUNCTION | EXISTENTIAL | ATOMIC
     """
@@ -134,6 +134,9 @@ class Equal(QNameManager,Atomic):
         right = self.nsMgr.qname(self.rhs)
         return "%s =  %s"%(left,right)
 
+def BuildUnitermFromTuple((s,p,o),newNss=None):
+    return Uniterm(p,[s,o],newNss)
+
 class Uniterm(QNameManager,Atomic):
     """
     Uniterm ::= Const '(' TERM* ')'
@@ -152,6 +155,14 @@ class Uniterm(QNameManager,Atomic):
             newNss = isinstance(newNss,dict) and newNss.items() or newNss
             for k,v in newNss:
                 self.nsMgr.bind(k,v)
+        self._hash=hash(reduce(lambda x,y:str(x)+str(y),
+            len(self.arg)==2 and self.toRDFTuple() or [self.op]+self.arg))
+                
+    def __hash__(self):
+        return self._hash
+    
+    def __eq__(self,other):
+        return hash(self) == hash(other)                       
         
     def renderTermAsN3(self,term):
         if term == RDF.type:
@@ -183,19 +194,15 @@ class Uniterm(QNameManager,Atomic):
             return val
         
     def __repr__(self):
-        arg0,arg1 = self.arg
-        pred = isinstance(self.op,Variable) and self.op.n3() or \
-               self.collapseName(self.op)
-        subj = isinstance(arg0,(Variable,BNode)) and arg0.n3() or \
-               self.collapseName(arg0)
-        obj  = isinstance(arg1,(Variable,BNode)) and arg1.n3() or \
-               self.collapseName(arg1)    
+        def normalizeTerm(term):
+            return isinstance(term,Variable) and term.n3() or \
+                   self.collapseName(term)
         if self.op == RDF.type:
-            return "%s(%s)"%(obj,subj)
+            arg0,arg1 = self.arg
+            return "%s(%s)"%(normalizeTerm(arg1),normalizeTerm(arg0))
         else:
-            return "%s(%s %s)"%(pred,
-                                subj,
-                                obj)
+            return "%s(%s)"%(normalizeTerm(self.op),
+                                ' '.join([normalizeTerm(i) for i in self.arg]))
             
 class ExternalFunction(Uniterm):
     """

@@ -978,7 +978,12 @@ class Property(AnnotatibleTerms):
             rt.append('ObjectProperty( %s annotation(%s)'\
                        %(self.qname,first(self.comment) and first(self.comment) or ''))
             if first(self.inverseOf):
-                rt.append("  inverseOf( %s )%s"%(first(self.inverseOf),
+                twoLinkInverse=first(first(self.inverseOf).inverseOf)
+                if twoLinkInverse and twoLinkInverse.identifier == self.identifier:
+                    inverseRepr=first(self.inverseOf).qname
+                else:
+                    inverseRepr=repr(first(self.inverseOf))
+                rt.append("  inverseOf( %s )%s"%(inverseRepr,
                             OWL_NS.Symmetric in self.type and ' Symmetric' or ''))
             for s,p,roleType in self.graph.triples_choices((self.identifier,
                                                             RDF.type,

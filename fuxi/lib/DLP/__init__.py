@@ -17,23 +17,6 @@ The mapping is as follows:
 
 == Core (Description Horn Logic) ==
 
-Th(A,x)                      -> A(x)
-Th((C1 ^ C2 ^ ... ^ Cn),x)   -> Th(C1,x) ^ Th(C2,x) ^ ... ^ Th(Cn,x) 
-Th((‚àÄR.C),x)                 -> Th(C(y)) :- R(x,y)
-Tb(A(x))                     -> A(x)
-Tb((C1 ^ C2 ^ ... ^ Cn),x)   -> Tb(C1,x) ^ Tb(C2,x) ^ ... ^ Tb(Cn,x)
-Tb((C1 v C2 v ... v Cn),x)   -> Tb(C1,x) v Tb(C2,x) v ... v Tb(Cn,x)
-Tb((‚àÉR.C),x)                ->  R(x,y) ^ Tb(C,y) 
-
-In addition, basic logic tautologies are included in the DHL definition:
-
-(H ^ H0) :- B                 -> { H  :- B
-                                   H0 :- B }
-(H :- H0) :- B                -> H :- B ^ H0
-
-H :- (B v B0)                 -> { H :- B
-                                   H :- B0 }
-
 == Class Equivalence ==
 
 T(owl:equivalentClass(C,D)) -> { T(rdfs:subClassOf(C,D) 
@@ -68,15 +51,15 @@ from rdflib.store import Store,VALID_STORE, CORRUPTED_STORE, NO_STORE, UNKNOWN
 from rdflib import Literal, URIRef
 from pprint import pprint, pformat
 import sys, copy
-#from rdflib.term_utils import *
 from rdflib.Graph import QuotedGraph, Graph
 from rdflib.store.REGEXMatching import REGEXTerm, NATIVE_REGEX, PYTHON_REGEX
 from FuXi.Rete.RuleStore import Formula
 from FuXi.Rete.AlphaNode import AlphaNode
 from FuXi.Horn.PositiveConditions import And, Or, Uniterm, Condition, Atomic,SetOperator,Exists
-from FuXi.Horn.HornRules import Clause,Rule
 from FuXi.Rete.Util import renderNetwork
 from cStringIO import StringIO
+
+SKOLEMIZED_CLASS_NS=Namespace('http://code.google.com/p/python-dlp/wiki/SkolemTerm#')
 
 non_DHL_OWL_Semantics=\
 """
@@ -111,16 +94,23 @@ non_DHL_OWL_Semantics=\
 #For OWL/InverseFunctionalProperty/premises004
 {?C owl:oneOf ?L. ?L rdf:first ?X; rdf:rest rdf:nil. ?P rdfs:range ?C} => {?P a owl:FunctionalProperty}.
 
-#For OWL/oneOf
-{?C owl:oneOf ?L. ?X list:in ?L} => {?X a ?C}.
-{?L rdf:first ?I} => {?I list:in ?L}.
-{?L rdf:rest ?R. ?I list:in ?R} => {?I list:in ?L}.
-
 {?P a owl:SymmetricProperty. ?S ?P ?O} => {?O ?P ?S}.
 {?S owl:differentFrom ?O} => {?O owl:differentFrom ?S}.
 {?S owl:complementOf ?O} => {?O owl:complementOf ?S}.
 {?S owl:disjointWith ?O} => {?O owl:disjointWith ?S}.
 
+"""
+
+NOMINAL_SEMANTICS=\
+"""
+@prefix owl: <http://www.w3.org/2002/07/owl#>.
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix list: <http://www.w3.org/2000/10/swap/list#>.
+
+#For OWL/oneOf
+{?C owl:oneOf ?L. ?X list:in ?L} => {?X a ?C}.
+{?L rdf:first ?I} => {?I list:in ?L}.
+{?L rdf:rest ?R. ?I list:in ?R} => {?I list:in ?L}.
 """
 
 OWL_NS    = Namespace("http://www.w3.org/2002/07/owl#")
@@ -172,11 +162,10 @@ class Clause:
     
     In addition, since we allow (in definite Horn) entailments beyond simple facts
     we ease restrictions on the form of the head to include Clauses
-    """
+        """
     def __init__(self,body,head):
         self.body = body
         self.head = head
-        
     def __repr__(self):
         return "%r :- %r"%(self.head,self.body)
 
@@ -184,6 +173,7 @@ class Clause:
         return u'{ %s } => { %s }'%(self.body.n3(),self.head.n3())    
 
 def makeRule(clause,nsMap):
+    from FuXi.Horn.HornRules import Rule
     vars=set()
     for child in clause.head:
         if isinstance(child,Or):
@@ -202,7 +192,7 @@ def makeRule(clause,nsMap):
 def MapDLPtoNetwork(network,factGraph,complementExpansions=[]):
     ruleset=[]
     for horn_clause in T(factGraph,complementExpansions=complementExpansions):
-#        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
+        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
 #        print "## RIF BLD Horn Rules: After LloydTopor: ##"
         for tx_horn_clause in LloydToporTransformation(horn_clause):
             tx_horn_clause = NormalizeClause(tx_horn_clause)
@@ -387,6 +377,23 @@ def generatorFlattener(gen):
     else:
         return i
 
+def SkolemizeExistentialClasses(term,check=False):
+    if check:
+        return isinstance(term,BNode) and SKOLEMIZED_CLASS_NS[term] or term
+    return SKOLEMIZED_CLASS_NS[term]
+
+def NormalizeBooleanClassOperand(term,owlGraph):
+    return (IsaBooleanClassDescription(term,owlGraph) or IsaRestriction(term,owlGraph))\
+          and SkolemizeExistentialClasses(term) or term    
+
+def IsaBooleanClassDescription(term,owlGraph):
+    for s,p,o in owlGraph.triples_choices((term,[OWL_NS.unionOf,
+                                                OWL_NS.intersectionOf],None)):
+        return True
+
+def IsaRestriction(term,owlGraph):
+    return (term,RDF.type,OWL_NS.Restriction) in owlGraph
+    
 def T(owlGraph,complementExpansions=[]):
     """
     #Subsumption (purely for TBOX classification)
@@ -412,11 +419,12 @@ def T(owlGraph,complementExpansions=[]):
         if s not in complementExpansions:
             conjunction=[]
             for bodyTerm in Collection(owlGraph,o):
-                bodyUniTerm = Uniterm(RDF.type,[Variable("X"),bodyTerm],
+                normalizedBodyTerm=NormalizeBooleanClassOperand(bodyTerm,owlGraph)
+                bodyUniTerm = Uniterm(RDF.type,[Variable("X"),normalizedBodyTerm],
                                       newNss=owlGraph.namespaces())                                    
                 classifyingClause = NormalizeClause(Clause(Tb(owlGraph,bodyTerm),
                                                  bodyUniTerm))
-                if isinstance(bodyTerm,URIRef):
+                if isinstance(bodyTerm,URIRef) and bodyTerm.find(SKOLEMIZED_CLASS_NS)==-1:
                     conjunction.append(bodyUniTerm)
                 elif (bodyTerm,OWL_NS.someValuesFrom,None) in owlGraph or\
                      (bodyTerm,OWL_NS.hasValue,None) in owlGraph:                    
@@ -429,8 +437,13 @@ def T(owlGraph,complementExpansions=[]):
                 elif (bodyTerm,OWL_NS.unionOf,None) in owlGraph:
                     conjunction.append(bodyUniTerm)                    
                     yield classifyingClause
+                elif (bodyTerm,OWL_NS.intersectionOf,None) in owlGraph:
+                    conjunction.append(bodyUniTerm)                    
+                    
             body = And(conjunction)
-            head = Uniterm(RDF.type,[Variable("X"),s],newNss=owlGraph.namespaces())
+            head = Uniterm(RDF.type,[Variable("X"),
+                                     SkolemizeExistentialClasses(s,check=True)],
+                                     newNss=owlGraph.namespaces())
 #            O1 ^ O2 ^ ... ^ On => S(?X)            
             yield Clause(body,head)
             if isinstance(s,URIRef):
@@ -444,7 +457,9 @@ def T(owlGraph,complementExpansions=[]):
         if isinstance(s,URIRef):
             #special case, owl:unionOf is a neccessary and sufficient
             #criteria and should thus work in *both* directions
-            body = Or([Uniterm(RDF.type,[Variable("X"),i],newNss=owlGraph.namespaces()) \
+            body = Or([Uniterm(RDF.type,[Variable("X"),
+                                         NormalizeBooleanClassOperand(i,owlGraph)],
+                                         newNss=owlGraph.namespaces()) \
                            for i in Collection(owlGraph,o)])
             head = Uniterm(RDF.type,[Variable("X"),s],newNss=owlGraph.namespaces())
             yield Clause(body,head)
@@ -527,7 +542,6 @@ def LloydToporTransformation(clause,fullReduction=False):
 def commonConjunctionMapping(owlGraph,conjuncts,innerFunc,variable=Variable("X")):
     """
     DHL: T*((C1 ^ C2 ^ ... ^ Cn),x)    -> T*(C1,x) ^ T*(C2,x) ^ ... ^ T*(Cn,x)
-    OWL: intersectionOf(c1 ÔøΩ c2 ,..,cn) =>  EC(c1) ‚à© ‚Ä¶ ‚à© EC(cn)
     """
     conjuncts = Collection(owlGraph,conjuncts)
     return And([generatorFlattener(innerFunc(owlGraph,c,variable)) 
@@ -537,14 +551,11 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
     """
     DLP head (antecedent) knowledge assertional forms (ABox assertions, conjunction of
     ABox assertions, and universal role restriction assertions)
-    Th(A,x)                      -> A(x)
-    Th((C1 ^ C2 ^ ... ^ Cn),x)   -> Th(C1,x) ^ Th(C2,x) ^ ... ^ Th(Cn,x) 
-    Th((‚àÄR.C),x)                -> Th(C(y)) :- R(x,y)
     """
     props = list(set(owlGraph.predicates(subject=_class)))
     if OWL_NS.allValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#owl_allValuesFrom
-        #restriction(p allValuesFrom(r))    {x ‚àà O | <x,y> ‚àà ER(p) implies y ‚àà EC(r)}
+        #restriction(p allValuesFrom(r))    {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) implies y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(r)}
         for s,p,o in owlGraph.triples((_class,OWL_NS.allValuesFrom,None)):
             prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
             newVar = Variable(BNode())
@@ -553,7 +564,7 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
                 yield Clause(body,head)
     elif OWL_NS.someValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#someValuesFrom
-        #estriction(p someValuesFrom(e)) {x ‚àà O | ‚àÉ <x,y> ‚àà ER(p) ‚àß y ‚àà EC(e)}
+        #estriction(p someValuesFrom(e)) {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬¢ <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨‚à´ y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(e)}
         for s,p,o in owlGraph.triples((_class,OWL_NS.someValuesFrom,None)):
             prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
             newVar = BNode()
@@ -561,6 +572,8 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
                         generatorFlattener(Th(owlGraph,o,variable=newVar))])
     else:
         #Simple class
+        assert not isinstance(_class,BNode),\
+        "Cannot conclude existensial set membership"+_class
         yield Uniterm(RDF.type,[variable,_class],newNss=owlGraph.namespaces())
     
 def Tb(owlGraph,_class,variable=Variable('X')):
@@ -568,21 +581,17 @@ def Tb(owlGraph,_class,variable=Variable('X')):
     DLP body (consequent knowledge assertional forms (ABox assertions, 
     conjunction / disjunction of ABox assertions, and exisential role restriction assertions)
     These are all common EL++ templates for KR
-    Tb(A(x))                      -> A(x)
-    Tb((C1 ^ C2 ^ ... ^ Cn),x)    -> Tb(C1,x) ^ Tb(C2,x) ^ ... ^ Tb(Cn,x)
-    Tb((C1 v C2 v ... v Cn),x)    -> Tb(C1,x) v Tb(C2,x) v ... v Tb(Cn,x)
-    Tb((‚àÉR.C),x)                 ->  R(x,y) ^ Tb(C,y) 
     """
     props = list(set(owlGraph.predicates(subject=_class)))
     if OWL_NS.unionOf in props and not isinstance(_class,URIRef):
         #http://www.w3.org/TR/owl-semantics/#owl_unionOf
-        #OWL semantics: unionOf(c1 ‚Ä¶ cn) => EC(c1) ‚à™ ‚Ä¶ ‚à™ EC(cn)
+        #OWL semantics: unionOf(c1 ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥¬¨¬®¬¨¬Æ‚Äö√Ñ√∂‚àö‚Ä†‚àö√° cn) => EC(c1) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö¬¥¬¨¬®¬¨¬¢ ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥¬¨¬®¬¨¬Æ‚Äö√Ñ√∂‚àö‚Ä†‚àö√° ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö¬¥¬¨¬®¬¨¬¢ EC(cn)
         for s,p,o in owlGraph.triples((_class,OWL_NS.unionOf,None)):
             yield Or([Tb(owlGraph,c,variable=variable) \
                            for c in Collection(owlGraph,o)])
     elif OWL_NS.someValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#owl_someValuesFrom
-        #estriction(p someValuesFrom(e)) {x ‚àà O | ‚àÉ <x,y> ‚àà ER(p) ‚àß y ‚àà EC(e)}
+        #estriction(p someValuesFrom(e)) {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬¢ <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨‚à´ y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(e)}
         prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
         o =list(owlGraph.objects(subject=_class,predicate=OWL_NS.someValuesFrom))[0]
         newVar = Variable(BNode())
@@ -600,4 +609,5 @@ def Tb(owlGraph,_class,variable=Variable('X')):
     else:
         #simple class
         #"Named" Uniterm
-        yield Uniterm(RDF.type,[variable,_class],newNss=owlGraph.namespaces())
+        _classTerm=SkolemizeExistentialClasses(_class,check=True)
+        yield Uniterm(RDF.type,[variable,_classTerm],newNss=owlGraph.namespaces())

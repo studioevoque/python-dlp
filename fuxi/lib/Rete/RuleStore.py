@@ -73,13 +73,15 @@ class Rule(object):
     def __repr__(self):
         return "{%s} => {%s}"%(self.lhs,self.rhs)
 
-def SetupRuleStore(additionalBuiltins=None):
+def SetupRuleStore(n3Stream=None,additionalBuiltins=None):
     """
     Sets up a N3RuleStore, a Graph (that uses it as a store, and )
     """
     ruleStore = N3RuleStore(additionalBuiltins=additionalBuiltins)
     nsMgr = NamespaceManager(Graph(ruleStore))
-    ruleGraph = Graph(ruleStore,namespace_manager=nsMgr)
+    ruleGraph = Graph(ruleStore,namespace_manager=nsMgr)            
+    if n3Stream:
+        ruleGraph.parse(n3Stream,format='n3')
     return ruleStore,ruleGraph
         
 class N3RuleStore(Store):
@@ -217,7 +219,7 @@ BuiltIn used out of order
         self._listBuffer = []
         self.rules = []
         self.referencedVariables = Set()
-        self.nsMgr = {}
+        self.nsMgr = {u'skolem':URIRef('http://code.google.com/p/python-dlp/wiki/SkolemTerm#')}
         self.filters=FILTERS
         if additionalBuiltins:
             self.filters.update(additionalBuiltins)

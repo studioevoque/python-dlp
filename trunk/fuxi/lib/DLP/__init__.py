@@ -192,7 +192,7 @@ def makeRule(clause,nsMap):
 def MapDLPtoNetwork(network,factGraph,complementExpansions=[]):
     ruleset=[]
     for horn_clause in T(factGraph,complementExpansions=complementExpansions):
-        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
+#        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
 #        print "## RIF BLD Horn Rules: After LloydTopor: ##"
         for tx_horn_clause in LloydToporTransformation(horn_clause):
             tx_horn_clause = NormalizeClause(tx_horn_clause)

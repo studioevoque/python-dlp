@@ -19,11 +19,10 @@ from cStringIO import StringIO
 from Util import xcombine
 from BetaNode import BetaNode, LEFT_MEMORY, RIGHT_MEMORY, PartialInstanciation
 from AlphaNode import AlphaNode, ReteToken, SUBJECT, PREDICATE, OBJECT, BuiltInAlphaNode
-from FuXi.Horn.HornRules import Clause, Ruleset
 from FuXi.Horn import ComplementExpansion
 from FuXi.Syntax.InfixOWL import *
 from FuXi.Horn.PositiveConditions import Uniterm, SetOperator
-from FuXi.DLP import MapDLPtoNetwork,non_DHL_OWL_Semantics
+from FuXi.DLP import MapDLPtoNetwork,non_DHL_OWL_Semantics,NOMINAL_SEMANTICS
 #from FuXi.Rete.RuleStore import N3Builtin
 from Util import generateTokenSet,renderNetwork
 from rdflib import Variable, BNode, URIRef, Literal, Namespace,RDF,RDFS
@@ -169,9 +168,8 @@ class ReteNetwork:
             self.inferredFacts = Graph()
             namespace_manager = NamespaceManager(self.inferredFacts)
             for k,v in nsMap.items():
-                namespace_manager.bind(k, v)
                 namespace_manager.bind(k, v)    
-                self.inferredFacts.namespace_manager = namespace_manager    
+            self.inferredFacts.namespace_manager = namespace_manager    
         else:            
             self.inferredFacts = inferredTarget
         self.workingMemory = initialWorkingMemory and initialWorkingMemory or Set()
@@ -190,6 +188,7 @@ class ReteNetwork:
         # Rather than automatically adding them to the working set, alpha nodes are 'notified'
         # of them, so they can be checked for while performing inter element tests.
         self.universalTruths = []
+        from FuXi.Horn.HornRules import Ruleset
         for rule in Ruleset(n3Rules=self.ruleStore.rules,nsMapping=self.nsMap):
             self.buildNetwork(iter(rule.formula.body),
                               iter(rule.formula.head),
@@ -220,6 +219,11 @@ class ReteNetwork:
         noRules=len(rules)
         if addPDSemantics:
             self.parseN3Logic(StringIO(non_DHL_OWL_Semantics))
+            if (None,OWL_NS.oneOf,None) in owlN3Graph:
+                #Only include list and oneOf semantics
+                #if oneOf axiom is detected in graph 
+                #reduce computational complexity
+                self.parseN3Logic(StringIO(NOMINAL_SEMANTICS))
         print "##### DLP rules setup",self
         if classifyTBox:
             self.feedFactsToAdd(generateTokenSet(owlN3Graph))
@@ -244,6 +248,7 @@ class ReteNetwork:
         Graph(store).parse(src,format='n3')
         store._finalize()
         assert len(store.rules),"There are no rules passed in!"
+        from FuXi.Horn.HornRules import Ruleset
         for rule in Ruleset(n3Rules=store.rules,
                             nsMapping=self.nsMap):
             self.buildNetwork(iter(rule.formula.body),

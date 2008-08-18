@@ -10,7 +10,7 @@ from FuXi.Rete.RuleStore import N3Builtin
 def ExtractVariables(clause):
     pass
 
-class Ruleset:
+class Ruleset(object):
     """
     Ruleset ::= RULE*
     """
@@ -39,7 +39,7 @@ class Ruleset:
         for f in self.formulae:
             yield f
 
-class Rule:
+class Rule(object):
     """
     RULE ::= 'Forall' Var* CLAUSE
     
@@ -75,7 +75,7 @@ class Rule:
     def __repr__(self):
         return "Forall %s ( %r )"%(' '.join([var.n3() for var in self.declare]),
                                self.formula)    
-class Clause:
+class Clause(object):
     """
     Facts are *not* modelled formally as rules with empty bodies
     
@@ -93,8 +93,6 @@ class Clause:
     def __init__(self,body,head):
         self.body = body
         self.head = head
-        #assert isinstance(head,Atomic),repr(head)
-        assert isinstance(body,Condition)
         from FuXi.Rete.Network import HashablePatternList
         antHash=HashablePatternList([term.toRDFTuple() 
                             for term in body])

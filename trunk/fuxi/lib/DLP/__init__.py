@@ -383,7 +383,8 @@ def SkolemizeExistentialClasses(term,check=False):
     return SKOLEMIZED_CLASS_NS[term]
 
 def NormalizeBooleanClassOperand(term,owlGraph):
-    return (IsaBooleanClassDescription(term,owlGraph) or IsaRestriction(term,owlGraph))\
+    return ((isinstance(term,BNode) and IsaBooleanClassDescription(term,owlGraph)) or \
+             IsaRestriction(term,owlGraph))\
           and SkolemizeExistentialClasses(term) or term    
 
 def IsaBooleanClassDescription(term,owlGraph):

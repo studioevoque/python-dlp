@@ -2,7 +2,7 @@ import ez_setup
 ez_setup.use_setuptools()
 from setuptools  import setup
 setup(name="FuXi",
-      version="0.85b",
+      version="0.95b",
       description="A N3-based forward-chaining, DL reasoner for RDFLib",
       author="Chime Ogbuji",
       author_email="chimezie@ogbuji.net",

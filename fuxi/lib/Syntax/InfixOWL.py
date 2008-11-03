@@ -406,6 +406,19 @@ def AllProperties(graph):
                            graph=graph,
                            baseType=bType)            
     
+class ClassNamespaceFactory(Namespace):
+    def term(self, name):
+        return Class(URIRef(self + name))
+
+    def __getitem__(self, key, default=None):
+        return self.term(key)
+
+    def __getattr__(self, name):
+        if name.startswith("__"): # ignore any special Python names!
+            raise AttributeError
+        else:
+            return self.term(name)    
+    
 def CastClass(c,graph=None):
     graph = graph is None and c.factoryGraph or graph
     for kind in graph.objects(subject=classOrIdentifier(c),
@@ -468,6 +481,19 @@ class Class(AnnotatibleTerms):
         if complementOf:
             self.complementOf    = complementOf
         self.comment = comment and comment or []
+    
+    def __hash__(self):
+        """
+        >>> b=Class(OWL_NS.Restriction)
+        >>> c=Class(OWL_NS.Restriction)
+        >>> len(set([b,c]))
+        1
+        """
+        return hash(self.identifier)
+
+    def __eq__(self, other):
+        assert isinstance(other,Class)
+        return self.identifier == other.identifier
     
     def __iadd__(self, other):
         assert isinstance(other,Class)

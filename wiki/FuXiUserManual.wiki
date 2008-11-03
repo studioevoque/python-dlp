@@ -81,6 +81,7 @@ Note, the latest revision in SVN simplifies this with a utility method called _S
 >>> from FuXi.Rete.RuleStore import SetupRuleStore
 >>> ruleStore,ruleGraph=SetupRuleStore()
 >>> ruleGraph.parse('http://www.agfa.com/w3c/euler/rdfs-rules.n3',format='n3')
+>>> ruleStore._finalize()
 <Graph identifier=... (<class 'rdflib.Graph.Graph'>)>
 }}}
 
@@ -88,7 +89,7 @@ Finally, a !Ruleset object is instantiated, passing the rule store and the names
 of the rules parsed from the Notation 3 document are printed (which serializes each rule using the RIF BLD syntax)
 
 {{{
->>> for rule in Ruleset(n3StoreSrc=ruleStore,nsMapping=ruleStore.nsMgr): print rule
+>>> for rule in Ruleset(n3Rules=ruleStore.rules,nsMapping=ruleStore.nsMgr): print rule
 ... 
 Forall ?Q ?P ?S ?O ( ?Q(?O ?S) :- And( owl:inverseOf(?P ?Q) ?P(?S ?O) ) )
 Forall ?P ?S ?O ( ?P(?O ?S) :- And( owl:SymmetricProperty(?P) ?P(?S ?O) ) )

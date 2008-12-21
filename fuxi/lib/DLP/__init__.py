@@ -56,6 +56,7 @@ from rdflib.store.REGEXMatching import REGEXTerm, NATIVE_REGEX, PYTHON_REGEX
 from FuXi.Rete.RuleStore import Formula
 from FuXi.Rete.AlphaNode import AlphaNode
 from FuXi.Horn.PositiveConditions import And, Or, Uniterm, Condition, Atomic,SetOperator,Exists
+from FuXi.Horn.HornRules import Clause as OriginalClause
 from FuXi.Rete.Util import renderNetwork
 from cStringIO import StringIO
 
@@ -94,7 +95,6 @@ non_DHL_OWL_Semantics=\
 #For OWL/InverseFunctionalProperty/premises004
 {?C owl:oneOf ?L. ?L rdf:first ?X; rdf:rest rdf:nil. ?P rdfs:range ?C} => {?P a owl:FunctionalProperty}.
 
-{?P a owl:SymmetricProperty. ?S ?P ?O} => {?O ?P ?S}.
 {?S owl:differentFrom ?O} => {?O owl:differentFrom ?S}.
 {?S owl:complementOf ?O} => {?O owl:complementOf ?S}.
 {?S owl:disjointWith ?O} => {?O owl:disjointWith ?S}.
@@ -153,7 +153,7 @@ def NormalizeClause(clause):
 #    print "Normalized clause: ", clause
     return clause
 
-class Clause:
+class Clause(OriginalClause):
     """
     The RETE-UL algorithm supports conjunctions of facts in the head of a rule
     i.e.:   H1 ^ H2 ^ ... ^ H3 :- B1 ^  ^ Bm
@@ -166,6 +166,29 @@ class Clause:
     def __init__(self,body,head):
         self.body = body
         self.head = head
+        if isinstance(head,Uniterm):
+            from FuXi.Rete.Network import HashablePatternList
+            try:
+                antHash=HashablePatternList([term.toRDFTuple() 
+                                    for term in body],skipBNodes=True)
+                consHash=HashablePatternList([term.toRDFTuple() 
+                                    for term in head],skipBNodes=True)                                                                                            
+                self._hash = hash(antHash) ^ hash(consHash)
+            except:
+                self._hash = None
+        else:
+            self._hash = None
+
+    def __hash__(self):
+        if self._hash is None:
+            from FuXi.Rete.Network import HashablePatternList
+            antHash=HashablePatternList([term.toRDFTuple() 
+                                for term in self.body],skipBNodes=True)
+            consHash=HashablePatternList([term.toRDFTuple() 
+                                for term in self.head],skipBNodes=True)                                                                                            
+            self._hash = hash(antHash) ^ hash(consHash)
+        return self._hash
+                
     def __repr__(self):
         return "%r :- %r"%(self.head,self.body)
 
@@ -186,10 +209,10 @@ def makeRule(clause,nsMap):
         vars.update([term for term in child.toRDFTuple() if isinstance(term,Variable)])
     for child in clause.body:
         assert isinstance(child,Uniterm),repr(child)
-        vars.update([term for term in child.toRDFTuple() if isinstance(term,Variable)])        
+        vars.update([term for term in child.toRDFTuple() if isinstance(term,Variable)])
     return Rule(clause,declare=vars,nsMapping=nsMap)
 
-def MapDLPtoNetwork(network,factGraph,complementExpansions=[]):
+def MapDLPtoNetwork(network,factGraph,complementExpansions=[],constructNetwork=False):
     ruleset=[]
     for horn_clause in T(factGraph,complementExpansions=complementExpansions):
 #        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
@@ -214,20 +237,20 @@ def MapDLPtoNetwork(network,factGraph,complementExpansions=[]):
                     #Then we want to clone the horn clause with the replacement
                     tx_clause_clone = copy.deepcopy(tx_horn_clause)
 #                    print "\tClause after replacement: ", tx_clause_clone
-                    for hc in ExtendN3Rules(network,NormalizeClause(tx_clause_clone)):
+                    for hc in ExtendN3Rules(network,NormalizeClause(tx_clause_clone),constructNetwork):
                         ruleset.append(makeRule(hc,network.nsMap))
                     #restore the replaced term (for the subsequent iteration)
                     list(breadth_first_replace(tx_horn_clause.body,candidate=item,replacement=disj))
             else:
 #                print "No Disjunction in the body"
 #                print tx_horn_clause
-                for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause)):
+                for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause),constructNetwork):
                     _rule=makeRule(hc,network.nsMap)
                     if _rule is not None:
                         ruleset.append(_rule)                    
             #Extract free variables anre add rule to ruleset
 #        print "#######################"
-    print "########## Finished Building decision network from DLP ##########"
+#    print "########## Finished Building decision network from DLP ##########"
     #renderNetwork(network).write_graphviz('out.dot')
     return ruleset
 
@@ -250,7 +273,7 @@ def IsaFactFormingConclusion(head):
         return False
     elif isinstance(head,Atomic):
         return True
-    elif isinstance(head,Clause):
+    elif isinstance(head,OriginalClause):
         return False
     else:
         print head
@@ -310,55 +333,74 @@ def breadth_first_replace(condition,
         if last == node:
             return
 
-def ExtendN3Rules(network,horn_clause):
+def ExtendN3Rules(network,horn_clause,constructNetwork=False):
     """
     Extends the network with the given Horn clause (rule)
     """
     rt=[]
-    ruleStore = network.ruleStore
-    lhs = BNode()
-    rhs = BNode()
+    if constructNetwork:
+        ruleStore = network.ruleStore
+        lhs = BNode()
+        rhs = BNode()
     assert isinstance(horn_clause.body,(And,Uniterm)),list(horn_clause.body)
     assert len(list(horn_clause.body))
 #    print horn_clause
-    for term in horn_clause.body:
-        ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
+    if constructNetwork:
+        for term in horn_clause.body:
+            ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
     assert isinstance(horn_clause.head,(And,Uniterm))
-#    if isinstance(horn_clause.head,And):
-#        horn_clause.head = And([generatorFlattener(innerFunc(owlGraph,c,variable)) 
-#                   for c in conjuncts])
-    #print horn_clause
+
     if IsaFactFormingConclusion(horn_clause.head):
-        def extractBNodes(term):
-            if isinstance(term,BNode):
+        def extractVariables(term,existential=True):
+            if isinstance(term,existential and BNode or Variable):
                 yield term
             elif isinstance(term,Uniterm):
                 for t in term.toRDFTuple():
-                    if isinstance(t,BNode):
+                    if isinstance(t,existential and BNode or Variable):
                         yield t
-        exist=[list(extractBNodes(i)) for i in breadth_first(horn_clause.head)]
+                        
+        def iterCondition(condition):
+            return isinstance(condition,SetOperator) and condition or iter([condition])
+                
+        #first we identify body variables                        
+        bodyVars = set(reduce(lambda x,y:x+y,
+                              [ list(extractVariables(i,existential=False)) for i in iterCondition(horn_clause.body) ]))
+        
+        #then we identify head variables
+        headVars = set(reduce(lambda x,y:x+y,
+                              [ list(extractVariables(i,existential=False)) for i in iterCondition(horn_clause.head) ]))
+        
+        #then we identify those variables that should (or should not) be converted to skolem terms
+        updateDict       = dict([(var,BNode()) for var in headVars if var not in bodyVars])
+        
+        for uniTerm in iterCondition(horn_clause.head):
+            newArg      = [ updateDict.get(i,i) for i in uniTerm.arg ]
+            uniTerm.arg = newArg
+                                
+        exist=[list(extractVariables(i)) for i in breadth_first(horn_clause.head)]
         e=Exists(formula=horn_clause.head,
                  declare=set(reduce(lambda x,y:x+y,exist,[])))        
         if reduce(lambda x,y:x+y,exist):
             horn_clause.head=e
             assert e.declare,exist
-        for term in horn_clause.head:
-            assert not hasattr(term,'next')
-            if isinstance(term,Or):
-                ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term)
-            else:
-                ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term.toRDFTuple())
-        ruleStore.rules.append((ruleStore.formulae[lhs],ruleStore.formulae[rhs]))
-        network.buildNetwork(iter(ruleStore.formulae[lhs]),
-                             iter(ruleStore.formulae[rhs]),
-                             horn_clause)
-        network.alphaNodes = [node for node in network.nodes.values() if isinstance(node,AlphaNode)]
+        if constructNetwork:
+            for term in horn_clause.head:
+                assert not hasattr(term,'next')
+                if isinstance(term,Or):
+                    ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term)
+                else:
+                    ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term.toRDFTuple())
+            ruleStore.rules.append((ruleStore.formulae[lhs],ruleStore.formulae[rhs]))
+            network.buildNetwork(iter(ruleStore.formulae[lhs]),
+                                 iter(ruleStore.formulae[rhs]),
+                                 horn_clause)
+            network.alphaNodes = [node for node in network.nodes.values() if isinstance(node,AlphaNode)]
         rt.append(horn_clause)
     else:
         for hC in LloydToporTransformation(horn_clause,fullReduction=True):
             rt.append(hC)
             #print "normalized clause: ", hC
-            for i in ExtendN3Rules(network,hC):
+            for i in ExtendN3Rules(network,hC,constructNetwork):
                 rt.append(hC)
     return rt
 
@@ -412,7 +454,7 @@ def T(owlGraph,complementExpansions=[]):
     """
     for c,p,d in owlGraph.triples((None,RDFS.subClassOf,None)):
         yield NormalizeClause(Clause(Tb(owlGraph,c),Th(owlGraph,d)))
-        assert isinstance(c,URIRef) 
+        assert isinstance(c,URIRef),"%s is a kind of %s"%(c,d)
     for c,p,d in owlGraph.triples((None,OWL_NS.equivalentClass,None)):
         yield NormalizeClause(Clause(Tb(owlGraph,c),Th(owlGraph,d)))
         yield NormalizeClause(Clause(Tb(owlGraph,d),Th(owlGraph,c)))
@@ -484,6 +526,16 @@ def T(owlGraph,complementExpansions=[]):
                     Uniterm(s,[y,z],newNss=owlGraph.namespaces())])
         head = Uniterm(s,[x,z],newNss=owlGraph.namespaces())
         yield Clause(body,head)
+
+    #Contribution (Symmetric DL roles)
+    for s,p,o in owlGraph.triples((None,RDF.type,OWL_NS.SymmetricProperty)):
+        #T(owl:SymmetricProperty(P))   -> P(y,x) :- P(x,y)
+        y = Variable("Y")
+        x = Variable("X")
+        body = Uniterm(s,[x,y],newNss=owlGraph.namespaces())
+        head = Uniterm(s,[y,x],newNss=owlGraph.namespaces())
+        yield Clause(body,head)
+        
     for s,p,o in owlGraph.triples_choices((None,
                                            [RDFS.range,RDFS.domain],
                                            None)):
@@ -514,18 +566,18 @@ def LloydToporTransformation(clause,fullReduction=False):
     H :- (B v B0)                 -> { H :- B
                                        H :- B0 }
     """
-    assert isinstance(clause,Clause),repr(clause)
+    assert isinstance(clause,OriginalClause),repr(clause)
     if isinstance(clause.body,Or):
         for atom in clause.body.formulae:
             yield Clause(atom,clause.head)
-    elif isinstance(clause.head,Clause):
+    elif isinstance(clause.head,OriginalClause):
         yield Clause(And([clause.body,clause.head.body]),clause.head.head)
     elif isinstance(clause.head,Or):
         #Disjunction in the body, not supported by def-Horn
         #skip
         return
     elif not isinstance(clause.body,Condition):
-        print clause.head
+        print clause
         raise
     elif fullReduction and isinstance(clause.head,And):
         for i in clause.head:
@@ -556,7 +608,7 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
     props = list(set(owlGraph.predicates(subject=_class)))
     if OWL_NS.allValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#owl_allValuesFrom
-        #restriction(p allValuesFrom(r))    {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) implies y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(r)}
+        #restriction(p allValuesFrom(r))    {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) implies y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(r)}
         for s,p,o in owlGraph.triples((_class,OWL_NS.allValuesFrom,None)):
             prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
             newVar = Variable(BNode())
@@ -565,7 +617,7 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
                 yield Clause(body,head)
     elif OWL_NS.someValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#someValuesFrom
-        #estriction(p someValuesFrom(e)) {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬¢ <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨‚à´ y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(e)}
+        #estriction(p someValuesFrom(e)) {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®¬¨¬¢ <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®‚Äö√†¬¥ y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(e)}
         for s,p,o in owlGraph.triples((_class,OWL_NS.someValuesFrom,None)):
             prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
             newVar = BNode()
@@ -586,13 +638,13 @@ def Tb(owlGraph,_class,variable=Variable('X')):
     props = list(set(owlGraph.predicates(subject=_class)))
     if OWL_NS.unionOf in props and not isinstance(_class,URIRef):
         #http://www.w3.org/TR/owl-semantics/#owl_unionOf
-        #OWL semantics: unionOf(c1 ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥¬¨¬®¬¨¬Æ‚Äö√Ñ√∂‚àö‚Ä†‚àö√° cn) => EC(c1) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö¬¥¬¨¬®¬¨¬¢ ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥¬¨¬®¬¨¬Æ‚Äö√Ñ√∂‚àö‚Ä†‚àö√° ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö¬¥¬¨¬®¬¨¬¢ EC(cn)
+        #OWL semantics: unionOf(c1 ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•¬¨¬®¬¨¬Æ¬¨¬®¬¨√Ü‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞ cn) => EC(c1) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•¬¨¬®¬¨¬Æ¬¨¬®¬¨¬¢ ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•¬¨¬®¬¨¬Æ¬¨¬®¬¨√Ü‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞ ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•¬¨¬®¬¨¬Æ¬¨¬®¬¨¬¢ EC(cn)
         for s,p,o in owlGraph.triples((_class,OWL_NS.unionOf,None)):
             yield Or([Tb(owlGraph,c,variable=variable) \
                            for c in Collection(owlGraph,o)])
     elif OWL_NS.someValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#owl_someValuesFrom
-        #estriction(p someValuesFrom(e)) {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬¢ <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨‚à´ y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(e)}
+        #estriction(p someValuesFrom(e)) {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®¬¨¬¢ <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®‚Äö√†¬¥ y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(e)}
         prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
         o =list(owlGraph.objects(subject=_class,predicate=OWL_NS.someValuesFrom))[0]
         newVar = Variable(BNode())

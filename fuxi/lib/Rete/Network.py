@@ -21,8 +21,8 @@ from BetaNode import BetaNode, LEFT_MEMORY, RIGHT_MEMORY, PartialInstanciation
 from AlphaNode import AlphaNode, ReteToken, SUBJECT, PREDICATE, OBJECT, BuiltInAlphaNode
 from FuXi.Horn import ComplementExpansion
 from FuXi.Syntax.InfixOWL import *
-from FuXi.Horn.PositiveConditions import Uniterm, SetOperator
-from FuXi.DLP import MapDLPtoNetwork,non_DHL_OWL_Semantics,NOMINAL_SEMANTICS
+from FuXi.Horn.PositiveConditions import Uniterm, SetOperator, Exists, Or
+from FuXi.DLP import MapDLPtoNetwork,non_DHL_OWL_Semantics,NOMINAL_SEMANTICS, IsaFactFormingConclusion
 #from FuXi.Rete.RuleStore import N3Builtin
 from Util import generateTokenSet,renderNetwork
 from rdflib import Variable, BNode, URIRef, Literal, Namespace,RDF,RDFS
@@ -31,7 +31,7 @@ from rdflib.Collection import Collection
 from rdflib.Graph import ConjunctiveGraph,QuotedGraph,ReadOnlyGraphAggregate, Graph
 from rdflib.syntax.NamespaceManager import NamespaceManager
 from ReteVocabulary import RETE_NS
-from RuleStore import N3RuleStore,N3Builtin
+from RuleStore import N3RuleStore,N3Builtin, Formula
 OWL_NS    = Namespace("http://www.w3.org/2002/07/owl#")
 Any = None
 LOG = Namespace("http://www.w3.org/2000/10/swap/log#")
@@ -61,7 +61,8 @@ class HashablePatternList(object):
     >>> nodes
      
     """
-    def __init__(self,items=None):
+    def __init__(self,items=None,skipBNodes=False):
+        self.skipBNodes = skipBNodes
         if items:
             self._l = items
         else:
@@ -73,7 +74,8 @@ class HashablePatternList(object):
         hash function consists of the hash of the terms concatenated in order
         """
         if isinstance(item,tuple):
-            return reduce(lambda x,y:x+y,item)
+            return reduce(lambda x,y:x+y,[ i for i in item 
+                                            if not self.skipBNodes or not isinstance(i,BNode)])
         elif isinstance(item,N3Builtin):
             return reduce(lambda x,y:x+y,[item.argument,item.result])
             
@@ -189,10 +191,12 @@ class ReteNetwork:
         # of them, so they can be checked for while performing inter element tests.
         self.universalTruths = []
         from FuXi.Horn.HornRules import Ruleset
+        self.rules=set()
         for rule in Ruleset(n3Rules=self.ruleStore.rules,nsMapping=self.nsMap):
             self.buildNetwork(iter(rule.formula.body),
                               iter(rule.formula.head),
                               rule.formula)
+            self.rules.add(rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
         self.alphaBuiltInNodes = [node for node in self.nodes.values() if isinstance(node,BuiltInAlphaNode)]
         self._setupDefaultRules()
@@ -209,13 +213,34 @@ class ReteNetwork:
         for prefix,Uri in nsMgr.namespaces():
             self.nsMap[prefix]=Uri
                         
+    def buildNetworkFromClause(self,horn_clause):
+        lhs = BNode()
+        rhs = BNode()
+        for term in horn_clause.body:
+            self.ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
+        for term in horn_clause.head:
+            assert not hasattr(term,'next')
+            assert isinstance(term,Uniterm)
+            self.ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term.toRDFTuple())
+        self.ruleStore.rules.append((self.ruleStore.formulae[lhs],self.ruleStore.formulae[rhs]))
+        self.buildNetwork(iter(self.ruleStore.formulae[lhs]),
+                             iter(self.ruleStore.formulae[rhs]),
+                             horn_clause)
+        self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
+                        
     def setupDescriptionLogicProgramming(self,
                                          owlN3Graph,
                                          expanded=[],
                                          addPDSemantics=True,
-                                         classifyTBox=False):
+                                         classifyTBox=False,
+                                         constructNetwork=True):
         rules=[rule 
-                    for rule in MapDLPtoNetwork(self,owlN3Graph,complementExpansions=expanded)]
+                    for rule in MapDLPtoNetwork(self,
+                                                owlN3Graph,
+                                                complementExpansions=expanded,
+                                                constructNetwork=constructNetwork)]
+        if constructNetwork:
+            self.rules.update(rules)
         noRules=len(rules)
         if addPDSemantics:
             self.parseN3Logic(StringIO(non_DHL_OWL_Semantics))
@@ -224,10 +249,10 @@ class ReteNetwork:
                 #if oneOf axiom is detected in graph 
                 #reduce computational complexity
                 self.parseN3Logic(StringIO(NOMINAL_SEMANTICS))
-        print "##### DLP rules setup",self
+#        print "##### DLP rules setup",self
         if classifyTBox:
             self.feedFactsToAdd(generateTokenSet(owlN3Graph))
-        print "##### DLP rules fired against OWL/RDF TBOX",self
+#        print "##### DLP rules fired against OWL/RDF TBOX",self
         return rules
     
     def reportConflictSet(self,closureSummary=False):
@@ -254,6 +279,7 @@ class ReteNetwork:
             self.buildNetwork(iter(rule.formula.body),
                               iter(rule.formula.head),
                               rule.formula)
+            self.rules.add(rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
         self.alphaBuiltInNodes = [node for node in self.nodes.values() if isinstance(node,BuiltInAlphaNode)]        
 
@@ -288,6 +314,17 @@ class ReteNetwork:
             if isinstance(node,AlphaNode):                
                 node.checkDefaultRule(self.universalTruths)
         
+    def clear(self):
+        self.nodes = {}
+        self.alphaPatternHash = {}
+        self.ruleSet = set()
+        for alphaPattern in xcombine(('1','0'),('1','0'),('1','0')):
+            self.alphaPatternHash[tuple(alphaPattern)] = {}
+        self.proofTracers = {}
+        self.terminalNodes  = set()
+        self.justifications = {}
+        self.dischargedBindings = {}
+        
     def reset(self,newinferredFacts=None):
         "Reset the network by emptying the memory associated with all Beta Nodes nodes"
         for node in self.nodes.values():
@@ -296,6 +333,7 @@ class ReteNetwork:
                 node.memories[RIGHT_MEMORY].reset()
         self.inferredFacts = newinferredFacts and newinferredFacts or Graph('IOMemory')
         self.workingMemory = Set()
+        self.rules = Set()
         self._resetinstanciationStats()        
                                 
     def fireConsequent(self,tokens,termNode,debug=False):
@@ -319,7 +357,26 @@ class ReteNetwork:
 
         newTokens = []
         termNode.instanciatingTokens.add(tokens)
+        def iterCondition(condition):
+            if isinstance(condition,Exists):
+                return condition.formula
+            return isinstance(condition,SetOperator) and condition or iter([condition])
+        def extractVariables(term,existential=True):
+            if isinstance(term,existential and BNode or Variable):
+                yield term
+            elif isinstance(term,Uniterm):
+                for t in term.toRDFTuple():
+                    if isinstance(t,existential and BNode or Variable):
+                        yield t
+        clause = termNode.clause
+        
+        #replace existentials in the head with new BNodes!
+        BNodeReplacement = {}
+        if isinstance(clause.head,Exists):
+            BNodeReplacement = dict([(bN,BNode()) for bN in clause.head.declare])
         for rhsTriple in termNode.consequent:
+            if BNodeReplacement:
+                rhsTriple = tuple([BNodeReplacement.get(term,term) for term in rhsTriple])
             if debug:
                 if not tokens.bindings:
                     tokens._generateBindings()

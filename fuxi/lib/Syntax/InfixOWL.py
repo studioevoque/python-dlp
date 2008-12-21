@@ -481,6 +481,18 @@ class Class(AnnotatibleTerms):
         if complementOf:
             self.complementOf    = complementOf
         self.comment = comment and comment or []
+        
+    def _get_extent(self):
+        for member in self.graph.subjects(predicate=RDF.type,
+                                          object=self.identifier):
+            yield member
+    def _set_extent(self,other):
+        if not other:
+            return
+        for m in other:
+            self.graph.add((m,RDF.type,self.identifier))
+            
+    extent = property(_get_extent, _set_extent)            
     
     def __hash__(self):
         """
@@ -660,10 +672,10 @@ class Class(AnnotatibleTerms):
         return (isinstance(self.identifier,BNode) and "Some Class " or "Class: %s "%self.qname)+klassDescr
 
 class OWLRDFListProxy(object):
-    def __init__(self,rdfList,members=None,graph=Graph()):
+    def __init__(self,rdfList,members=None):
         members = members and members or []
         if rdfList:
-            self._rdfList = Collection(graph,rdfList[0])
+            self._rdfList = Collection(self.graph,rdfList[0])
             for member in members:
                 if member not in self._rdfList:
                     self._rdfList.append(classOrIdentifier(member))
@@ -719,7 +731,7 @@ class EnumeratedClass(Class,OWLRDFListProxy):
         Class.__init__(self,identifier,graph = graph)
         members = members and members or []
         rdfList = list(self.graph.objects(predicate=OWL_NS.oneOf,subject=self.identifier))
-        OWLRDFListProxy.__init__(self, rdfList, members, graph = graph)
+        OWLRDFListProxy.__init__(self, rdfList, members)
     def __repr__(self):
         """
         Returns the Manchester Syntax equivalent for this class
@@ -751,7 +763,7 @@ class BooleanClass(Class,OWLRDFListProxy):
         self._operator = operator
         rdfList = list(self.graph.objects(predicate=operator,subject=self.identifier))
         assert not members or not rdfList,"This is a previous boolean class description!"+repr(Collection(self.graph,rdfList[0]).n3())        
-        OWLRDFListProxy.__init__(self, rdfList, members, graph = graph)
+        OWLRDFListProxy.__init__(self, rdfList, members)
 
     def isPrimitive(self):
         return False
@@ -839,6 +851,7 @@ class Restriction(Class):
                       (minCardinality,OWL_NS.minCardinality)]
         validRestrProps = [(i,oTerm) for (i,oTerm) in restrTypes if i] 
         assert len(validRestrProps) < 2
+        self.restrictionRange = validRestrProps
         for val,oTerm in validRestrProps:
             self.graph.add((self.identifier,oTerm,classOrTerm(val)))   
         if (self.identifier,RDF.type,OWL_NS.Restriction) not in self.graph:
@@ -846,6 +859,18 @@ class Restriction(Class):
 
     def isPrimitive(self):
         return False
+
+    def __eq__(self, other):
+        """
+        Equivalence of restrictions is determined by equivalence of the property 
+        in question and the restriction 'range'
+        """
+        assert isinstance(other,Class)
+        if isinstance(other,Restriction):
+            return other.onProperty == self.onProperty and \
+                   other.restrictionRange == self.restrictionRange
+        else:
+            return False
 
     def _get_onProperty(self):
         return list(self.graph.objects(subject=self.identifier,predicate=OWL_NS.onProperty))[0]

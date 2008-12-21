@@ -56,8 +56,10 @@ class SIPGraphArc(object):
 def CollectSIPArcVars(left,right):
     """docstring for CollectSIPArcVars"""
     if isinstance(left,list):
-        left=left[-1]
-    return set(GetArgs(left)).intersection(GetArgs(right))
+        return set(reduce(lambda x,y:x+y,
+                          [GetArgs(t) for t in left])).intersection(GetArgs(right))
+    else:
+        return set(GetArgs(left)).intersection(GetArgs(right))
         
 def GetOp(term):
     if isinstance(term,N3Builtin):

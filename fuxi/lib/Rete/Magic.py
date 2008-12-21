@@ -31,7 +31,7 @@ EX_ULMAN = Namespace('http://doi.acm.org/10.1145/6012.15399#')
 LOG_NS   = Namespace("http://www.w3.org/2000/10/swap/log#")
 MAGIC = Namespace('http://doi.acm.org/10.1145/28659.28689#')
 
-def MagicSetTransformation(factGraph,rules,GOAL_QUERY,derivedPreds=None):
+def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None):
     """
     Takes a goal and a ruleset and returns an iterator
     over the rulest that corresponds to the magic set
@@ -53,8 +53,7 @@ def MagicSetTransformation(factGraph,rules,GOAL_QUERY,derivedPreds=None):
 #    for initial,replacements in replacement.items():
 #        rules.remove(initial)
 #        rules.extend(replacements)
-    rs,query=AdornProgram(factGraph,rules,GOAL_QUERY,derivedPreds)
-    magicSeed=query.makeMagicPred().toRDFTuple()        
+    rs=AdornProgram(factGraph,rules,GOALS,derivedPreds)
     newRules=[]
     for rule in rs: 
         magicPositions={}
@@ -75,8 +74,8 @@ def MagicSetTransformation(factGraph,rules,GOAL_QUERY,derivedPreds=None):
                 inArcs=[(N,x) for (N,x) in IncomingSIPArcs(rule.sip,GetOp(pred))
                                     if not set(x).difference(pred.arg)]
                 if len(inArcs) > 1:
-                    print [(a.n3(),b.n3()) for a,b in inArcs]
-                    print rule.n3()
+                    print rule
+                    print rule.sip.serialize(format='n3')
                     print pred, magicPred
                     raise NotImplementedError()
 #                        labelLiterals=[]
@@ -109,7 +108,6 @@ def MagicSetTransformation(factGraph,rules,GOAL_QUERY,derivedPreds=None):
         #to the derived predicates of the body and to the head
         headMagicPred=rule.formula.head.makeMagicPred()
         idxIncrement=0
-        import copy
         newRule=copy.deepcopy(rule)
         for idx,(magicPred,origPred) in magicPositions.items():
             newRule.formula.body.formulae.insert(idx+idxIncrement,magicPred)
@@ -128,12 +126,17 @@ def MagicSetTransformation(factGraph,rules,GOAL_QUERY,derivedPreds=None):
     for rule in newRules:
         yield rule
 
-def SPARQLToGoal(sparqlQuery):
-    if isinstance(sparqlQuery,tuple):
-        return sparqlQuery,{}
+def NormalizeGoals(goals):
+    if isinstance(goals,(list,set)):
+        for goal in goals:
+            yield goal,{}
+    elif isinstance(goals,tuple):
+        yield sparqlQuery,{}
     else:
-        query=RenderSPARQLAlgebra(Parse(sparqlQuery))
-        return query.patterns[0][:3],query.prolog.prefixBindings
+        print goals
+        query=RenderSPARQLAlgebra(Parse(goals))
+        for pattern in query.patterns:
+            yield pattern[:3],query.prolog.prefixBindings
     
 class AdornedRule(Rule):
     """Rule with 'bf' adornment and is comparable"""
@@ -202,7 +205,7 @@ def AdornRule(derivedPreds,clause,newHead):
 def GetOp(term):
     return term.op == RDF.type and term.arg[-1] or term.op
 
-def AdornProgram(factGraph,rs,query,derivedPreds=None):
+def AdornProgram(factGraph,rs,goals,derivedPreds=None):
     """
     The process starts from the given query. The query determines bindings for q, and we replace
     q by an adorned version, in which precisely the positions bound in the query are designated as
@@ -228,11 +231,13 @@ def AdornProgram(factGraph,rs,query,derivedPreds=None):
     from FuXi.DLP import LloydToporTransformation
 #    rs=rs is None and Ruleset(n3Rules=ruleGraph.store.rules,
 #               nsMapping=ruleGraph.store.nsMgr) or rs
-    query,nsBindings=SPARQLToGoal(query)        
-    aQuery=AdornLiteral(query,nsBindings)
+    unprocessedAdornedPreds = []
+    for goal,nsBindings in NormalizeGoals(goals):
+        print goal,nsBindings
+        unprocessedAdornedPreds.append(AdornLiteral(goal,nsBindings))
+        
     if not derivedPreds:
         derivedPreds=list(DerivedPredicateIterator(factGraph,rs))
-    unprocessedAdornedPreds=[aQuery]
     adornedProgram=set()
     markedPreds=[]
     
@@ -263,7 +268,7 @@ def AdornProgram(factGraph,rs,query,derivedPreds=None):
                         if isinstance(pred,AdornedUniTerm) and not processedAdornedPred(pred,markedPreds):
                             unprocessedAdornedPreds.append(pred)
                             markedPreds.append(pred)
-    return adornedProgram,aQuery
+    return adornedProgram
 
 class AdornedUniTerm(Uniterm):
     def __init__(self,uterm,adornment=None):

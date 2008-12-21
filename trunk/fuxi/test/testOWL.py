@@ -1,19 +1,24 @@
 from pprint import pprint, pformat
 from sets import Set
 from FuXi.Rete import *
+from FuXi.Syntax.InfixOWL import *
 from FuXi.Rete.AlphaNode import SUBJECT,PREDICATE,OBJECT,VARIABLE
 from FuXi.Rete.RuleStore import N3RuleStore
 from FuXi.Rete.Util import renderNetwork,generateTokenSet
+from FuXi.Horn.PositiveConditions import Uniterm, BuildUnitermFromTuple
+from FuXi.Horn.HornRules import HornFromN3
 from FuXi.DLP import MapDLPtoNetwork, non_DHL_OWL_Semantics
+from FuXi.Rete.Magic import MagicSetTransformation, iterCondition, AdornLiteral
 from rdflib.Namespace import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,URIRef
+from rdflib.OWL import FunctionalProperty
 from rdflib.store import Store
 from cStringIO import StringIO
 from rdflib.Graph import Graph,ReadOnlyGraphAggregate,ConjunctiveGraph
 from rdflib.syntax.NamespaceManager import NamespaceManager
 from glob import glob
 from rdflib.sparql.bison import Parse
-import unittest, os, time
+import unittest, os, time, itertools
 
 RDFLIB_CONNECTION=''
 RDFLIB_STORE='IOMemory'
@@ -28,6 +33,8 @@ TEST_NS   = Namespace("http://metacognition.info/FuXi/DL-SHIOF-test.n3#")
 LOG       = Namespace("http://www.w3.org/2000/10/swap/log#")
 RDF_TEST  = Namespace('http://www.w3.org/2000/10/rdf-tests/rdfcore/testSchema#')
 OWL_TEST  = Namespace('http://www.w3.org/2002/03owlt/testOntology#')
+
+MAGIC_PROOFS = True
 
 queryNsMapping={'test':'http://metacognition.info/FuXi/test#',
                 'rdf':'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
@@ -71,19 +78,24 @@ Features2Skip = [
     URIRef('http://www.w3.org/2002/07/owl#sameClassAs'),
 ]
 
+Features2SkipMagic = [
+    #FunctionalProperty
+]
+
 Tests2Skip = [
-    'OWL/oneOf/Manifest003.rdf', #logical set equivalence?  Probably needs a built-in to support
-    'OWL/differentFrom/Manifest002.rdf'  ,#needs log:notEqualTo
-    'OWL/distinctMembers/Manifest001.rdf',#needs log:notEqualTo
-    'OWL/unionOf/Manifest002.rdf',#can't implement set theoretic union for owl:unionOf.
+    #'OWL/oneOf/Manifest003.rdf', #logical set equivalence?  (works for magic sets)
+    #'OWL/differentFrom/Manifest002.rdf'  ,#needs log:notEqualTo (works for magic sets)
+    #'OWL/distinctMembers/Manifest001.rdf',#needs log:notEqualTo (works for magic sets)
+    #'OWL/unionOf/Manifest002.rdf',#can't implement set theoretic union for owl:unionOf. (works for magic sets)
     'OWL/InverseFunctionalProperty/Manifest001.rdf',#owl:sameIndividualAs deprecated
     'OWL/FunctionalProperty/Manifest001.rdf', #owl:sameIndividualAs deprecated
     'OWL/Nothing/Manifest002.rdf',# owl:sameClassAs deprecated
-    'OWL/AllDifferent/Manifest001.rdf',#requires support for built-ins (log:notEqualTo)
-]
-
-test2Run = [
-    'OWL/oneOf/Manifest003.rdf',    
+    #'OWL/AllDifferent/Manifest001.rdf',#requires support for built-ins (log:notEqualTo), works for magic sets
+    
+    
+    #Fix for magic set implementation
+    #'OWL/TransitiveProperty/Manifest001.rdf', #recursive logic program
+    #'OWL/InverseFunctionalProperty/Manifest002.rdf', #need to investigate
 ]
 
 patterns2Skip = [
@@ -98,14 +110,73 @@ class OwlTestSuite(unittest.TestCase):
         self.ruleStore=N3RuleStore()
         self.ruleGraph = Graph(self.ruleStore)
         self.ruleFactsGraph = Graph(store)
-        self.ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
-        self.network = ReteNetwork(self.ruleStore)
+#        if not MAGIC_PROOFS:
+#            self.ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
+        self.network = ReteNetwork(self.ruleStore,nsMap=nsBinds)
         
         #renderNetwork(self.network,nsMap=nsMap).write_graphviz('owl-rules.dot')
     def tearDown(self):
         pass
     
-    
+    def calculateEntailments(self, factGraph):
+#        print self.network
+        print "Explicit (base) facts"
+#        pprint([BuildUnitermFromTuple(i) for i in factGraph])
+        pprint(list(factGraph))
+        start = time.time()  
+        self.network.feedFactsToAdd(generateTokenSet(factGraph))                    
+        sTime = time.time() - start
+        if sTime > 1:
+            sTimeStr = "%s seconds"%sTime
+        else:
+            sTime = sTime * 1000
+            sTimeStr = "%s milli seconds"%sTime
+        print "Time to calculate closure on working memory: ",sTimeStr
+        print self.network
+        
+        tNodeOrder = [tNode 
+                        for tNode in self.network.terminalNodes 
+                            if self.network.instanciations.get(tNode,0)]
+        tNodeOrder.sort(key=lambda x:self.network.instanciations[x],reverse=True)
+        for termNode in tNodeOrder:
+            print termNode
+            print "\t", termNode.clause
+            print "\t\t%s instanciations"%self.network.instanciations[termNode]
+    #                    for c in AllClasses(factGraph):
+    #                        print CastClass(c,factGraph)
+        print "=============="
+        self.network.inferredFacts.namespace_manager = factGraph.namespace_manager
+#        if self.network.inferredFacts:
+#            print "Implicit facts: "
+#            print self.network.inferredFacts.serialize(format='turtle')
+        print "ruleset after MST:"                    
+        pprint(list(self.network.rules))
+#        print "rate of reduction in the size of the program: ", len len(self.network.rules)
+        return sTimeStr
+
+    def MagicOWLProof(self,goals,rules,factGraph):
+        print "Goals",[AdornLiteral(goal) for goal in goals]
+        assert not self.network.rules
+        progLen = len(rules)
+        magicRuleNo = 0
+        for rule in MagicSetTransformation(factGraph,
+                                           rules,
+                                           goals):
+            magicRuleNo+=1
+            self.network.buildNetworkFromClause(rule.formula)    
+            self.network.rules.add(rule)
+        print "rate of reduction in the size of the program: ", (100-(float(magicRuleNo)/float(progLen))*100)
+        for goal in goals:
+            factGraph.add(goal)
+        timing=self.calculateEntailments(factGraph)
+        for goal in goals:
+            if goal not in self.network.inferredFacts and goal not in factGraph:
+                print "missing triple %s"%(pformat(goal))
+                raise #Exception ("Failed test: "+feature)
+            else:
+                print "=== Passed! ==="
+        return timing
+       
     def testOwl(self): 
         testData = {}       
         for manifest in glob('OWL/*/Manifest*.rdf'):
@@ -145,46 +216,68 @@ class OwlTestSuite(unittest.TestCase):
                     factGraph = Graph(store)
                     factGraph.parse(open('.'.join([premiseFile,'rdf'])))
                     allFacts = ReadOnlyGraphAggregate([factGraph,self.ruleFactsGraph])
-                    #MapDLPtoNetwork(self.network,factGraph)
-                    self.network.setupDescriptionLogicProgramming(factGraph,addPDSemantics=False)
-                    print self.network                                      
-                    start = time.time()  
-                    self.network.feedFactsToAdd(generateTokenSet(factGraph))                    
-                    sTime = time.time() - start
-                    if sTime > 1:
-                        sTimeStr = "%s seconds"%sTime
-                    else:
-                        sTime = sTime * 1000
-                        sTimeStr = "%s milli seconds"%sTime
-                    print "Time to calculate closure on working memory: ",sTimeStr
-                    print self.network
-                    tNodeOrder = [tNode for tNode in self.network.terminalNodes if tNode in self.network.instanciations]
-                    tNodeOrder.sort(key=lambda x:self.network.instanciations[x],reverse=True)
-                    for termNode in []:#tNodeOrder:
-                        lhsF,rhsF = termNode.ruleFormulae
-                        print termNode
-                        #print "\t %s => %s"%(lhsF,rhsF)
-                        print "\t", rhsF
-                        print "\t\t%s instanciations"%self.network.instanciations[termNode]
+                    Individual.factoryGraph=factGraph
                     
-                    expectedFacts = Graph(store)                    
-                    for triple in expectedFacts.parse('.'.join([conclusionFile,'rdf'])):
-                        closureGraph = ReadOnlyGraphAggregate([self.network.inferredFacts,factGraph])
-                        if triple not in self.network.inferredFacts and triple not in factGraph:
-                            print "missing triple %s"%(pformat(triple))
-                            print manifest
+                    for c in AllClasses(factGraph):
+                        if not isinstance(c.identifier,BNode):
+                            print c.__repr__(True)       
+                            
+                    if MAGIC_PROOFS:
+                        if feature in Features2SkipMagic:
+                            continue
+                        print premiseFile,feature,description
+                        program=list(HornFromN3(StringIO(non_DHL_OWL_Semantics)))
+                        program.extend(self.network.setupDescriptionLogicProgramming(
+                                                                     factGraph,
+                                                                     addPDSemantics=False,
+                                                                     constructNetwork=False))
+                        print "Original program"
+                        pprint(program)
+                        timings=[]  
+                        #Magic set algorithm is initiated by a query, a single horn ground, 'fact'                    
+                        try:   
+                            goals=set()
+                            for triple in Graph(store).parse('.'.join([conclusionFile,'rdf'])):
+                                if triple not in factGraph:
+                                    goals.add(triple)
+                            timings.append(self.MagicOWLProof(goals,program,factGraph))
+                            self.network._resetinstanciationStats()
+                            self.network.reset()
+                            self.network.clear()                                
+                        except:
+                            print "missing triple %s"%(pformat(goal))
+                            print manifest, premiseFile
                             print "feature: ", feature
                             print description
-                            pprint(list(self.network.inferredFacts))                            
-                            raise Exception ("Failed test: "+feature)
-                        else:
-                            print "=== Passed! ==="
-                            #pprint(list(self.network.inferredFacts))
-                    print "\n"
-                    testData[manifest] = sTimeStr
-                    store.rollback()
-                    self.network.reset()
-                    self.network._resetinstanciationStats()
+#                            from FuXi.Rete.Util import renderNetwork 
+#                            pprint([BuildUnitermFromTuple(t) for t in self.network.inferredFacts])
+#                            dot=renderNetwork(self.network,self.network.nsMap).write_jpeg('test-fail.jpeg')  
+                            raise #Exception ("Failed test: "+feature)
+                            
+                        testData[manifest] = timings    
+                        continue
+                    else:
+                        self.network.setupDescriptionLogicProgramming(factGraph,addPDSemantics=True)
+                        sTimeStr=self.calculateEntailments(factGraph)
+                        expectedFacts = Graph(store)                    
+                        for triple in expectedFacts.parse('.'.join([conclusionFile,'rdf'])):
+                            closureGraph = ReadOnlyGraphAggregate([self.network.inferredFacts,factGraph])
+                            if triple not in self.network.inferredFacts and triple not in factGraph:
+                                print "missing triple %s"%(pformat(triple))
+                                print manifest
+                                print "feature: ", feature
+                                print description
+                                pprint(list(self.network.inferredFacts))  
+#                                pprint(programs)                          
+                                raise Exception ("Failed test: "+feature)
+                            else:
+                                print "=== Passed! ==="
+                                #pprint(list(self.network.inferredFacts))
+                        print "\n"
+                        testData[manifest] = sTimeStr
+                        store.rollback()
+                        self.network.reset()
+                        self.network._resetinstanciationStats()
                     
         pprint(testData)
 

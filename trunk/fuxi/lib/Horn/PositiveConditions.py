@@ -193,16 +193,20 @@ class Uniterm(QNameManager,Atomic):
         except:
             return val
         
-    def __repr__(self):
-        def normalizeTerm(term):
+    def normalizeTerm(self,term):
+        if isinstance(term,Literal):
+            return term.n3()
+        else:
             return isinstance(term,Variable) and term.n3() or \
-                   self.collapseName(term)
+                   self.collapseName(term)        
+        
+    def __repr__(self):
         if self.op == RDF.type:
             arg0,arg1 = self.arg
-            return "%s(%s)"%(normalizeTerm(arg1),normalizeTerm(arg0))
+            return "%s(%s)"%(self.normalizeTerm(arg1),self.normalizeTerm(arg0))
         else:
-            return "%s(%s)"%(normalizeTerm(self.op),
-                                ' '.join([normalizeTerm(i) for i in self.arg]))
+            return "%s(%s)"%(self.normalizeTerm(self.op),
+                                ' '.join([self.normalizeTerm(i) for i in self.arg]))
             
 class ExternalFunction(Uniterm):
     """

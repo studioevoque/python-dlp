@@ -6,15 +6,22 @@ incorporates RIF Positive Conditions defined in Section Positive Conditions
 """
 from PositiveConditions import *
 from rdflib import Variable, BNode, URIRef, Literal, Namespace,RDF,RDFS
-from FuXi.Rete.RuleStore import N3Builtin
+from rdflib.Graph import Graph
 def ExtractVariables(clause):
     pass
+
+def HornFromN3(n3Stream):
+    from FuXi.Rete.RuleStore import SetupRuleStore
+    store,graph=SetupRuleStore(n3Stream)
+    store._finalize()
+    return Ruleset(n3Rules=store.rules,nsMapping=store.nsMgr)
 
 class Ruleset(object):
     """
     Ruleset ::= RULE*
     """
     def __init__(self,formulae=None,n3Rules=None,nsMapping=None):
+        from FuXi.Rete.RuleStore import N3Builtin
         self.nsMapping = nsMapping and nsMapping or {}        
         self.formulae = formulae and formulae or []
         if n3Rules:
@@ -72,6 +79,28 @@ class Rule(object):
                                     self.formula.head.n3())
 #        "Forall %s ( %r )"%(' '.join([var.n3() for var in self.declare]),
 #                               self.formula)
+
+    def __eq__(self,other):
+        return hash(self.formula)==hash(other.formula)
+        
+    def __hash__(self):
+        """
+        >>> a=Clause(And([Uniterm(RDFS.subClassOf,[Variable('C'),Variable('SC')]),
+        ...             Uniterm(RDF.type,[Variable('M'),Variable('C')])]),
+        ...        Uniterm(RDF.type,[Variable('M'),Variable('SC')]))
+        >>> b=Clause(And([Uniterm(RDFS.subClassOf,[Variable('C'),Variable('SC')]),
+        ...             Uniterm(RDF.type,[Variable('M'),Variable('C')])]),
+        ...        Uniterm(RDF.type,[Variable('M'),Variable('SC')]))
+        >>> d=set()
+        >>> d.add(a)
+        >>> b in d
+        True
+        >>> hash(a) == hash(b)
+        True
+        
+        """
+        return hash(self.formula)
+
     def __repr__(self):
         return "Forall %s ( %r )"%(' '.join([var.n3() for var in self.declare]),
                                self.formula)    
@@ -94,10 +123,10 @@ class Clause(object):
         self.body = body
         self.head = head
         from FuXi.Rete.Network import HashablePatternList
-        antHash=HashablePatternList([term.toRDFTuple() 
-                            for term in body])
-        consHash=HashablePatternList([term.toRDFTuple() 
-                            for term in head])                                                                                            
+        antHash=HashablePatternList(
+                    [term.toRDFTuple() for term in body],skipBNodes=True)
+        consHash=HashablePatternList(
+                    [term.toRDFTuple() for term in head],skipBNodes=True)                                                                                            
         self._hash = hash(antHash) ^ hash(consHash)
         
     def __eq__(self,other):
@@ -118,6 +147,9 @@ class Clause(object):
         >>> hash(a) == hash(b)
         True
         
+        >>> d={a:True}
+        >>> b in d
+        True
         """
         return self._hash
         

@@ -448,7 +448,6 @@ class PartialInstanciation(object):
             for key,val in newJoinDict.iteritems():
                 boundVal = binding.get(key)
                 if boundVal is not None:
-                    assert val is None or boundVal == val
                     if val is None:
                         newJoinDict[key]=boundVal
         self.joinedBindings.update(newJoinDict)
@@ -647,7 +646,6 @@ class BetaNode(Node):
             self.memories[RIGHT_MEMORY] = ReteMemory(self,RIGHT_MEMORY)
             
         assert not(self.fedByBuiltin),"No support for 'built-ins', function symbols, or non-equality tests"
-            
         if isinstance(rightNode,BuiltInAlphaNode):
             self.fedByBuiltin = RIGHT_MEMORY
             assert not isinstance(leftNode,BuiltInAlphaNode),"Both %s and %s are builtins feeding a beta node!"%(leftNode,rightNode)
@@ -809,12 +807,6 @@ class BetaNode(Node):
                 for binding in partialInst.bindings:
                     lhs = filter.argument
                     rhs = filter.result
-    #                if (isinstance(lhs,Variable) and lhs not in binding) or\
-    #                   (isinstance(rhs,Variable) and rhs not in binding):
-        #                        if self.consequent:
-    #                    print "^ \t",partialInst,self, filter
-    #                    pprint(binding)
-    #                    raise 
                     lhs = isinstance(lhs,Variable) and binding[lhs] or lhs
                     rhs = isinstance(rhs,Variable) and binding[rhs] or rhs
                     assert lhs is not None and rhs is not None
@@ -892,7 +884,7 @@ class BetaNode(Node):
                                         wme,
                                         ifilter(lambda x:x not in partialInst.joinedBindings,
                                                 self.commonVariables)))
-                                        # [var for var in self.commonVariables if var not in partialInst.joinedBindings]))
+                                    # [var for var in self.commonVariables if var not in partialInst.joinedBindings]))
             for pInst in matches:
                 self._activate(pInst,debug)  
 

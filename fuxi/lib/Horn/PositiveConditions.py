@@ -28,7 +28,10 @@ class QNameManager(object):
 
 class SetOperator(object):
     def repr(self,operator):
-        return "%s( %s )"%(operator,' '.join([repr(i) for i in self.formulae]))
+        if len(self.formulae)==1:
+            return repr(self.formulae[0])
+        else:
+            return "%s( %s )"%(operator,' '.join([repr(i) for i in self.formulae]))
     def __len__(self):
         return len(self.formulae)
 
@@ -189,7 +192,12 @@ class Uniterm(QNameManager,Atomic):
         
     def collapseName(self,val):
         try:
-            return self.nsMgr.qname(val)
+            rt = self.nsMgr.qname(val)
+            if len(rt.split(':')[0])>1 and rt[0]=='_':
+                return ':'+rt.split(':')[-1]
+            else:
+                return rt
+                
         except:
             return val
         

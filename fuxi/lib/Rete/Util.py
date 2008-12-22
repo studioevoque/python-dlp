@@ -98,6 +98,9 @@ def generateBGLNode(dot,node,namespace_manager,identifier):
             label = "Beta node\\n(%s)"%(','.join(["?%s"%i for i in node.commonVariables]))
         else:
             label = "Beta node"
+        leftLen = node.memories[LEFT_MEMORY] and len(node.memories[LEFT_MEMORY]) or 0
+        rightLen = len(node.memories[RIGHT_MEMORY])
+        label+='\\n %s in left, %s in right memories'%(leftLen,rightLen)
 
     elif isinstance(node,BetaNode) and node.consequent:     
         #rootMap[vertex] = 'true'
@@ -120,6 +123,9 @@ def generateBGLNode(dot,node,namespace_manager,identifier):
             label = str("Terminal node\\n(%s)\\n%d instanciations"%(','.join(["?%s"%i for i in node.commonVariables]),inst))
         else:
             label = "Terminal node"
+        leftLen = node.memories[LEFT_MEMORY] and len(node.memories[LEFT_MEMORY]) or 0
+        rightLen = len(node.memories[RIGHT_MEMORY])
+        label+='\\n %s in left, %s in right memories'%(leftLen,rightLen)            
         
     elif isinstance(node,BuiltInAlphaNode):
         peripheries = '1'
@@ -173,7 +179,7 @@ def renderNetwork(network,nsMap = {}):
                 continue
             bNode = mem.successor
         for bNode in node.descendentBetaNodes:
-            for otherNode in [bNode.leftNode,bNode.rightNode]:
+            for idx,otherNode in enumerate([bNode.leftNode,bNode.rightNode]):
                 if node == otherNode and (node,otherNode) not in edges:
                     for i in [node,bNode]:
                         if i not in visitedNodes:
@@ -181,7 +187,9 @@ def renderNetwork(network,nsMap = {}):
                             nodeIdxs[i] = idx 
                             visitedNodes[i] = generateBGLNode(dot,i,namespace_manager,str(idx))
                             dot.add_node(visitedNodes[i])
-                    edge = Edge(visitedNodes[node],visitedNodes[bNode])
+                    edge = Edge(visitedNodes[node],
+                                visitedNodes[bNode],
+                                label=idx==0 and 'left' or 'right')
                     dot.add_edge(edge)                                        
                     edges.append((node,bNode))
                     

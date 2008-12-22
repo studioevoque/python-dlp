@@ -19,6 +19,7 @@ from cStringIO import StringIO
 from Util import xcombine
 from BetaNode import BetaNode, LEFT_MEMORY, RIGHT_MEMORY, PartialInstanciation
 from AlphaNode import AlphaNode, ReteToken, SUBJECT, PREDICATE, OBJECT, BuiltInAlphaNode
+from BuiltinPredicates import FILTERS
 from FuXi.Horn import ComplementExpansion
 from FuXi.Syntax.InfixOWL import *
 from FuXi.Horn.PositiveConditions import Uniterm, SetOperator, Exists, Or
@@ -157,7 +158,6 @@ class ReteNetwork:
                  graphVizOutFile=None,
                  dontFinalize=False,
                  goal=None):
-        from BuiltinPredicates import FILTERS
         self.goal = goal        
         self.nsMap = nsMap
         self.name = name and name or BNode()
@@ -331,7 +331,7 @@ class ReteNetwork:
             if isinstance(node,BetaNode):
                 node.memories[LEFT_MEMORY].reset()
                 node.memories[RIGHT_MEMORY].reset()
-        self.inferredFacts = newinferredFacts and newinferredFacts or Graph('IOMemory')
+        self.inferredFacts = newinferredFacts and newinferredFacts or Graph()
         self.workingMemory = Set()
         self.rules = Set()
         self._resetinstanciationStats()        
@@ -456,6 +456,9 @@ class ReteNetwork:
         else:
             node = AlphaNode(currentPattern)
         self.alphaPatternHash[node.alphaNetworkHash()].setdefault(node.alphaNetworkHash(groundTermHash=True),[]).append(node)
+        if node.builtin:
+            s,p,o = currentPattern
+            node = BuiltInAlphaNode(N3Builtin(p,FILTERS[p](s,o),s,o))
         return node
     
     def _resetinstanciationStats(self):

@@ -116,7 +116,8 @@ def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None):
         newRules.append(newRule)
     if not newRules:
         print "No magic set candidates"
-        if OWL_NS.InverseFunctionalProperty in factGraph.objects(predicate=RDF.type):
+        if set([OWL_NS.InverseFunctionalProperty,
+                OWL_NS.FunctionalProperty]).intersection(factGraph.objects(predicate=RDF.type)):
             newRules.extend(HornFromN3(StringIO(FUNCTIONAL_SEMANTCS)))
         if (None,OWL_NS.oneOf,None) in factGraph:
             #Only include list and oneOf semantics

@@ -23,6 +23,7 @@ from FuXi.Syntax.InfixOWL import *
 from FuXi.Horn.HornRules import Clause, Ruleset
 from FuXi.Horn.PositiveConditions import Uniterm, buildUniTerm, SetOperator, Exists
 from BetaNode import BetaNode, LEFT_MEMORY, RIGHT_MEMORY, PartialInstanciation, project
+from FuXi.Rete.RuleStore import N3Builtin
 from FuXi.Rete.AlphaNode import AlphaNode, ReteToken
 from FuXi.Rete.Network import _mulPatternWithSubstitutions
 from rdflib.Graph import Graph
@@ -209,17 +210,21 @@ class ProofBuilder(object):
             for justification in nodeset.steps:
                 #pydot implementation
                 if True:#(visitedNodes[nodeset],visitedNodes[justification]) not in edges:
-                    edge = Edge(visitedNodes[nodeset],visitedNodes[justification])
-                    edge.label = "is the consequence of"
-                    edge.color = 'red'
+                    edge = Edge(visitedNodes[nodeset],
+                                visitedNodes[justification],
+                                label="is the consequence of",
+                                color = 'red')
+                    #edge.label = "is the consequence of"
                     dot.add_edge(edge)
                     #edges.append((visitedNodes[nodeset],visitedNodes[justification]))
                                 
                 for ant in justification.antecedents:
-                    if True:#(visitedNodes[nodeset],visitedNodes[justification]) not in edges:
-                        edge = Edge(visitedNodes[justification],visitedNodes[ant])
-                        edge.label="has antecedents"
-                        edge.color='blue'
+                    if True:#not isinstance(justification,InferenceStep) or not justification.source:#(visitedNodes[nodeset],visitedNodes[justification]) not in edges:
+                        edge = Edge(visitedNodes[justification],
+                                    visitedNodes[ant],
+                                    label="has antecedents",
+                                    color='blue')
+                        #edge.label="has antecedents"
                         dot.add_edge(edge)
                         #edges.append((visitedNodes[nodeset],visitedNodes[justification]))
                                                                 
@@ -248,7 +253,7 @@ class ProofBuilder(object):
                 for bodyTerm in tNode.clause.body:
                     step.rule = tNode.clause
                     for termVar in termIterator(bodyTerm):       
-                        assert isinstance(termVar,Uniterm)
+                        assert isinstance(termVar,(Uniterm,N3Builtin))
                         a=[x for x in termVar.toRDFTuple() if isinstance(x,Variable) and x not in step.bindings]
                     binds=[]
                     for t in tNode.instanciatingTokens:
@@ -258,7 +263,7 @@ class ProofBuilder(object):
                     for b in binds:
                         step.bindings.update(b)
                     for termVar in termIterator(bodyTerm):       
-                        assert isinstance(termVar,Uniterm)
+                        assert isinstance(termVar,(N3Builtin,Uniterm))
                         assert all(termVar.toRDFTuple(), 
                                    lambda x:isinstance(x,Variable) and x in step.bindings or not isinstance(x, Variable))      
                     groundAntecedentAssertion = tuple(fillBindings(bodyTerm.toRDFTuple(), step.bindings))
@@ -425,7 +430,7 @@ class InferenceStep(object):
         #outlineMap[vertex] = '1'
 
     def __repr__(self):
-        rt=self.source and "[Parsing RDF source]" or repr(self.rule.n3())#"%s\n%s"%(repr(self.rule),'\n'.join(['%s=%s'%(k,v) for k,v in self.bindings.items()]))
+        rt=self.source and "[Parsing RDF source]" or repr(self.rule)#"%s\n%s"%(repr(self.rule),'\n'.join(['%s=%s'%(k,v) for k,v in self.bindings.items()]))
         return rt
 
 class Expression(object):

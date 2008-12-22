@@ -219,10 +219,16 @@ class ProofBuilder(object):
                     #edges.append((visitedNodes[nodeset],visitedNodes[justification]))
                                 
                 for ant in justification.antecedents:
-                    if True:#not isinstance(justification,InferenceStep) or not justification.source:#(visitedNodes[nodeset],visitedNodes[justification]) not in edges:
+                    if justification.source:
+                        edge = Edge(visitedNodes[ant.steps[0]],
+                                    visitedNodes[nodeset],
+                                    label="has antecedent",
+                                    color='blue')                        
+                        dot.add_edge(edge)
+                    else:#not isinstance(justification,InferenceStep) or not justification.source:#(visitedNodes[nodeset],visitedNodes[justification]) not in edges:
                         edge = Edge(visitedNodes[justification],
                                     visitedNodes[ant],
-                                    label="has antecedents",
+                                    label="has antecedent",
                                     color='blue')
                         #edge.label="has antecedents"
                         dot.add_edge(edge)
@@ -422,16 +428,28 @@ class InferenceStep(object):
             proofGraph.add((mapping,PML.mapTo,v))
 
     def generateGraphNode(self,idx):
-        vertex = Node(idx,label='"%s"'%repr(self))
+        vertex = Node(idx,label='"%s"'%repr(self),shape='box')
         vertex.shape = 'plaintext'
         return vertex
         #shapeMap[vertex] = 'box'
         #sizeMap[vertex] = '10'
         #outlineMap[vertex] = '1'
+    def iterCondition(self,condition):
+        return isinstance(condition,SetOperator) and condition or iter([condition])
+
+    def prettyPrintRule(self):
+        if len(list(self.iterCondition(self.rule.body)))  > 2:
+            return "And(%s)"%repr(self.rule.head)+':-'+'\\n\\t'.join([repr(i) for i in self.rule.body]) 
+        return repr(self.rule)
 
     def __repr__(self):
-        rt=self.source and "[Parsing RDF source]" or repr(self.rule)#"%s\n%s"%(repr(self.rule),'\n'.join(['%s=%s'%(k,v) for k,v in self.bindings.items()]))
-        return rt
+        from FuXi.Rete.Magic import AdornedUniTerm
+        if self.source:
+            return "[Parsing RDF source]"
+        elif self.rule and isinstance(self.rule.head,AdornedUniTerm) and self.rule.head.isMagic:
+            return "magic predicate justification\\n%s"%(self.rule)
+        else:
+            return self.prettyPrintRule() 
 
 class Expression(object):
     def __init__(self):

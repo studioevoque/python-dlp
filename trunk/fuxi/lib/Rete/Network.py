@@ -294,8 +294,11 @@ class ReteNetwork:
         
     def closureGraph(self,sourceGraph,readOnly=True,store=None):
         if readOnly:
+            if store is None:
+                store = Graph().store
             roGraph=ReadOnlyGraphAggregate([sourceGraph,self.inferredFacts],
                                            store=store)
+            roGraph.namespace_manager = NamespaceManager(roGraph)
             for srcGraph in [sourceGraph,self.inferredFacts]:
                 for prefix,uri in srcGraph.namespaces():
                     roGraph.namespace_manager.bind(prefix,uri)

@@ -233,12 +233,14 @@ class ReteNetwork:
                                          expanded=[],
                                          addPDSemantics=True,
                                          classifyTBox=False,
-                                         constructNetwork=True):
+                                         constructNetwork=True,
+                                         derivedPreds=[]):
         rules=[rule 
                     for rule in MapDLPtoNetwork(self,
                                                 owlN3Graph,
                                                 complementExpansions=expanded,
-                                                constructNetwork=constructNetwork)]
+                                                constructNetwork=constructNetwork,
+                                                derivedPreds=derivedPreds)]
         if constructNetwork:
             self.rules.update(rules)
         noRules=len(rules)
@@ -459,7 +461,7 @@ class ReteNetwork:
         else:
             node = AlphaNode(currentPattern)
         self.alphaPatternHash[node.alphaNetworkHash()].setdefault(node.alphaNetworkHash(groundTermHash=True),[]).append(node)
-        if node.builtin:
+        if not isinstance(node,BuiltInAlphaNode) and node.builtin:
             s,p,o = currentPattern
             node = BuiltInAlphaNode(N3Builtin(p,FILTERS[p](s,o),s,o))
         return node

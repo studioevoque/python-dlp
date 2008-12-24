@@ -493,6 +493,13 @@ class Class(AnnotatibleTerms):
             self.graph.add((m,RDF.type,self.identifier))
             
     extent = property(_get_extent, _set_extent)            
+
+    def _get_extentQuery(self):
+        return (Variable('CLASS'),RDF.type,self.identifier)
+
+    def _set_extentQuery(self,other): pass
+            
+    extentQuery = property(_get_extentQuery, _set_extentQuery)            
     
     def __hash__(self):
         """

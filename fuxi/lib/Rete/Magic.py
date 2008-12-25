@@ -64,10 +64,14 @@ def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None):
             if isinstance(pred,AdornedUniTerm):# and pred not in magicPredicates:
                 # For each rule r in Pad, and for each occurrence of an adorned 
                 # predicate p a in its body, we generate a magic rule defining magic_p a
-                if 'b' not in pred.adornment:
-                    raise                   
                 prevPreds=[item for _idx,item in enumerate(rule.formula.body)
                                             if _idx < idx]             
+                if 'b' not in pred.adornment:
+                    print rule
+                    print "\t",pred,pred.adornment,pred.n3()
+                    print rule.sip.serialize(format='n3')
+                    raise                   
+                
                 magicPred=pred.makeMagicPred()
                 prevPredicates.append(magicPred)
                 magicPositions[idx]=(magicPred,pred)
@@ -106,14 +110,18 @@ def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None):
         #we modify the original rule by inserting
         #occurrences of the magic predicates corresponding
         #to the derived predicates of the body and to the head
-        headMagicPred=rule.formula.head.makeMagicPred()
-        idxIncrement=0
-        newRule=copy.deepcopy(rule)
-        for idx,(magicPred,origPred) in magicPositions.items():
-            newRule.formula.body.formulae.insert(idx+idxIncrement,magicPred)
-            idxIncrement+=1
-        newRule.formula.body.formulae.insert(0,headMagicPred)
-        newRules.append(newRule)
+        #If there are no bound arguments in the head, we don't modify the rule
+        if 'b' in rule.formula.head.adornment:
+            headMagicPred=rule.formula.head.makeMagicPred()
+            idxIncrement=0
+            newRule=copy.deepcopy(rule)
+            for idx,(magicPred,origPred) in magicPositions.items():
+                newRule.formula.body.formulae.insert(idx+idxIncrement,magicPred)
+                idxIncrement+=1
+            newRule.formula.body.formulae.insert(0,headMagicPred)
+            newRules.append(newRule)
+        else:
+            newRules.append(rule)
     if not newRules:
         print "No magic set candidates"
         if set([OWL_NS.InverseFunctionalProperty,
@@ -134,7 +142,6 @@ def NormalizeGoals(goals):
     elif isinstance(goals,tuple):
         yield sparqlQuery,{}
     else:
-        print goals
         query=RenderSPARQLAlgebra(Parse(goals))
         for pattern in query.patterns:
             yield pattern[:3],query.prolog.prefixBindings
@@ -197,6 +204,11 @@ def AdornRule(derivedPreds,clause,newHead):
                     # for q is useful, however, only if it is a binding for an argument of q.
                     bodyPredReplace[literal]=AdornedUniTerm(NormalizeUniterm(literal),
                             [ i in x and 'b' or 'f' for i in args])
+                    
+#                For a predicate occurrence with no incoming
+#                arc, the adornment contains only f’s. For our purposes here, 
+#                we do not distinguish between a predicate with such an 
+#                adornment and an unadorned predicate                                    
     rule=AdornedRule(Clause(And([bodyPredReplace.get(p,p) 
                                  for p in iterCondition(sip.sipOrder)]),
                             AdornedUniTerm(clause.head,newHead.adornment)))
@@ -234,7 +246,6 @@ def AdornProgram(factGraph,rs,goals,derivedPreds=None):
 #               nsMapping=ruleGraph.store.nsMgr) or rs
     unprocessedAdornedPreds = []
     for goal,nsBindings in NormalizeGoals(goals):
-        print goal,nsBindings
         unprocessedAdornedPreds.append(AdornLiteral(goal,nsBindings))
         
     if not derivedPreds:
@@ -254,7 +265,7 @@ def AdornProgram(factGraph,rs,goals,derivedPreds=None):
         #check if there is a rule with term as its head
         for rule in rs:
             for clause in LloydToporTransformation(rule.formula):
-                head=clause.head
+                head=isinstance(clause.head,Exists) and clause.head.formula or clause.head
                 _a=GetOp(head)
                 _b=GetOp(term)
                 if isinstance(head,Uniterm) and GetOp(head) == GetOp(term):
@@ -335,8 +346,10 @@ class AdornedUniTerm(Uniterm):
                 
     def __repr__(self):
         pred = self.normalizeTerm(self.op)
-        adornSuffix='_'+''.join(self.adornment)
-        adornSuffix = self.op == RDF.type and '_b' or adornSuffix
+        if self.op == RDF.type:
+            adornSuffix = '_'+self.adornment[0]
+        else:
+            adornSuffix='_'+''.join(self.adornment)
         if self.isMagic:
             if self.op == RDF.type:
                 return "%s(%s)"%(self.normalizeTerm(self.arg[-1]),
@@ -382,7 +395,7 @@ def AdornLiteral(rdfTuple,newNss=None):
     args=[rdfTuple[0],rdfTuple[-1]]
     newNss=newNss is None and {} or newNss
     uTerm = BuildUnitermFromTuple(rdfTuple,newNss)
-    opArgs=rdfTuple[1] == RDF.type and [args[-1]] or args
+    opArgs=rdfTuple[1] == RDF.type and [args[0]] or args
     adornment=[ isinstance(term,(Variable,BNode)) and 'f' or 'b' 
                 for idx,term in enumerate(opArgs) ]
     return AdornedUniTerm(uTerm,adornment)  
@@ -457,7 +470,7 @@ def NormalizeLPDb(ruleGraph,fact_db):
     For performance reasons, it 1s good to decompose the database into a set of
     pure base predicates (which can then be stored using a standard DBMS)
     and a set of pure derived predicates Fortunately, such a decomposition 1s 
-    always possible, because every database can be rewritten as an ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†¬¥equivalent‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂≈ì√Ñ
+    always possible, because every database can be rewritten as an ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®¬¨‚Ä¢‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨‚àû‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á¬¨¬®¬¨¬Æ¬¨¬®‚Äö√Ñ¬¢‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†¬¨¬®¬¨¬Æ¬¨¬®¬¨√Ü¬¨¬®¬¨¬Æ‚Äö√Ñ√∂‚àö√ë¬¨¬¢equivalent‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®¬¨‚Ä¢‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨‚àû‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á¬¨¬®¬¨¬Æ¬¨¬®‚Äö√Ñ¬¢‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂¬¨¬¢‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®¬¨√Ü‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•
     database containing only base and derived predicates.    
     
     >>> ruleStore,ruleGraph=SetupRuleStore()
@@ -490,15 +503,37 @@ def NormalizeLPDb(ruleGraph,fact_db):
         rs.append(newRule)
     return rs
 
+#class AdornProgramTest(unittest.TestCase):
+#    def setUp(self):
+#        self.ruleStore,self.ruleGraph=SetupRuleStore(StringIO(PROGRAM2))
+#        self.ruleStore._finalize()
+#        self.ruleStrings=[
+#        'Forall ?Y ?X ( :sg_bf(?X ?Y) :- And( :sg_magic(?X) ex:flat(?X ?Y) ) )',
+#        'Forall  ( :sg_magic(?Z1) :- And( :sg_magic(?X) ex:up(?X ?Z1) ) )',
+#        'Forall ?Z4 ?Y ?X ?Z1 ?Z2 ?Z3 ( :sg_bf(?X ?Y) :- And( :sg_magic(?X) ex:up(?X ?Z1) :sg_magic(?Z1) :sg_bf(?Z1 ?Z2) ex:flat(?Z2 ?Z3) :sg_magic(?Z3) :sg_bf(?Z3 ?Z4) ex:down(?Z4 ?Y) ) )',
+#        'Forall  ( :sg_magic(?Z3) :- And( :sg_magic(?X) ex:up(?X ?Z1) :sg_bf(?Z1 ?Z2) ex:flat(?Z2 ?Z3) ) )',
+#        ]
+#
+#    def testAdorn(self):
+#        fg=Graph().parse(StringIO(PROGRAM2),format='n3')
+#        rules=Ruleset(n3Rules=self.ruleGraph.store.rules,
+#                   nsMapping=self.ruleStore.nsMgr)
+#        from pprint import pprint;pprint(self.ruleStrings)        
+#        for rule in MagicSetTransformation(fg,
+#                                           rules,
+#                                           NON_LINEAR_MS_QUERY,
+#                                           [MAGIC.sg]):
+#            self.failUnless(repr(rule) in self.ruleStrings, repr(rule))
+
 class AdornProgramTest(unittest.TestCase):
     def setUp(self):
         self.ruleStore,self.ruleGraph=SetupRuleStore(StringIO(PROGRAM2))
         self.ruleStore._finalize()
         self.ruleStrings=[
-        'Forall ?Y ?X ( _5:sg_bf(?X ?Y) :- And( _5:sg_magic(?X) ex:flat(?X ?Y) ) )',
-        'Forall  ( _5:sg_magic(?Z1) :- And( _5:sg_magic(?X) ex:up(?X ?Z1) ) )',
-        'Forall ?Z4 ?Y ?X ?Z1 ?Z2 ?Z3 ( _5:sg_bf(?X ?Y) :- And( _5:sg_magic(?X) ex:up(?X ?Z1) _5:sg_magic(?Z1) _5:sg_bf(?Z1 ?Z2) ex:flat(?Z2 ?Z3) _5:sg_magic(?Z3) _5:sg_bf(?Z3 ?Z4) ex:down(?Z4 ?Y) ) )',
-        'Forall  ( _5:sg_magic(?Z3) :- And( _5:sg_magic(?X) ex:up(?X ?Z1) _5:sg_bf(?Z1 ?Z2) ex:flat(?Z2 ?Z3) ) )',
+        'Forall ?Y ?X ( :sg_bf(?X ?Y) :- And( :sg_magic(?X) ex:flat(?X ?Y) ) )',
+        'Forall  ( :sg_magic(?Z1) :- And( :sg_magic(?X) ex:up(?X ?Z1) ) )',
+        'Forall ?Z4 ?Y ?X ?Z1 ?Z2 ?Z3 ( :sg_bf(?X ?Y) :- And( :sg_magic(?X) ex:up(?X ?Z1) :sg_magic(?Z1) :sg_bf(?Z1 ?Z2) ex:flat(?Z2 ?Z3) :sg_magic(?Z3) :sg_bf(?Z3 ?Z4) ex:down(?Z4 ?Y) ) )',
+        'Forall  ( :sg_magic(?Z3) :- And( :sg_magic(?X) ex:up(?X ?Z1) :sg_bf(?Z1 ?Z2) ex:flat(?Z2 ?Z3) ) )',
         ]
 
     def testAdorn(self):
@@ -510,10 +545,15 @@ class AdornProgramTest(unittest.TestCase):
                                            rules,
                                            NON_LINEAR_MS_QUERY,
                                            [MAGIC.sg]):
-            self.failUnless(repr(rule) in self.ruleStrings, repr(rule.formula))
+            self.failUnless(repr(rule) in self.ruleStrings, repr(rule))
         
 def buildMagicBody(N,prevPredicates,adornedHead,derivedPreds):
-    body=[adornedHead.makeMagicPred()]
+    if 'b' in adornedHead.adornment:
+        body=[adornedHead.makeMagicPred()]
+    else:
+        #If there are no bound argument positions to pass magic values with,
+        #we propagate values in the full relation
+        body=[adornedHead]
     for prevAPred in prevPredicates:
         op = GetOp(prevAPred)
         if op in N:

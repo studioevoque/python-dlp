@@ -195,7 +195,7 @@ class ReteNetwork:
         for rule in Ruleset(n3Rules=self.ruleStore.rules,nsMapping=self.nsMap):
             self.buildNetwork(iter(rule.formula.body),
                               iter(rule.formula.head),
-                              rule.formula)
+                              rule)
             self.rules.add(rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
         self.alphaBuiltInNodes = [node for node in self.nodes.values() if isinstance(node,BuiltInAlphaNode)]
@@ -213,19 +213,19 @@ class ReteNetwork:
         for prefix,Uri in nsMgr.namespaces():
             self.nsMap[prefix]=Uri
                         
-    def buildNetworkFromClause(self,horn_clause):
+    def buildNetworkFromClause(self,rule):
         lhs = BNode()
         rhs = BNode()
-        for term in horn_clause.body:
+        for term in rule.formula.body:
             self.ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
-        for term in horn_clause.head:
+        for term in rule.formula.head:
             assert not hasattr(term,'next')
             assert isinstance(term,Uniterm)
             self.ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term.toRDFTuple())
         self.ruleStore.rules.append((self.ruleStore.formulae[lhs],self.ruleStore.formulae[rhs]))
         self.buildNetwork(iter(self.ruleStore.formulae[lhs]),
                              iter(self.ruleStore.formulae[rhs]),
-                             horn_clause)
+                             rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
                         
     def setupDescriptionLogicProgramming(self,
@@ -280,7 +280,7 @@ class ReteNetwork:
                             nsMapping=self.nsMap):
             self.buildNetwork(iter(rule.formula.body),
                               iter(rule.formula.head),
-                              rule.formula)
+                              rule)
             self.rules.add(rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
         self.alphaBuiltInNodes = [node for node in self.nodes.values() if isinstance(node,BuiltInAlphaNode)]        
@@ -328,6 +328,8 @@ class ReteNetwork:
         self.proofTracers = {}
         self.terminalNodes  = set()
         self.justifications = {}
+        self._resetinstanciationStats()
+        self.workingMemory = set()
         self.dischargedBindings = {}
         
     def reset(self,newinferredFacts=None):
@@ -337,8 +339,8 @@ class ReteNetwork:
                 node.memories[LEFT_MEMORY].reset()
                 node.memories[RIGHT_MEMORY].reset()
         self.inferredFacts = newinferredFacts and newinferredFacts or Graph()
-        self.workingMemory = Set()
-        self.rules = Set()
+        self.workingMemory = set()
+        self.rules = set()
         self._resetinstanciationStats()        
                                 
     def fireConsequent(self,tokens,termNode,debug=False):
@@ -476,7 +478,7 @@ class ReteNetwork:
             assert collision is None,"%s collides with %s"%(tNode,checkedClauses[tNode.clause])
             checkedClauses.setdefault(tNode.clause,[]).append(tNode) 
     
-    def buildNetwork(self,lhsIterator,rhsIterator,clause):
+    def buildNetwork(self,lhsIterator,rhsIterator,rule):
         """
         Takes an iterator of triples in the LHS of an N3 rule and an iterator of the RHS and extends
         the Rete network, building / reusing Alpha 
@@ -520,7 +522,8 @@ class ReteNetwork:
                         terminalNode.rule = (LHS,consequents)
                         terminalNode.consequent.update(consequents)
                         terminalNode.network    = self
-                        terminalNode.clause = clause
+                        terminalNode.clause = rule.formula
+                        terminalNode.horn_rule = rule
                         self.terminalNodes.add(terminalNode)                    
                 else:              
                     for aP in attachedPatterns:
@@ -531,7 +534,8 @@ class ReteNetwork:
                         terminalNode.rule = (LHS,consequents)
                         terminalNode.consequent.update(consequents)
                         terminalNode.network    = self
-                        terminalNode.clause = clause
+                        terminalNode.clause = rule.formula
+                        terminalNode.horn_rule = rule
                         self.terminalNodes.add(terminalNode)
                         self._resetinstanciationStats()                        
                 #self.checkDuplicateRules()

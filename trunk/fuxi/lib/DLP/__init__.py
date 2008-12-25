@@ -86,6 +86,7 @@ non_DHL_OWL_Semantics=\
 
 #Inverse functional semantics
 {?P a owl:FunctionalProperty. ?S ?P ?O. ?S ?P ?Y} => {?O = ?Y}.
+#{?P a owl:InverseFunctionalProperty. ?S ?P ?O; log:notEqualTo ?Y . ?Y ?P ?O . } => {?S = ?Y}.
 {?P a owl:InverseFunctionalProperty. ?S ?P ?O. ?Y ?P ?O} => {?S = ?Y}.
 {?T1 = ?T2. ?S = ?T1} => {?S = ?T2}.
 {?T1 ?P ?O. ?T1 = ?T2.} => {?T2 ?P ?O}.
@@ -99,6 +100,21 @@ non_DHL_OWL_Semantics=\
 {?S owl:complementOf ?O} => {?O owl:complementOf ?S}.
 {?S owl:disjointWith ?O} => {?O owl:disjointWith ?S}.
 
+"""
+
+FUNCTIONAL_SEMANTCS=\
+"""
+@prefix owl: <http://www.w3.org/2002/07/owl#>.
+@prefix log: <http://www.w3.org/2000/10/swap/log#>.
+
+#Inverse functional semantics
+#{?P a owl:FunctionalProperty. ?S ?P ?O. ?S ?P ?Y} => {?O = ?Y}.
+{?P a owl:FunctionalProperty. ?S ?P ?O. ?S ?P ?Y. ?O log:notEqualTo ?Y } => {?O = ?Y}.
+#{?P a owl:InverseFunctionalProperty. ?S ?P ?O. ?Y ?P ?O} => {?S = ?Y}.
+{?P a owl:InverseFunctionalProperty. ?S ?P ?O. ?Y ?P ?O. ?S log:notEqualTo ?Y } => {?S = ?Y}.
+
+{?T1 = ?T2. ?S = ?T1} => {?S = ?T2}.
+{?T1 ?P ?O. ?T1 = ?T2.} => {?T2 ?P ?O}.
 """
 
 NOMINAL_SEMANTICS=\
@@ -139,10 +155,12 @@ def reduceAnd(left,right):
     
 def NormalizeClause(clause):
     def fetchFirst(gen):
-        return first(gen)
-    if hasattr(clause.head,'next') and not isinstance(clause.head,Condition):
+        rt=first(gen)
+        assert rt is not None
+        return rt
+    if hasattr(clause.head,'next'):# and not isinstance(clause.head,Condition):
         clause.head = fetchFirst(clause.head)
-    if hasattr(clause.body,'next') and not isinstance(clause.body,Condition):
+    if hasattr(clause.body,'next'):# and not isinstance(clause.body,Condition):
         clause.body = fetchFirst(clause.body)
 #    assert isinstance(clause.head,(Atomic,And,Clause)),repr(clause.head)
 #    assert isinstance(clause.body,Condition),repr(clause.body)
@@ -151,6 +169,7 @@ def NormalizeClause(clause):
     if isinstance(clause.body,And):
         clause.body.formulae = reduce(reduceAnd,clause.body)
 #    print "Normalized clause: ", clause
+#    assert clause.body is not None and clause.head is not None,repr(clause)
     return clause
 
 class Clause(OriginalClause):
@@ -212,9 +231,9 @@ def makeRule(clause,nsMap):
         vars.update([term for term in child.toRDFTuple() if isinstance(term,Variable)])
     return Rule(clause,declare=vars,nsMapping=nsMap)
 
-def MapDLPtoNetwork(network,factGraph,complementExpansions=[],constructNetwork=False):
-    ruleset=[]
-    for horn_clause in T(factGraph,complementExpansions=complementExpansions):
+def MapDLPtoNetwork(network,factGraph,complementExpansions=[],constructNetwork=False,derivedPreds=[]):
+    ruleset=set()
+    for horn_clause in T(factGraph,complementExpansions=complementExpansions,derivedPreds=derivedPreds):
 #        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
 #        print "## RIF BLD Horn Rules: After LloydTopor: ##"
         for tx_horn_clause in LloydToporTransformation(horn_clause):
@@ -238,7 +257,7 @@ def MapDLPtoNetwork(network,factGraph,complementExpansions=[],constructNetwork=F
                     tx_clause_clone = copy.deepcopy(tx_horn_clause)
 #                    print "\tClause after replacement: ", tx_clause_clone
                     for hc in ExtendN3Rules(network,NormalizeClause(tx_clause_clone),constructNetwork):
-                        ruleset.append(makeRule(hc,network.nsMap))
+                        ruleset.add(makeRule(hc,network.nsMap))
                     #restore the replaced term (for the subsequent iteration)
                     list(breadth_first_replace(tx_horn_clause.body,candidate=item,replacement=disj))
             else:
@@ -247,12 +266,12 @@ def MapDLPtoNetwork(network,factGraph,complementExpansions=[],constructNetwork=F
                 for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause),constructNetwork):
                     _rule=makeRule(hc,network.nsMap)
                     if _rule is not None:
-                        ruleset.append(_rule)                    
+                        ruleset.add(_rule)                    
             #Extract free variables anre add rule to ruleset
 #        print "#######################"
 #    print "########## Finished Building decision network from DLP ##########"
     #renderNetwork(network).write_graphviz('out.dot')
-    return ruleset
+    return iter(ruleset)
 
 def IsaFactFormingConclusion(head):
     """
@@ -437,7 +456,7 @@ def IsaBooleanClassDescription(term,owlGraph):
 def IsaRestriction(term,owlGraph):
     return (term,RDF.type,OWL_NS.Restriction) in owlGraph
     
-def T(owlGraph,complementExpansions=[]):
+def T(owlGraph,complementExpansions=[],derivedPreds=[]):
     """
     #Subsumption (purely for TBOX classification)
     {?C rdfs:subClassOf ?SC. ?A rdfs:subClassOf ?C} => {?A rdfs:subClassOf ?SC}.
@@ -456,7 +475,8 @@ def T(owlGraph,complementExpansions=[]):
         yield NormalizeClause(Clause(Tb(owlGraph,c),Th(owlGraph,d)))
         assert isinstance(c,URIRef),"%s is a kind of %s"%(c,d)
     for c,p,d in owlGraph.triples((None,OWL_NS.equivalentClass,None)):
-        yield NormalizeClause(Clause(Tb(owlGraph,c),Th(owlGraph,d)))
+        if c not in derivedPreds:
+            yield NormalizeClause(Clause(Tb(owlGraph,c),Th(owlGraph,d)))
         yield NormalizeClause(Clause(Tb(owlGraph,d),Th(owlGraph,c)))
     for s,p,o in owlGraph.triples((None,OWL_NS.intersectionOf,None)):
         if s not in complementExpansions:
@@ -464,22 +484,27 @@ def T(owlGraph,complementExpansions=[]):
             for bodyTerm in Collection(owlGraph,o):
                 normalizedBodyTerm=NormalizeBooleanClassOperand(bodyTerm,owlGraph)
                 bodyUniTerm = Uniterm(RDF.type,[Variable("X"),normalizedBodyTerm],
-                                      newNss=owlGraph.namespaces())                                    
-                classifyingClause = NormalizeClause(Clause(Tb(owlGraph,bodyTerm),
-                                                 bodyUniTerm))
+                                      newNss=owlGraph.namespaces())
+                processedBodyTerm=first(Tb(owlGraph,bodyTerm))
+#                from FuXi.Syntax.InfixOWL import Class
+#                print first(Tb(owlGraph,bodyTerm)), bodyTerm, s, Collection(owlGraph,o).n3(),Class(s)                                     
+                classifyingClause = NormalizeClause(Clause(processedBodyTerm,bodyUniTerm))
+                redundantClassifierClause = processedBodyTerm == bodyUniTerm
                 if isinstance(bodyTerm,URIRef) and bodyTerm.find(SKOLEMIZED_CLASS_NS)==-1:
                     conjunction.append(bodyUniTerm)
                 elif (bodyTerm,OWL_NS.someValuesFrom,None) in owlGraph or\
                      (bodyTerm,OWL_NS.hasValue,None) in owlGraph:                    
                     conjunction.extend(NormalizeClause(Clause(Tb(owlGraph,bodyTerm),None)).body)
                 elif (bodyTerm,OWL_NS.allValuesFrom,None) in owlGraph:
-                    conjunction.append(bodyUniTerm)                    
-                    yield classifyingClause
+                    conjunction.append(bodyUniTerm)                  
+                    if not redundantClassifierClause:  
+                        yield classifyingClause
                 elif (bodyTerm,OWL_NS.hasValue,None) in owlGraph:
                     conjunction.extend(NormalizeClause(Clause(Tb(owlGraph,bodyTerm),None)).body)
                 elif (bodyTerm,OWL_NS.unionOf,None) in owlGraph:
-                    conjunction.append(bodyUniTerm)                    
-                    yield classifyingClause
+                    conjunction.append(bodyUniTerm)
+                    if not redundantClassifierClause:                    
+                        yield classifyingClause
                 elif (bodyTerm,OWL_NS.intersectionOf,None) in owlGraph:
                     conjunction.append(bodyUniTerm)                    
                     
@@ -493,8 +518,9 @@ def T(owlGraph,complementExpansions=[]):
 #                S(?X) => O1 ^ O2 ^ ... ^ On                
     #            special case, owl:intersectionOf is a neccessary and sufficient
     #            criteria and should thus work in *both* directions 
-    #            This rule is not added for anonymous classes
-                yield Clause(head,body)
+    #            This rule is not added for anonymous classes or derived predicates
+                if s not in derivedPreds:
+                    yield Clause(head,body)
         
     for s,p,o in owlGraph.triples((None,OWL_NS.unionOf,None)):
         if isinstance(s,URIRef):
@@ -554,7 +580,7 @@ def T(owlGraph,complementExpansions=[]):
             head = Uniterm(RDF.type,[x,o],newNss=owlGraph.namespaces())
             yield Clause(body,head)
             
-def LloydToporTransformation(clause,fullReduction=False):
+def LloydToporTransformation(clause,fullReduction=True):
     """
     Tautological, common horn logic forms (useful for normalizing 
     conjunctive & disjunctive clauses)
@@ -567,18 +593,18 @@ def LloydToporTransformation(clause,fullReduction=False):
                                        H :- B0 }
     """
     assert isinstance(clause,OriginalClause),repr(clause)
+    assert isinstance(clause.body,Condition),repr(clause)
     if isinstance(clause.body,Or):
         for atom in clause.body.formulae:
-            yield Clause(atom,clause.head)
+            if hasattr(atom, 'next'):
+                atom=first(atom)
+            yield NormalizeClause(Clause(atom,clause.head))
     elif isinstance(clause.head,OriginalClause):
-        yield Clause(And([clause.body,clause.head.body]),clause.head.head)
+        yield NormalizeClause(Clause(And([clause.body,clause.head.body]),clause.head.head))
     elif isinstance(clause.head,Or):
         #Disjunction in the body, not supported by def-Horn
         #skip
-        return
-    elif not isinstance(clause.body,Condition):
-        print clause
-        raise
+        pass
     elif fullReduction and isinstance(clause.head,And):
         for i in clause.head:
             for j in LloydToporTransformation(Clause(clause.body,i),
@@ -608,7 +634,6 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
     props = list(set(owlGraph.predicates(subject=_class)))
     if OWL_NS.allValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#owl_allValuesFrom
-        #restriction(p allValuesFrom(r))    {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) implies y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(r)}
         for s,p,o in owlGraph.triples((_class,OWL_NS.allValuesFrom,None)):
             prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
             newVar = Variable(BNode())
@@ -617,7 +642,6 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
                 yield Clause(body,head)
     elif OWL_NS.someValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#someValuesFrom
-        #estriction(p someValuesFrom(e)) {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®¬¨¬¢ <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®‚Äö√†¬¥ y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(e)}
         for s,p,o in owlGraph.triples((_class,OWL_NS.someValuesFrom,None)):
             prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
             newVar = BNode()
@@ -638,13 +662,14 @@ def Tb(owlGraph,_class,variable=Variable('X')):
     props = list(set(owlGraph.predicates(subject=_class)))
     if OWL_NS.unionOf in props and not isinstance(_class,URIRef):
         #http://www.w3.org/TR/owl-semantics/#owl_unionOf
-        #OWL semantics: unionOf(c1 ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•¬¨¬®¬¨¬Æ¬¨¬®¬¨√Ü‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞ cn) => EC(c1) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•¬¨¬®¬¨¬Æ¬¨¬®¬¨¬¢ ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•¬¨¬®¬¨¬Æ¬¨¬®¬¨√Ü‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚àö¬∞ ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂¬¨¬•¬¨¬®¬¨¬Æ¬¨¬®¬¨¬¢ EC(cn)
+        returned=False
         for s,p,o in owlGraph.triples((_class,OWL_NS.unionOf,None)):
+            returned=True
             yield Or([Tb(owlGraph,c,variable=variable) \
                            for c in Collection(owlGraph,o)])
+        assert returned
     elif OWL_NS.someValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#owl_someValuesFrom
-        #estriction(p someValuesFrom(e)) {x ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† O | ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®¬¨¬¢ <x,y> ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† ER(p) ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ¬¨¬®‚Äö√†¬¥ y ‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√†√∂‚àö¬¥‚Äö√Ñ√∂‚àö‚Ä†‚àö‚àÇ‚Äö√Ñ√∂‚àö‚Ä†‚àö√°‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä†‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚Äö√Ñ‚Ä†‚Äö√†√∂‚Äö√†√á‚Äö√Ñ√∂‚àö√ë‚àö‚àÇ‚Äö√†√∂‚àö√´‚Äö√Ñ√∂‚àö√ë‚Äö√Ñ‚Ä† EC(e)}
         prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
         o =list(owlGraph.objects(subject=_class,predicate=OWL_NS.someValuesFrom))[0]
         newVar = Variable(BNode())

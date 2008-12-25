@@ -486,8 +486,6 @@ def T(owlGraph,complementExpansions=[],derivedPreds=[]):
                 bodyUniTerm = Uniterm(RDF.type,[Variable("X"),normalizedBodyTerm],
                                       newNss=owlGraph.namespaces())
                 processedBodyTerm=first(Tb(owlGraph,bodyTerm))
-#                from FuXi.Syntax.InfixOWL import Class
-#                print first(Tb(owlGraph,bodyTerm)), bodyTerm, s, Collection(owlGraph,o).n3(),Class(s)                                     
                 classifyingClause = NormalizeClause(Clause(processedBodyTerm,bodyUniTerm))
                 redundantClassifierClause = processedBodyTerm == bodyUniTerm
                 if isinstance(bodyTerm,URIRef) and bodyTerm.find(SKOLEMIZED_CLASS_NS)==-1:

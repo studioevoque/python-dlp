@@ -16,6 +16,17 @@ def HornFromN3(n3Stream):
     store._finalize()
     return Ruleset(n3Rules=store.rules,nsMapping=store.nsMgr)
 
+def extractVariables(term,existential=True):
+    if isinstance(term,existential and BNode or Variable):
+        yield term
+    elif isinstance(term,Uniterm):
+        for t in term.toRDFTuple():
+            if isinstance(t,existential and BNode or Variable):
+                yield t
+                
+def iterCondition(condition):
+    return isinstance(condition,SetOperator) and condition or iter([condition])
+                
 class Ruleset(object):
     """
     Ruleset ::= RULE*
@@ -25,6 +36,7 @@ class Ruleset(object):
         self.nsMapping = nsMapping and nsMapping or {}        
         self.formulae = formulae and formulae or []
         if n3Rules:
+            from FuXi.DLP import breadth_first
             #Convert a N3 abstract model (parsed from N3) into a RIF BLD 
             for lhs,rhs in n3Rules:
                 allVars = set()
@@ -33,13 +45,37 @@ class Ruleset(object):
                         if isinstance(stmt,N3Builtin):
                             ExternalFunction(stmt,newNss=self.nsMapping)
 #                            print stmt;raise
-                        allVars.update([term for term in stmt if isinstance(term,Variable)])
+                        allVars.update([term for term in stmt if isinstance(term,(BNode,Variable))])
                 body = [isinstance(term,N3Builtin) and term or
                          Uniterm(list(term)[1],[list(term)[0],list(term)[-1]],
                                  newNss=nsMapping) for term in lhs]
                 body = len(body) == 1 and body[0] or And(body)
                 head = [Uniterm(p,[s,o],newNss=nsMapping) for s,p,o in rhs]
                 head = len(head) == 1 and head[0] or And(head)
+                
+                #first we identify body variables                        
+                bodyVars = set(reduce(lambda x,y:x+y,
+                                      [ list(extractVariables(i,existential=False)) 
+                                                for i in iterCondition(body) ]))
+                #then we identify head variables
+                headVars = set(reduce(lambda x,y:x+y,
+                                      [ list(extractVariables(i,existential=False)) 
+                                                for i in iterCondition(head) ]))
+                
+                #then we identify those variables that should (or should not) be converted to skolem terms
+                updateDict       = dict([(var,BNode()) for var in headVars if var not in bodyVars])
+                
+                for uniTerm in iterCondition(head):
+                    newArg      = [ updateDict.get(i,i) for i in uniTerm.arg ]
+                    uniTerm.arg = newArg
+                                        
+                exist=[list(extractVariables(i)) for i in breadth_first(head)]
+                e=Exists(formula=head,
+                         declare=set(reduce(lambda x,y:x+y,exist,[])))        
+                if reduce(lambda x,y:x+y,exist):
+                    head=e
+                    assert e.declare,exist    
+                
                 self.formulae.append(Rule(Clause(body,head),declare=allVars))
 
     def __iter__(self):

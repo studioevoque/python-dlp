@@ -56,7 +56,7 @@ from rdflib.store.REGEXMatching import REGEXTerm, NATIVE_REGEX, PYTHON_REGEX
 from FuXi.Rete.RuleStore import Formula
 from FuXi.Rete.AlphaNode import AlphaNode
 from FuXi.Horn.PositiveConditions import And, Or, Uniterm, Condition, Atomic,SetOperator,Exists
-from FuXi.Horn.HornRules import Clause as OriginalClause
+from FuXi.Horn.HornRules import Clause as OriginalClause, Rule
 from FuXi.Rete.Util import renderNetwork
 from cStringIO import StringIO
 
@@ -262,7 +262,6 @@ def MapDLPtoNetwork(network,factGraph,complementExpansions=[],constructNetwork=F
                     list(breadth_first_replace(tx_horn_clause.body,candidate=item,replacement=disj))
             else:
 #                print "No Disjunction in the body"
-#                print tx_horn_clause
                 for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause),constructNetwork):
                     _rule=makeRule(hc,network.nsMap)
                     if _rule is not None:
@@ -412,7 +411,7 @@ def ExtendN3Rules(network,horn_clause,constructNetwork=False):
             ruleStore.rules.append((ruleStore.formulae[lhs],ruleStore.formulae[rhs]))
             network.buildNetwork(iter(ruleStore.formulae[lhs]),
                                  iter(ruleStore.formulae[rhs]),
-                                 horn_clause)
+                                 Rule(horn_clause))
             network.alphaNodes = [node for node in network.nodes.values() if isinstance(node,AlphaNode)]
         rt.append(horn_clause)
     else:
@@ -438,7 +437,7 @@ def generatorFlattener(gen):
     else:
         return i
 
-def SkolemizeExistentialClasses(term,check=False):
+def SkolemizeExistentialClasses(term,check=True):
     if check:
         return isinstance(term,BNode) and SKOLEMIZED_CLASS_NS[term] or term
     return SKOLEMIZED_CLASS_NS[term]
@@ -455,6 +454,9 @@ def IsaBooleanClassDescription(term,owlGraph):
 
 def IsaRestriction(term,owlGraph):
     return (term,RDF.type,OWL_NS.Restriction) in owlGraph
+
+def iterCondition(condition):
+    return isinstance(condition,SetOperator) and condition or iter([condition])
     
 def T(owlGraph,complementExpansions=[],derivedPreds=[]):
     """
@@ -488,17 +490,17 @@ def T(owlGraph,complementExpansions=[],derivedPreds=[]):
                 processedBodyTerm=first(Tb(owlGraph,bodyTerm))
                 classifyingClause = NormalizeClause(Clause(processedBodyTerm,bodyUniTerm))
                 redundantClassifierClause = processedBodyTerm == bodyUniTerm
-                if isinstance(bodyTerm,URIRef) and bodyTerm.find(SKOLEMIZED_CLASS_NS)==-1:
+                if isinstance(normalizedBodyTerm,URIRef) and normalizedBodyTerm.find(SKOLEMIZED_CLASS_NS)==-1:
                     conjunction.append(bodyUniTerm)
                 elif (bodyTerm,OWL_NS.someValuesFrom,None) in owlGraph or\
                      (bodyTerm,OWL_NS.hasValue,None) in owlGraph:                    
-                    conjunction.extend(NormalizeClause(Clause(Tb(owlGraph,bodyTerm),None)).body)
+                    conjunction.extend(classifyingClause.body)
                 elif (bodyTerm,OWL_NS.allValuesFrom,None) in owlGraph:
                     conjunction.append(bodyUniTerm)                  
                     if not redundantClassifierClause:  
                         yield classifyingClause
                 elif (bodyTerm,OWL_NS.hasValue,None) in owlGraph:
-                    conjunction.extend(NormalizeClause(Clause(Tb(owlGraph,bodyTerm),None)).body)
+                    conjunction.extend(classifyingClause.body)
                 elif (bodyTerm,OWL_NS.unionOf,None) in owlGraph:
                     conjunction.append(bodyUniTerm)
                     if not redundantClassifierClause:                    
@@ -508,7 +510,7 @@ def T(owlGraph,complementExpansions=[],derivedPreds=[]):
                     
             body = And(conjunction)
             head = Uniterm(RDF.type,[Variable("X"),
-                                     SkolemizeExistentialClasses(s,check=True)],
+                                     SkolemizeExistentialClasses(s)],
                                      newNss=owlGraph.namespaces())
 #            O1 ^ O2 ^ ... ^ On => S(?X)            
             yield Clause(body,head)
@@ -647,9 +649,10 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
                         generatorFlattener(Th(owlGraph,o,variable=newVar))])
     else:
         #Simple class
-        assert not isinstance(_class,BNode),\
-        "Cannot conclude existensial set membership"+_class
-        yield Uniterm(RDF.type,[variable,_class],newNss=owlGraph.namespaces())
+        yield Uniterm(RDF.type,[variable,
+                                isinstance(_class,BNode) and SkolemizeExistentialClasses(_class) or _class],
+                                newNss=owlGraph.namespaces())
+            
     
 def Tb(owlGraph,_class,variable=Variable('X')):
     """
@@ -685,5 +688,5 @@ def Tb(owlGraph,_class,variable=Variable('X')):
     else:
         #simple class
         #"Named" Uniterm
-        _classTerm=SkolemizeExistentialClasses(_class,check=True)
+        _classTerm=SkolemizeExistentialClasses(_class)
         yield Uniterm(RDF.type,[variable,_classTerm],newNss=owlGraph.namespaces())

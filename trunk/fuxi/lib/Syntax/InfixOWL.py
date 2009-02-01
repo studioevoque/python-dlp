@@ -269,6 +269,9 @@ class Individual(object):
     A typed individual
     """
     factoryGraph = Graph()
+    def serialize(self,graph):
+        for fact in self.graph.triples((self.identifier,None,None)):
+            graph.add(fact)
     def __init__(self, identifier=None,graph=None):
         self.__identifier = identifier is not None and identifier or BNode()
         if graph is None:
@@ -360,7 +363,7 @@ class Ontology(AnnotatibleTerms):
     def __init__(self, identifier=None,imports=None,comment=None,graph=None):
         super(Ontology, self).__init__(identifier,graph)
         self.imports = imports and imports or []
-        self.comment = imports and imports or []
+        self.comment = comment and comment or []
         if (self.identifier,RDF.type,OWL_NS.Ontology) not in self.graph:
             self.graph.add((self.identifier,RDF.type,OWL_NS.Ontology))
 
@@ -449,10 +452,10 @@ class Class(AnnotatibleTerms):
     
     See: http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf:
     
-    â€˜Class:â€™ classID {Annotation
-                  ( (â€˜SubClassOf:â€™ ClassExpression)
-                  | (â€˜EquivalentToâ€™ ClassExpression)
-                  | (â€™DisjointWithâ€™ ClassExpression)) }
+    ÔClass:Õ classID {Annotation
+                  ( (ÔSubClassOf:Õ ClassExpression)
+                  | (ÔEquivalentToÕ ClassExpression)
+                  | (ÕDisjointWithÕ ClassExpression)) }
     
     Appropriate excerpts from OWL Reference:
     
@@ -468,6 +471,17 @@ class Class(AnnotatibleTerms):
       description."
       
     """
+    def serialize(self,graph):
+        Individual.serialize(self,graph)
+        for cl in self.subClassOf:
+            cl.serialize(graph)
+        for cl in self.equivalentClass:
+            cl.serialize(graph)
+        for cl in self.disjointWith:
+            cl.serialize(graph)
+        if self.complementOf:
+            self.complementOf.serialize(graph)
+    
     def __init__(self, identifier=None,subClassOf=None,equivalentClass=None,
                        disjointWith=None,complementOf=None,graph=None,
                        skipOWLClassMembership = False,comment=None):

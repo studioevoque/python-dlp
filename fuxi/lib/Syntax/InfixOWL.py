@@ -270,7 +270,7 @@ class Individual(object):
     """
     factoryGraph = Graph()
     def serialize(self,graph):
-        for fact in self.graph.triples((self.identifier,None,None)):
+        for fact in self.factoryGraph.triples((self.identifier,None,None)):
             graph.add(fact)
     def __init__(self, identifier=None,graph=None):
         self.__identifier = identifier is not None and identifier or BNode()
@@ -452,10 +452,10 @@ class Class(AnnotatibleTerms):
     
     See: http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf:
     
-    ÔClass:Õ classID {Annotation
-                  ( (ÔSubClassOf:Õ ClassExpression)
-                  | (ÔEquivalentToÕ ClassExpression)
-                  | (ÕDisjointWithÕ ClassExpression)) }
+    ï¿½Class:ï¿½ classID {Annotation
+                  ( (ï¿½SubClassOf:ï¿½ ClassExpression)
+                  | (ï¿½EquivalentToï¿½ ClassExpression)
+                  | (ï¿½DisjointWithï¿½ ClassExpression)) }
     
     Appropriate excerpts from OWL Reference:
     

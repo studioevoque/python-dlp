@@ -452,10 +452,10 @@ class Class(AnnotatibleTerms):
     
     See: http://owl-workshop.man.ac.uk/acceptedLong/submission_9.pdf:
     
-    �Class:� classID {Annotation
-                  ( (�SubClassOf:� ClassExpression)
-                  | (�EquivalentTo� ClassExpression)
-                  | (�DisjointWith� ClassExpression)) }
+    ‘Class:’ classID {Annotation
+                  ( (‘SubClassOf:’ ClassExpression)
+                  | (‘EquivalentTo’ ClassExpression)
+                  | (’DisjointWith’ ClassExpression)) }
     
     Appropriate excerpts from OWL Reference:
     
@@ -472,7 +472,8 @@ class Class(AnnotatibleTerms):
       
     """
     def serialize(self,graph):
-        Individual.serialize(self,graph)
+        for fact in self.graph.triples((self.identifier,None,None)):
+            graph.add(fact)
         for cl in self.subClassOf:
             cl.serialize(graph)
         for cl in self.equivalentClass:
@@ -496,8 +497,8 @@ class Class(AnnotatibleTerms):
             self.complementOf    = complementOf
         self.comment = comment and comment or []
         
-    def _get_extent(self):
-        for member in self.graph.subjects(predicate=RDF.type,
+    def _get_extent(self,graph=None):
+        for member in (graph is None and self.graph or graph).subjects(predicate=RDF.type,
                                           object=self.identifier):
             yield member
     def _set_extent(self,other):

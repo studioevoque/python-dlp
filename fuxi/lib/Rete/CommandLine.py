@@ -45,6 +45,9 @@ Options:
                              using an extension of the manchester OWL syntax
                              with indications for ontology normalization
                              (http://www.cs.man.ac.uk/~rector/papers/rector-modularisation-kcap-2003-distrib.pdf)
+  --class                    Used in combination with --man-owl and --extract to determine which specific class is serialized / extracted
+  --property                 Used in combination with --man-owl and --extract to determine which specific property is serialized / extracted
+  --extract                  The identified properties and classes will be extracted from the factfiles 
   --normalize                Will attempt to determine if the ontology is 'normalized' [Rector, A. 2003]                             
   --help
   --input-format=<FORMAT>    Determines the format of the RDF document(s) which
@@ -96,10 +99,13 @@ def main():
                                                       "rules=",
                                                       "normalize",
                                                       "man-owl",
+                                                      "class=",
+                                                      "property=",
                                                       "dlp",
                                                       "pDSemantics",
                                                       "complementExpand",
                                                       "stdin",
+                                                      "extract",
                                                       "help",
                                                       "ruleFacts",
                                                       "graphviz-out=",
@@ -124,8 +130,11 @@ def main():
     stdIn = False
     closure = False
     dlp = False
+    extract=False
     manOWL = False
     normalize=False
+    _class=[]
+    _property=[]
     if not opts:
         usage()
         sys.exit()        
@@ -138,6 +147,12 @@ def main():
             stdIn = True
         elif o == '--optimize':
             optimize = True            
+        elif o == '--extract':
+            extract = True
+        elif o == '--class':
+            _class = a.split(',')
+        elif o == '--property':
+            _property = a.split(',')
         elif o == '--normalize':
             normalize = True            
         elif o == '--output':
@@ -170,7 +185,7 @@ def main():
     
     namespace_manager = NamespaceManager(Graph())
     for prefix,uri in nsBinds.items():
-        namespace_manager.bind(prefix, uri, override=False)    
+        namespace_manager.bind(prefix, uri, override=False)
     ruleStore=N3RuleStore()
     nsMgr = NamespaceManager(Graph(ruleStore))
     ruleGraph = Graph(ruleStore,namespace_manager=nsMgr)
@@ -194,9 +209,23 @@ def main():
             factGraph.parse(fileN,format=factFormat)
     if stdIn:
         factGraph.parse(sys.stdin,format=factFormat)
+                
     workingMemory = generateTokenSet(factGraph)
     nsBinds.update(ruleStore.nsMgr)
-    if dlp:
+    if extract:
+        mapping = dict(namespace_manager.namespaces())
+        newGraph=Graph(namespace_manager=namespace_manager)
+        for cl in _class:
+            pref,uri=cl.split(':')
+            c = CastClass(URIRef(mapping[pref]+uri),factGraph)
+            c.serialize(newGraph)
+        for p in _property:
+            pref,uri=p.split(':')
+            p = Property(URIRef(mapping[pref]+uri),factGraph)
+            p.serialize(newGraph)
+        print newGraph.serialize(format=outMode)
+        print list(newGraph.namespaces())        
+    elif dlp:
         if complementExpansion:
             Individual.factoryGraph = factGraph
             def topList(node,g):
@@ -212,9 +241,9 @@ def main():
                                                     [OWL_NS.intersectionOf,
                                                      OWL_NS.unionOf],
                                                      prevLink)):
-                    _class = Class(s)
+                    c = Class(s)
         #            print _class.__repr__(True,True)            
-                    ComplementExpansion(_class)        
+                    ComplementExpansion(c)        
         if pDSemantics:
             ruleGraph.parse(StringIO(non_DHL_OWL_Semantics),format='n3')
         network = ReteNetwork(ruleStore,
@@ -223,7 +252,17 @@ def main():
                               nsMap = nsBinds)
         print >>sys.stderr,"Building DLP ruleset"
         start = time.time()  
-        rules=MapDLPtoNetwork(network,factGraph)
+        
+        if _class:
+            mapping = dict(namespace_manager.namespaces())
+            newGraph=Graph(namespace_manager=namespace_manager)
+            for c in _class:
+                pref,uri=c.split(':')
+                c = CastClass(URIRef(mapping[pref]+uri),factGraph)
+                c.serialize(newGraph)
+            rules=MapDLPtoNetwork(network,newGraph)
+        else:
+            rules=MapDLPtoNetwork(network,factGraph)
         sTime = time.time() - start
         if sTime > 1:
             sTimeStr = "%s seconds"%sTime
@@ -243,80 +282,91 @@ def main():
                               inferredTarget = closureDeltaGraph,
                               graphVizOutFile = gVizOut,
                               nsMap = nsBinds)
-    start = time.time()  
-    network.feedFactsToAdd(workingMemory)
-    sTime = time.time() - start
-    if sTime > 1:
-        sTimeStr = "%s seconds"%sTime
-    else:
-        sTime = sTime * 1000
-        sTimeStr = "%s milli seconds"%sTime
-    print >>sys.stderr,"Time to calculate closure on working memory: ",sTimeStr
+    if not extract:
+        start = time.time()  
+        network.feedFactsToAdd(workingMemory)
+        sTime = time.time() - start
+        if sTime > 1:
+            sTimeStr = "%s seconds"%sTime
+        else:
+            sTime = sTime * 1000
+            sTimeStr = "%s milli seconds"%sTime
+        print >>sys.stderr,"Time to calculate closure on working memory: ",sTimeStr
         
-    if outMode == 'conflict':
-        tNodeOrder = [tNode for tNode in network.terminalNodes if network.instanciations[tNode]]
-        tNodeOrder.sort(key=lambda x:network.instanciations[x],reverse=True)
-        for termNode in tNodeOrder:
-            lhsF,rhsF = termNode.ruleFormulae
-            print >>sys.stderr,termNode
-            #print "\t %s => %s"%(lhsF,rhsF)
-            print >>sys.stderr,"\t", rhsF
-            print >>sys.stderr,"\t\t%s instanciations"%network.instanciations[termNode]
-    else:        
-        if manOWL:
-            cGraph = network.closureGraph(factGraph,readOnly=False)
-#            cloneGraph = Graph()
-#            cloneGraph += cGraph
-            cGraph.namespace_manager = namespace_manager
-            Individual.factoryGraph = cGraph
-            for p in AllProperties(cGraph):
-                print p.identifier
-                print repr(p)
-            for c in AllClasses(cGraph):#cGraph.subjects(predicate=RDF.type,object=OWL_NS.Class):
-                if normalize:
-                    if c.isPrimitive():
-                        primAnc = [sc for sc in c.subClassOf if sc.isPrimitive()] 
-                        if len(primAnc)>1:
-                            warnings.warn("Branches of primitive skeleton taxonomy should form trees: %s has %s primitive parents: %s"%(c.qname,
-                                                                                                                                        len(primAnc),
-                                                                                                                                        primAnc),UserWarning,1)
-                        children = [desc for desc in c.subSumpteeIds()]
-                        for child in children:
-                            for otherChild in [o for o in children if o is not child]:
-                                if not otherChild in [c.identifier for c in Class(child).disjointWith]:# and\
-                                   #not child in [c.identifier for c in Class(otherChild).disjointWith]:
-                                    warnings.warn("Primitive children (of %s) must be mutually disjoint: %s and %s"%(
-                                                                                    c.qname,
-                                                                                    Class(child).qname,
-                                                                                    Class(otherChild).qname),UserWarning,1)
-                if not isinstance(c.identifier,BNode):
-                    print c.__repr__(True)
-        elif closure:
-            #FIXME: The code below *should* work
-            cGraph = network.closureGraph(factGraph)
-            cGraph.namespace_manager = namespace_manager
-            print cGraph.serialize(destination=None, format=outMode, base=None)
-        elif proove:
-            goalGraph=Graph()
-            goalGraph.parse(StringIO(proove),format='n3')
-            print proove,len(goalGraph)
-            assert len(goalGraph),"Empty goal!"
-            goal=list(goalGraph)[0]
-            builder,proof=GenerateProof(network,goal)
-            if outMode == 'dot':
-                builder.renderProof(proof).write_graphviz('proof.dot')
-            elif outMode == 'pml':
-                proofGraph=Graph()
-                proofGraph.namespace_manager = namespace_manager
-                builder.serialize(proof,proofGraph)
-                print proofGraph.serialize(format='pretty-xml')                
-            else:
-                for step in builder.trace:
-                    print step
-        elif not outMode =='rif':
-            print network.inferredFacts.serialize(destination=None, format=outMode, base=None)
-        
-    print >> sys.stderr, repr(network)
+        if outMode == 'conflict':
+            tNodeOrder = [tNode for tNode in network.terminalNodes if network.instanciations[tNode]]
+            tNodeOrder.sort(key=lambda x:network.instanciations[x],reverse=True)
+            for termNode in tNodeOrder:
+                lhsF,rhsF = termNode.ruleFormulae
+                print >>sys.stderr,termNode
+                #print "\t %s => %s"%(lhsF,rhsF)
+                print >>sys.stderr,"\t", rhsF
+                print >>sys.stderr,"\t\t%s instanciations"%network.instanciations[termNode]
+        else:        
+            if manOWL:
+                cGraph = network.closureGraph(factGraph,readOnly=False)
+    #            cloneGraph = Graph()
+    #            cloneGraph += cGraph
+                cGraph.namespace_manager = namespace_manager
+                Individual.factoryGraph = cGraph
+                if _class:
+                    mapping = dict(namespace_manager.namespaces())
+                    for c in _class:
+                        pref,uri=_class.split(':')
+                        print Class(URIRef(mapping[pref]+uri)).__repr__(True)
+                elif _property:
+                    mapping = dict(namespace_manager.namespaces())
+                    for p in _property:
+                        pref,p.split(':')
+                        print Property(URIRef(mapping[pref]+uri))
+                else:
+                    for p in AllProperties(cGraph):
+                        print p.identifier
+                        print repr(p)
+                    for c in AllClasses(cGraph):#cGraph.subjects(predicate=RDF.type,object=OWL_NS.Class):
+                        if normalize:
+                            if c.isPrimitive():
+                                primAnc = [sc for sc in c.subClassOf if sc.isPrimitive()] 
+                                if len(primAnc)>1:
+                                    warnings.warn("Branches of primitive skeleton taxonomy should form trees: %s has %s primitive parents: %s"%(c.qname,
+                                                                                                                                                len(primAnc),
+                                                                                                                                                primAnc),UserWarning,1)
+                                children = [desc for desc in c.subSumpteeIds()]
+                                for child in children:
+                                    for otherChild in [o for o in children if o is not child]:
+                                        if not otherChild in [c.identifier for c in Class(child).disjointWith]:# and\
+                                           #not child in [c.identifier for c in Class(otherChild).disjointWith]:
+                                            warnings.warn("Primitive children (of %s) must be mutually disjoint: %s and %s"%(
+                                                                                            c.qname,
+                                                                                            Class(child).qname,
+                                                                                            Class(otherChild).qname),UserWarning,1)
+                        if not isinstance(c.identifier,BNode):
+                            print c.__repr__(True)
+            elif closure:
+                #FIXME: The code below *should* work
+                cGraph = network.closureGraph(factGraph)
+                cGraph.namespace_manager = namespace_manager
+                print cGraph.serialize(destination=None, format=outMode, base=None)
+            elif proove:
+                goalGraph=Graph()
+                goalGraph.parse(StringIO(proove),format='n3')
+                print proove,len(goalGraph)
+                assert len(goalGraph),"Empty goal!"
+                goal=list(goalGraph)[0]
+                builder,proof=GenerateProof(network,goal)
+                if outMode == 'dot':
+                    builder.renderProof(proof).write_graphviz('proof.dot')
+                elif outMode == 'pml':
+                    proofGraph=Graph()
+                    proofGraph.namespace_manager = namespace_manager
+                    builder.serialize(proof,proofGraph)
+                    print proofGraph.serialize(format='pretty-xml')                
+                else:
+                    for step in builder.trace:
+                        print step
+            elif not outMode =='rif':
+                print network.inferredFacts.serialize(destination=None, format=outMode, base=None)
+        print >> sys.stderr, repr(network)
     store.rollback()
 if __name__ == "__main__":
     main()

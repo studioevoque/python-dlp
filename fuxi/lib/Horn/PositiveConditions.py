@@ -28,10 +28,14 @@ class QNameManager(object):
 
 class SetOperator(object):
     def repr(self,operator):
+        nafPrefix = self.naf and 'not ' or ''
         if len(self.formulae)==1:
-            return repr(self.formulae[0])
+            return nafPrefix+repr(self.formulae[0])
         else:
-            return "%s( %s )"%(operator,' '.join([repr(i) for i in self.formulae]))
+            return "%s%s( %s )"%(nafPrefix,operator,' '.join([repr(i) for i in self.formulae]))
+    def remove(self,item):
+        self.formulae.remove(item)
+        
     def __len__(self):
         return len(self.formulae)
 
@@ -51,7 +55,8 @@ class And(QNameManager,SetOperator,Condition):
     ...      Uniterm(RDF.type,[OWL.Class,RDFS.Class])])
     And( rdf:Property(rdfs:comment) rdfs:Class(owl:Class) )
     """
-    def __init__(self,formulae=None):
+    def __init__(self,formulae=None,naf=False):
+        self.naf = naf
         self.formulae = formulae and formulae or []
         QNameManager.__init__(self)
         
@@ -81,7 +86,8 @@ class Or(QNameManager,SetOperator,Condition):
     ...      Uniterm(RDF.type,[OWL.Class,RDFS.Class])])
     Or( rdf:Property(rdfs:comment) rdfs:Class(owl:Class) )
     """
-    def __init__(self,formulae=None):
+    def __init__(self,formulae=None,naf=False):
+        self.naf = naf
         self.formulae = formulae and formulae or []
         QNameManager.__init__(self)
         
@@ -150,7 +156,8 @@ class Uniterm(QNameManager,Atomic):
     >>> Uniterm(RDF.type,[RDFS.comment,RDF.Property])
     rdf:Property(rdfs:comment)
     """
-    def __init__(self,op,arg=None,newNss=None):        
+    def __init__(self,op,arg=None,newNss=None,naf=False):
+        self.naf = naf
         self.op = op
         self.arg = arg and arg or []
         QNameManager.__init__(self)
@@ -160,6 +167,20 @@ class Uniterm(QNameManager,Atomic):
                 self.nsMgr.bind(k,v)
         self._hash=hash(reduce(lambda x,y:str(x)+str(y),
             len(self.arg)==2 and self.toRDFTuple() or [self.op]+self.arg))
+        
+    def renameVariables(self,varMapping):
+        if self.op == RDF.type:
+            self.arg[0]=varMapping.get(self.arg[0],self.arg[0])
+        else:
+            self.arg[0]=varMapping.get(self.arg[0],self.arg[0])
+            self.arg[1]=varMapping.get(self.arg[1],self.arg[1])
+
+    def ground(self,varMapping):
+        if self.op == RDF.type:
+            self.arg[0]=varMapping.get(self.arg[0],self.arg[0])
+        else:
+            self.arg[0]=varMapping.get(self.arg[0],self.arg[0])
+            self.arg[1]=varMapping.get(self.arg[1],self.arg[1])
                 
     def __hash__(self):
         return self._hash
@@ -209,13 +230,46 @@ class Uniterm(QNameManager,Atomic):
                    self.collapseName(term)        
         
     def __repr__(self):
+        negPrefix = self.naf and 'not ' or ''
         if self.op == RDF.type:
             arg0,arg1 = self.arg
-            return "%s(%s)"%(self.normalizeTerm(arg1),self.normalizeTerm(arg0))
+            return "%s%s(%s)"%(negPrefix,self.normalizeTerm(arg1),self.normalizeTerm(arg0))
         else:
-            return "%s(%s)"%(self.normalizeTerm(self.op),
+            return "%s%s(%s)"%(negPrefix,self.normalizeTerm(self.op),
                                 ' '.join([self.normalizeTerm(i) for i in self.arg]))
             
+class PredicateExtentFactory(object):
+    """
+    Creates an object which when indexed returns
+    a Uniterm with the 'registered' symbol and
+    two-tuple argument
+    
+    >>> from rdflib import Namespace, URIRef
+    >>> EX_NS = Namespace('http://example.com/')
+    >>> ns = {'ex':EX_NS}
+    >>> somePredFactory = PredicateExtentFactory(EX_NS.somePredicate,newNss=ns)
+    >>> somePredFactory[(EX_NS.individual1,EX_NS.individual2)]
+    ex:somePredicate(ex:individual1 ex:individual2)
+    >>> somePred2Factory = PredicateExtentFactory(EX_NS.somePredicate,binary=False,newNss=ns)
+    >>> somePred2Factory[EX_NS.individual1]
+    ex:somePredicate(ex:individual1)
+    
+    """
+    def __init__(self,predicateSymbol,binary=True,newNss=None):
+        self.predicateSymbol = predicateSymbol
+        self.binary = binary
+        self.newNss = newNss
+        
+    def term(self, name):
+        return Class(URIRef(self + name))
+
+    def __getitem__(self, args):
+        if self.binary:
+            arg1,arg2=args
+            return Uniterm(self.predicateSymbol,[arg1,arg2],newNss=self.newNss)
+        else:
+            return Uniterm(RDF.type,[args,self.predicateSymbol],newNss=self.newNss)
+                        
 class ExternalFunction(Uniterm):
     """
     An External(ATOMIC) is a call to an externally defined predicate, equality, 

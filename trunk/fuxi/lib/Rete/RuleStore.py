@@ -73,7 +73,7 @@ class Rule(object):
     def __repr__(self):
         return "{%s} => {%s}"%(self.lhs,self.rhs)
 
-def SetupRuleStore(n3Stream=None,additionalBuiltins=None):
+def SetupRuleStore(n3Stream=None,additionalBuiltins=None,makeNetwork=False):
     """
     Sets up a N3RuleStore, a Graph (that uses it as a store, and )
     """
@@ -82,6 +82,11 @@ def SetupRuleStore(n3Stream=None,additionalBuiltins=None):
     ruleGraph = Graph(ruleStore,namespace_manager=nsMgr)            
     if n3Stream:
         ruleGraph.parse(n3Stream,format='n3')
+    if makeNetwork:
+        from Network import ReteNetwork
+        closureDeltaGraph = Graph()
+        network = ReteNetwork(ruleStore,inferredTarget = closureDeltaGraph)        
+        return ruleStore,ruleGraph,network
     return ruleStore,ruleGraph
         
 class N3RuleStore(Store):

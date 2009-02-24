@@ -95,7 +95,8 @@ class Rule(object):
     Forall ?M ?SC ?C ( ?SC(?M) :- And( rdfs:subClassOf(?C ?SC) ?C(?M) ) )
     
     """
-    def __init__(self,clause,declare=None,nsMapping=None):
+    def __init__(self,clause,declare=None,nsMapping=None,negativeStratus=False):
+        self.negativeStratus=negativeStratus
         self.nsMapping = nsMapping and nsMapping or {}
         self.formula = clause
         self.declare = declare and declare or []

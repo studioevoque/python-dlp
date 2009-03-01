@@ -134,7 +134,13 @@ class Rule(object):
         True
         >>> hash(a) == hash(b)
         True
-        
+        >>> EX_NS = Namespace('http://example.com/')
+        >>> a=Clause(Uniterm(RDF.type,[Variable('C'),EX_NS.Foo]),
+        ...          Uniterm(RDF.type,[Variable('C'),EX_NS.Bar]))
+        >>> b=Clause(Uniterm(RDF.type,[Variable('C'),EX_NS.Bar]),
+        ...          Uniterm(RDF.type,[Variable('C'),EX_NS.Foo]))
+        >>> a == b
+        False
         """
         return hash(self.formula)
 
@@ -163,8 +169,10 @@ class Clause(object):
         antHash=HashablePatternList(
                     [term.toRDFTuple() for term in body],skipBNodes=True)
         consHash=HashablePatternList(
-                    [term.toRDFTuple() for term in head],skipBNodes=True)                                                                                            
-        self._hash = hash(antHash) ^ hash(consHash)
+                    [term.toRDFTuple() for term in head],skipBNodes=True)
+        self._bodyHash = hash(antHash)
+        self._headHash = hash(consHash)             
+        self._hash     = hash((self._headHash,self._bodyHash))                                                      
         
     def __eq__(self,other):
         return hash(self)==hash(other)

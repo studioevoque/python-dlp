@@ -3,6 +3,7 @@ from sets import Set
 from FuXi.Rete import *
 from FuXi.Syntax.InfixOWL import *
 from FuXi.Rete.AlphaNode import SUBJECT,PREDICATE,OBJECT,VARIABLE
+from FuXi.Rete.BetaNode import LEFT_MEMORY,RIGHT_MEMORY
 from FuXi.Rete.RuleStore import N3RuleStore
 from FuXi.Rete.Util import renderNetwork,generateTokenSet
 from FuXi.Horn.PositiveConditions import Uniterm, BuildUnitermFromTuple
@@ -35,6 +36,8 @@ RDF_TEST  = Namespace('http://www.w3.org/2000/10/rdf-tests/rdfcore/testSchema#')
 OWL_TEST  = Namespace('http://www.w3.org/2002/03owlt/testOntology#')
 
 MAGIC_PROOFS = True
+
+SINGLE_TEST=''#OWL/FunctionalProperty/premises003'
 
 queryNsMapping={'test':'http://metacognition.info/FuXi/test#',
                 'rdf':'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
@@ -83,16 +86,14 @@ Features2SkipMagic = [
 ]
 
 Tests2Skip = [
-    #'OWL/oneOf/Manifest003.rdf', #logical set equivalence?  (works for magic sets)
-    #'OWL/differentFrom/Manifest002.rdf'  ,#needs log:notEqualTo (works for magic sets)
-    #'OWL/distinctMembers/Manifest001.rdf',#needs log:notEqualTo (works for magic sets)
-    #'OWL/unionOf/Manifest002.rdf',#can't implement set theoretic union for owl:unionOf. (works for magic sets)
+    'OWL/oneOf/Manifest003.rdf', #logical set equivalence?  
+    'OWL/differentFrom/Manifest002.rdf'  ,#needs log:notEqualTo 
+    'OWL/distinctMembers/Manifest001.rdf',#needs log:notEqualTo and list semantics of AllDifferent 
+    'OWL/unionOf/Manifest002.rdf',#can't implement set theoretic union for owl:unionOf.
     'OWL/InverseFunctionalProperty/Manifest001.rdf',#owl:sameIndividualAs deprecated
     'OWL/FunctionalProperty/Manifest001.rdf', #owl:sameIndividualAs deprecated
     'OWL/Nothing/Manifest002.rdf',# owl:sameClassAs deprecated
-    #'OWL/AllDifferent/Manifest001.rdf',#requires support for built-ins (log:notEqualTo), works for magic sets
-    
-    
+    'OWL/AllDifferent/Manifest001.rdf',#requires support for built-ins (log:notEqualTo)
     #Fix for magic set implementation
     #'OWL/TransitiveProperty/Manifest001.rdf', #recursive logic program
     #'OWL/InverseFunctionalProperty/Manifest002.rdf', #need to investigate
@@ -119,10 +120,6 @@ class OwlTestSuite(unittest.TestCase):
         pass
     
     def calculateEntailments(self, factGraph):
-#        print self.network
-        print "Explicit (base) facts"
-#        pprint([BuildUnitermFromTuple(i) for i in factGraph])
-        pprint(list(factGraph))
         start = time.time()  
         self.network.feedFactsToAdd(generateTokenSet(factGraph))                    
         sTime = time.time() - start
@@ -149,13 +146,13 @@ class OwlTestSuite(unittest.TestCase):
 #        if self.network.inferredFacts:
 #            print "Implicit facts: "
 #            print self.network.inferredFacts.serialize(format='turtle')
-        print "ruleset after MST:"                    
-        pprint(list(self.network.rules))
+#        print "ruleset after MST:"                    
+#        pprint(list(self.network.rules))
 #        print "rate of reduction in the size of the program: ", len len(self.network.rules)
         return sTimeStr
 
-    def MagicOWLProof(self,goals,rules,factGraph):
-        print "Goals",[AdornLiteral(goal) for goal in goals]
+    def MagicOWLProof(self,goals,rules,factGraph,conclusionFile):
+#        print "Goals",[AdornLiteral(goal) for goal in goals]
         assert not self.network.rules
         progLen = len(rules)
         magicRuleNo = 0
@@ -163,18 +160,30 @@ class OwlTestSuite(unittest.TestCase):
                                            rules,
                                            goals):
             magicRuleNo+=1
-            self.network.buildNetworkFromClause(rule.formula)    
+            self.network.buildNetworkFromClause(rule)    
             self.network.rules.add(rule)
         print "rate of reduction in the size of the program: ", (100-(float(magicRuleNo)/float(progLen))*100)
         for goal in goals:
+            goal=AdornLiteral(goal).makeMagicPred().toRDFTuple()
             factGraph.add(goal)
         timing=self.calculateEntailments(factGraph)
+#        print self.network.closureGraph(factGraph,readOnly=True).serialize(format='n3')
         for goal in goals:
             if goal not in self.network.inferredFacts and goal not in factGraph:
                 print "missing triple %s"%(pformat(goal))
+                from FuXi.Rete.Util import renderNetwork 
+                pprint([BuildUnitermFromTuple(t) for t in self.network.inferredFacts])
+                dot=renderNetwork(self.network,self.network.nsMap).write_jpeg('test-fail.jpeg')
+                self.network.reportConflictSet(True)
                 raise #Exception ("Failed test: "+feature)
             else:
                 print "=== Passed! ==="
+                if goal in self.network.inferredFacts:
+                    from FuXi.Rete.Proof import GenerateProof
+                    builder,proof=GenerateProof(self.network,goal)
+#                    pGraph=Graph()
+#                    dot=builder.renderProof(goal,
+#                                            self.network.nsMap).write_jpeg('proofs/%s.jpeg'%conclusionFile.replace('/','-'))                
         return timing
        
     def testOwl(self): 
@@ -207,6 +216,8 @@ class OwlTestSuite(unittest.TestCase):
                 print premiseFile
                 print conclusionFile
                 if status == 'APPROVED':
+                    if SINGLE_TEST and premiseFile != SINGLE_TEST:
+                        continue
                     assert os.path.exists('.'.join([premiseFile,'rdf'])) 
                     assert os.path.exists('.'.join([conclusionFile,'rdf']))
                     print "<%s> :- <%s>"%('.'.join([conclusionFile,'rdf']),
@@ -218,9 +229,9 @@ class OwlTestSuite(unittest.TestCase):
                     allFacts = ReadOnlyGraphAggregate([factGraph,self.ruleFactsGraph])
                     Individual.factoryGraph=factGraph
                     
-                    for c in AllClasses(factGraph):
-                        if not isinstance(c.identifier,BNode):
-                            print c.__repr__(True)       
+#                    for c in AllClasses(factGraph):
+#                        if not isinstance(c.identifier,BNode):
+#                            print c.__repr__(True)       
                             
                     if MAGIC_PROOFS:
                         if feature in Features2SkipMagic:
@@ -231,8 +242,8 @@ class OwlTestSuite(unittest.TestCase):
                                                                      factGraph,
                                                                      addPDSemantics=False,
                                                                      constructNetwork=False))
-                        print "Original program"
-                        pprint(program)
+#                        print "Original program"
+#                        pprint(program)
                         timings=[]  
                         #Magic set algorithm is initiated by a query, a single horn ground, 'fact'                    
                         try:   
@@ -240,18 +251,18 @@ class OwlTestSuite(unittest.TestCase):
                             for triple in Graph(store).parse('.'.join([conclusionFile,'rdf'])):
                                 if triple not in factGraph:
                                     goals.add(triple)
-                            timings.append(self.MagicOWLProof(goals,program,factGraph))
+                            timings.append(self.MagicOWLProof(goals,program,factGraph,conclusionFile))
                             self.network._resetinstanciationStats()
                             self.network.reset()
                             self.network.clear()                                
                         except:
-                            print "missing triple %s"%(pformat(goal))
+#                            print "missing triple %s"%(pformat(goal))
                             print manifest, premiseFile
                             print "feature: ", feature
                             print description
-#                            from FuXi.Rete.Util import renderNetwork 
-#                            pprint([BuildUnitermFromTuple(t) for t in self.network.inferredFacts])
-#                            dot=renderNetwork(self.network,self.network.nsMap).write_jpeg('test-fail.jpeg')  
+                            from FuXi.Rete.Util import renderNetwork 
+                            pprint([BuildUnitermFromTuple(t) for t in self.network.inferredFacts])
+                            dot=renderNetwork(self.network,self.network.nsMap).write_jpeg('test-fail.jpeg')
                             raise #Exception ("Failed test: "+feature)
                             
                         testData[manifest] = timings    
@@ -279,7 +290,7 @@ class OwlTestSuite(unittest.TestCase):
                         self.network.reset()
                         self.network._resetinstanciationStats()
                     
-        pprint(testData)
+#        pprint(testData)
 
 def runTests(profile=False):
     suite = unittest.makeSuite(OwlTestSuite)

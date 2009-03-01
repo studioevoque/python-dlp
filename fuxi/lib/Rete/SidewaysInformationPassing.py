@@ -91,8 +91,8 @@ def GetArgs(term,secondOrder=False):
             else:
                 args.append(term.arg[0])
         elif isinstance(term.op,(Variable, BNode)):
-            arg.append(term.op)
-            arg.extend(term.arg)
+            args.append(term.op)
+            args.extend(term.arg)
         else:
             args.extend(term.arg)
         return args
@@ -101,9 +101,9 @@ def GetArgs(term,secondOrder=False):
         
 def IncomingSIPArcs(sip,predOcc):
     """docstring for IncomingSIPArcs"""
-    for s,p,o in [(s1,p1,o1) for (s1,p1,o1) in sip.triples((None,None,predOcc)) 
-        if (p1,RDF.type,MAGIC.SipArc) in sip]:
-        yield Collection(sip,s),Collection(sip,first(sip.objects(p,MAGIC.bindings)))
+    for s,p,o in sip.triples((None,None,predOcc)): 
+        if (p,RDF.type,MAGIC.SipArc) in sip:
+            yield Collection(sip,s),Collection(sip,first(sip.objects(p,MAGIC.bindings)))
         
 def validSip(sipGraph):
     if not len(sipGraph): return False
@@ -172,8 +172,6 @@ def BuildNaturalSIP(clause,derivedPreds,adornedHead):
     from FuXi.Rete.Magic import AdornedUniTerm
     occurLookup={}
     boundHead=isinstance(adornedHead,AdornedUniTerm) and 'b' in adornedHead.adornment
-    if not boundHead:
-        pass
     assert isinstance(clause.head,Uniterm),"Only one literal in the head!"
     def collectSip(left,right):
         if isinstance(left,list):
@@ -188,22 +186,24 @@ def BuildNaturalSIP(clause,derivedPreds,adornedHead):
             vars=CollectSIPArcVars(left,right)
             ph=GetOp(left)
             q=getOccurrenceId(right,occurLookup)
-            arc=SIPGraphArc(ph,q,vars,sipGraph,headPassing=True)
             if boundHead:
+                arc=SIPGraphArc(ph,q,vars,sipGraph,headPassing=boundHead)
                 sipGraph.add((ph,RDF.type,MAGIC.BoundHeadPredicate))
-            rt=[left,right]
+                rt=[left,right]
+            else:
+                leftList=Collection(sipGraph,None)
+                leftList.append(ph)
+                arc=SIPGraphArc(leftList.uri,q,vars,sipGraph)
+                rt=[left,right]
         return rt
     sipGraph=Graph()  
     if isinstance(clause.body,And):
         bodyOrder=first(findFullSip(([clause.head],None), clause.body))
         assert bodyOrder,"Couldn't find a valid SIP for %s"%clause
-        beginingIndex = boundHead and 1 or 2
-        bodyOrder=bodyOrder[beginingIndex:]
-        sipGraph.sipOrder = And(bodyOrder)
+        collectionOrder = boundHead and bodyOrder or bodyOrder[1:]
+        sipGraph.sipOrder = And(collectionOrder)
         reduce(collectSip,
-               boundHead and itertools.chain(
-                                     iterCondition(clause.head),
-                                     iterCondition(And(bodyOrder))) or iterCondition(And(bodyOrder)))
+               iterCondition(And(collectionOrder)))
         #assert validSip(sipGraph),sipGraph.serialize(format='n3')
     else:
         if boundHead:
@@ -231,6 +231,25 @@ def BuildNaturalSIP(clause,derivedPreds,adornedHead):
             col.clear()
     return sipGraph
 
+def SIPRepresentation(sipGraph):
+    def normalizeTerm(uri,sipGraph):
+        return sipGraph.qname(uri).split(':')[-1]
+    for N,prop,q in sipGraph.query(
+        'SELECT ?N ?prop ?q {  ?prop a magic:SipArc . ?N ?prop ?q . }',
+        initNs={u'magic':MAGIC}):
+        if MAGIC.BoundHeadPredicate in sipGraph.objects(subject=N,predicate=RDF.type):
+            NCol = [N]
+        else:
+            NCol=Collection(sipGraph,N)
+        print "{ %s } -> %s %s"%(
+          ', '.join([normalizeTerm(term,sipGraph) 
+                      for term in NCol ]),
+          ', '.join([var.n3() 
+                      for var in Collection(sipGraph,first(sipGraph.objects(prop,
+                                                                            MAGIC.bindings)))]),
+          normalizeTerm(q,sipGraph)
+                              )
+    
 def test():
     import doctest
     doctest.testmod()

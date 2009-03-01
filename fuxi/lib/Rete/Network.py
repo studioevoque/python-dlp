@@ -383,7 +383,8 @@ class ReteNetwork:
         if isinstance(clause.head,Exists):
             BNodeReplacement = dict([(bN,BNode()) 
                                         for bN in clause.head.declare 
-                                            if bN not in clause.body.declare])
+                                            if not isinstance(clause.body,Exists) or 
+                                               bN not in clause.body.declare])
         for rhsTriple in termNode.consequent:
             if BNodeReplacement:
                 rhsTriple = tuple([BNodeReplacement.get(term,term) for term in rhsTriple])

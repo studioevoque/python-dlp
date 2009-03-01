@@ -27,6 +27,9 @@ def SubSumptionExpansion(owlClass):
                 yield member
 
 def ComplementExpansion(owlClass,debug=False):
+    """
+    For binary conjunctions of a positive conjunction concept and a negative atomic concept  
+    """
     owlClass=CastClass(owlClass.identifier,owlClass.graph)
     if isinstance(owlClass,BooleanClass) and \
        len(owlClass) == 2 and owlClass._operator == OWL_NS.intersectionOf:

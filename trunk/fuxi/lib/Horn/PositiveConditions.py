@@ -276,7 +276,7 @@ class ExternalFunction(Uniterm):
     membership, subclassing, or frame. Likewise, External(Expr) is a call to an 
     externally defined function.
     >>> ExternalFunction(Uniterm(URIRef('http://www.w3.org/2000/10/swap/math#greaterThan'),[Variable('VAL'),Literal(2)]))
-    math:greaterThan(?VAL 2)
+    math:greaterThan(?VAL "2"^^<http://www.w3.org/2001/XMLSchema#integer>)
     """
     def __init__(self,builtin,newNss=None):
         from FuXi.Rete.RuleStore import N3RuleStore,N3Builtin

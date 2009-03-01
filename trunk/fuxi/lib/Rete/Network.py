@@ -136,7 +136,7 @@ def _mulPatternWithSubstitutions(tokens,consequent,termNode):
         #     return
         # else:
         for term in consequent:
-            if isinstance(term,Variable) and term in binding:
+            if isinstance(term,(Variable,BNode)) and term in binding:
                 #try:                
                 tripleVals.append(binding[term])
                 #except:
@@ -158,6 +158,7 @@ class ReteNetwork:
                  graphVizOutFile=None,
                  dontFinalize=False,
                  goal=None):
+        self.leanCheck = {}
         self.goal = goal        
         self.nsMap = nsMap
         self.name = name and name or BNode()
@@ -380,7 +381,9 @@ class ReteNetwork:
         #replace existentials in the head with new BNodes!
         BNodeReplacement = {}
         if isinstance(clause.head,Exists):
-            BNodeReplacement = dict([(bN,BNode()) for bN in clause.head.declare])
+            BNodeReplacement = dict([(bN,BNode()) 
+                                        for bN in clause.head.declare 
+                                            if bN not in clause.body.declare])
         for rhsTriple in termNode.consequent:
             if BNodeReplacement:
                 rhsTriple = tuple([BNodeReplacement.get(term,term) for term in rhsTriple])
@@ -391,18 +394,18 @@ class ReteNetwork:
                 if [term for term in inferredTriple if isinstance(term,Variable)]:
                     #Unfullfilled bindings
                     continue
-                #print inferredTriple
                 inferredToken=ReteToken(inferredTriple)
                 self.proofTracers.setdefault(inferredTriple,[]).append(binding)
                 self.justifications.setdefault(inferredTriple,set()).add(termNode)
-                currIdx = self.instanciations.get(termNode,0)
-                currIdx+=1
-                self.instanciations[termNode] = currIdx
                 if inferredTriple not in self.inferredFacts and inferredToken not in self.workingMemory:                    
                     if debug:
                         print "Inferred triple: ", inferredTriple, " from ",termNode 
                     self.inferredFacts.add(inferredTriple)
                     self.addWME(inferredToken)
+                    currIdx = self.instanciations.get(termNode,0)
+                    currIdx+=1
+                    self.instanciations[termNode] = currIdx
+                    
 #                    if self.goal is not None and self.goal in self.inferredFacts:
 #                        return                    
                 elif debug:

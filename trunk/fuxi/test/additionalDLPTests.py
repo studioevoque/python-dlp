@@ -21,106 +21,106 @@ class AdditionalDescriptionLogicTests(unittest.TestCase):
         self.ontGraph.bind('owl', OWL_NS)
         Individual.factoryGraph = self.ontGraph
 
-#    def testGCIConDisjunction(self):
-#        conjunct = EX.Foo & (EX.Omega | EX.Alpha)
-#        (EX.Bar) += conjunct
-#        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
-#        rules=network.setupDescriptionLogicProgramming(
-#                              self.ontGraph,
-#                              derivedPreds=[EX_NS.Bar],
-#                              addPDSemantics=False,
-#                              constructNetwork=False)
-#        self.assertEqual(repr(rules),
-#                         "[Forall ?X ( ex:Bar(?X) :- And( ex:Foo(?X) ex:Alpha(?X) ) ), Forall ?X ( ex:Bar(?X) :- And( ex:Foo(?X) ex:Omega(?X) ) )]")
-#        self.assertEqual(len(rules),
-#                         2,
-#                        "There should be 2 rules")
-#
-#    def testMalformedUnivRestriction(self):
-#        someProp = Property(EX_NS.someProp)
-#        conjunct = EX.Foo & (someProp|only|EX.Omega)
-#        conjunct.identifier = EX_NS.Bar
-#        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
-#        self.failUnlessRaises(MalformedDLPFormulaError, 
-#                              network.setupDescriptionLogicProgramming,
-#                              self.ontGraph,
-#                              derivedPreds=[EX_NS.Bar],
-#                              addPDSemantics=False,
-#                              constructNetwork=False)
-#
-#    def testBasePredicateEquivalence(self):
-#        (EX.Foo).equivalentClass = [EX.Bar]
-#        self.assertEqual(repr(Class(EX_NS.Foo)),"Class: ex:Foo EquivalentTo: ex:Bar")
-#        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
-#        rules=network.setupDescriptionLogicProgramming(
-#                              self.ontGraph,
-#                              addPDSemantics=False,
-#                              constructNetwork=False)
-#        self.assertEqual(repr(rules),
-#                         "[Forall ?X ( ex:Bar(?X) :- ex:Foo(?X) ), Forall ?X ( ex:Foo(?X) :- ex:Bar(?X) )]")
-#        self.assertEqual(len(rules),
-#                         2,
-#                        "There should be 2 rules")
-#
-#    def testExistentialInRightOfGCI(self):
-#        someProp = Property(EX_NS.someProp)
-#        existential = someProp|some|EX.Omega
-#        existential += EX.Foo
-#        self.assertEqual(repr(Class(EX_NS.Foo)),"Class: ex:Foo SubClassOf: ( ex:someProp some ex:Omega )")
-#        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
-#        rules=network.setupDescriptionLogicProgramming(
-#                              self.ontGraph,
-#                              addPDSemantics=False,
-#                              constructNetwork=False)
-#        self.assertEqual(len(rules),
-#                         1,
-#                        "There should be 1 rule")
-#        rule=rules[0]
-#        self.assertEqual(repr(rule.formula.body),
-#                         "ex:Foo(?X)")             
-#        self.assertEqual(len(rule.formula.head.formula),
-#                         2)
-#        
-#    def testValueRestrictionInLeftOfGCI(self):
-#        someProp = Property(EX_NS.someProp)
-#        leftGCI = (someProp|value|EX.fish) & EX.Bar
-#        foo = EX.Foo
-#        foo+=leftGCI
-#        self.assertEqual(repr(leftGCI),
-#                         "ex:Bar that ( ex:someProp value ex:fish )")
-#        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
-#        rules=network.setupDescriptionLogicProgramming(
-#                              self.ontGraph,
-#                              addPDSemantics=False,
-#                              constructNetwork=False)
-#        self.assertEqual(repr(rules),
-#                         "[Forall ?X ( ex:Foo(?X) :- And( ex:someProp(?X ex:fish) ex:Bar(?X) ) )]")
-#        
-#    def testNestedConjunct(self):
-#        nestedConj = (EX.Foo & EX.Bar) & EX.Baz
-#        (EX.Omega)+= nestedConj
-#        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
-#        rules=network.setupDescriptionLogicProgramming(
-#                              self.ontGraph,
-#                              addPDSemantics=False,
-#                              constructNetwork=False)
-#        for rule in rules:
-#            if rule.formula.head.arg[-1]==EX_NS.Omega:
-#                self.assertEqual(len(rule.formula.body),
-#                                 2)
-#                skolemPredicate = [term.arg[-1]
-#                         for term in rule.formula.body
-#                                if term.arg[-1].find(SKOLEMIZED_CLASS_NS)!=-1]
-#                self.assertEqual(len(skolemPredicate),
-#                                 1,
-#                                "Couldn't find skolem unary predicate!")
-#            else:
-#                self.assertEqual(len(rule.formula.body),
-#                                 2)
-#                skolemPredicate = rule.formula.head.arg[-1]
-#                self.failUnless(skolemPredicate.find(SKOLEMIZED_CLASS_NS)!=-1,
-#                                "Head should be a unary skolem predicate")
-#                skolemPredicate=skolemPredicate[0]
+    def testGCIConDisjunction(self):
+        conjunct = EX.Foo & (EX.Omega | EX.Alpha)
+        (EX.Bar) += conjunct
+        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
+        rules=network.setupDescriptionLogicProgramming(
+                              self.ontGraph,
+                              derivedPreds=[EX_NS.Bar],
+                              addPDSemantics=False,
+                              constructNetwork=False)
+        self.assertEqual(repr(rules),
+                         "[Forall ?X ( ex:Bar(?X) :- And( ex:Foo(?X) ex:Alpha(?X) ) ), Forall ?X ( ex:Bar(?X) :- And( ex:Foo(?X) ex:Omega(?X) ) )]")
+        self.assertEqual(len(rules),
+                         2,
+                        "There should be 2 rules")
+
+    def testMalformedUnivRestriction(self):
+        someProp = Property(EX_NS.someProp)
+        conjunct = EX.Foo & (someProp|only|EX.Omega)
+        conjunct.identifier = EX_NS.Bar
+        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
+        self.failUnlessRaises(MalformedDLPFormulaError, 
+                              network.setupDescriptionLogicProgramming,
+                              self.ontGraph,
+                              derivedPreds=[EX_NS.Bar],
+                              addPDSemantics=False,
+                              constructNetwork=False)
+
+    def testBasePredicateEquivalence(self):
+        (EX.Foo).equivalentClass = [EX.Bar]
+        self.assertEqual(repr(Class(EX_NS.Foo)),"Class: ex:Foo EquivalentTo: ex:Bar")
+        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
+        rules=network.setupDescriptionLogicProgramming(
+                              self.ontGraph,
+                              addPDSemantics=False,
+                              constructNetwork=False)
+        self.assertEqual(repr(rules),
+                         "[Forall ?X ( ex:Bar(?X) :- ex:Foo(?X) ), Forall ?X ( ex:Foo(?X) :- ex:Bar(?X) )]")
+        self.assertEqual(len(rules),
+                         2,
+                        "There should be 2 rules")
+
+    def testExistentialInRightOfGCI(self):
+        someProp = Property(EX_NS.someProp)
+        existential = someProp|some|EX.Omega
+        existential += EX.Foo
+        self.assertEqual(repr(Class(EX_NS.Foo)),"Class: ex:Foo SubClassOf: ( ex:someProp some ex:Omega )")
+        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
+        rules=network.setupDescriptionLogicProgramming(
+                              self.ontGraph,
+                              addPDSemantics=False,
+                              constructNetwork=False)
+        self.assertEqual(len(rules),
+                         1,
+                        "There should be 1 rule")
+        rule=rules[0]
+        self.assertEqual(repr(rule.formula.body),
+                         "ex:Foo(?X)")             
+        self.assertEqual(len(rule.formula.head.formula),
+                         2)
+        
+    def testValueRestrictionInLeftOfGCI(self):
+        someProp = Property(EX_NS.someProp)
+        leftGCI = (someProp|value|EX.fish) & EX.Bar
+        foo = EX.Foo
+        foo+=leftGCI
+        self.assertEqual(repr(leftGCI),
+                         "ex:Bar that ( ex:someProp value ex:fish )")
+        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
+        rules=network.setupDescriptionLogicProgramming(
+                              self.ontGraph,
+                              addPDSemantics=False,
+                              constructNetwork=False)
+        self.assertEqual(repr(rules),
+                         "[Forall ?X ( ex:Foo(?X) :- And( ex:someProp(?X ex:fish) ex:Bar(?X) ) )]")
+        
+    def testNestedConjunct(self):
+        nestedConj = (EX.Foo & EX.Bar) & EX.Baz
+        (EX.Omega)+= nestedConj
+        ruleStore,ruleGraph,network=SetupRuleStore(makeNetwork=True)
+        rules=network.setupDescriptionLogicProgramming(
+                              self.ontGraph,
+                              addPDSemantics=False,
+                              constructNetwork=False)
+        for rule in rules:
+            if rule.formula.head.arg[-1]==EX_NS.Omega:
+                self.assertEqual(len(rule.formula.body),
+                                 2)
+                skolemPredicate = [term.arg[-1]
+                         for term in rule.formula.body
+                                if term.arg[-1].find(SKOLEMIZED_CLASS_NS)!=-1]
+                self.assertEqual(len(skolemPredicate),
+                                 1,
+                                "Couldn't find skolem unary predicate!")
+            else:
+                self.assertEqual(len(rule.formula.body),
+                                 2)
+                skolemPredicate = rule.formula.head.arg[-1]
+                self.failUnless(skolemPredicate.find(SKOLEMIZED_CLASS_NS)!=-1,
+                                "Head should be a unary skolem predicate")
+                skolemPredicate=skolemPredicate[0]
                 
     def testOtherForm(self):
         contains   = Property(EX_NS.contains)

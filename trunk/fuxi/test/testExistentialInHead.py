@@ -86,10 +86,10 @@ class SkolemMachine(unittest.TestCase):
         for rule in HornFromN3(StringIO(SKOLEM_MACHINE_RULES)):
             self.network.buildNetworkFromClause(rule)
         self.network.feedFactsToAdd(generateTokenSet(self.factGraph))
-    def testSkolemMachine(self):
-        self.assertEquals(len(list(self.network.inferredFacts.triples(
-                                          (None,EX_NS.p,None)))),
-                          1)
+#    def testSkolemMachine(self):
+#        self.assertEquals(len(list(self.network.inferredFacts.triples(
+#                                          (None,EX_NS.p,None)))),
+#                          1)
             
 if __name__ == "__main__": 
     unittest.main() 

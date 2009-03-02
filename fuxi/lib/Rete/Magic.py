@@ -24,7 +24,7 @@ from rdflib import URIRef, RDF, RDFS, Namespace, Variable, Literal, URIRef
 from rdflib.sparql.Algebra import RenderSPARQLAlgebra
 from rdflib.sparql.bison import Parse
 from rdflib.util import first
-from testMagic import *
+#from testMagic import *
 from SidewaysInformationPassing import *
 
 EX_ULMAN = Namespace('http://doi.acm.org/10.1145/6012.15399#')

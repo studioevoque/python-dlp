@@ -12,7 +12,7 @@ from FuXi.DLP import SKOLEMIZED_CLASS_NS
 from rdflib.util import first
 from rdflib.Graph import Graph
 from rdflib.Collection import Collection
-from testMagic import *
+#from testMagic import *
 from cStringIO import StringIO
 from pprint import pprint;
 from rdflib import Namespace, Variable, BNode

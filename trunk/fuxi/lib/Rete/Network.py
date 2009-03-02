@@ -323,7 +323,7 @@ class ReteNetwork:
     def clear(self):
         self.nodes = {}
         self.alphaPatternHash = {}
-        self.ruleSet = set()
+        self.rules = set()
         for alphaPattern in xcombine(('1','0'),('1','0'),('1','0')):
             self.alphaPatternHash[tuple(alphaPattern)] = {}
         self.proofTracers = {}
@@ -339,9 +339,10 @@ class ReteNetwork:
             if isinstance(node,BetaNode):
                 node.memories[LEFT_MEMORY].reset()
                 node.memories[RIGHT_MEMORY].reset()
+        self.justifications = {}
+        self.proofTracers = {}
         self.inferredFacts = newinferredFacts and newinferredFacts or Graph()
         self.workingMemory = set()
-        self.rules = set()
         self._resetinstanciationStats()        
                                 
     def fireConsequent(self,tokens,termNode,debug=False):

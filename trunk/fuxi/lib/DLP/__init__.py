@@ -253,15 +253,15 @@ def MapDLPtoNetwork(network,
 #        print "## RIF BLD Horn Rules: Before LloydTopor: ##\n",horn_clause
 #        print "## RIF BLD Horn Rules: After LloydTopor: ##"
         fullReduce=False
-        def hasExistentialInHead(condition):
-            for term in condition:
-                for arg in GetArgs(term):
-                    if isinstance(arg,BNode):
-                        return True
-            return False
-        fullReduct = not (isinstance(horn_clause.head,And) and hasExistentialInHead(horn_clause.head))
-        for tx_horn_clause in LloydToporTransformation(horn_clause,
-                                                       fullReduction=fullReduct):
+#        def hasExistentialInHead(condition):
+#            for term in condition:
+#                for arg in GetArgs(term):
+#                    if isinstance(arg,BNode):
+#                        return True
+#            return False
+#        fullReduct = isinstance(horn_clause.head,And)# and hasExistentialInHead(horn_clause.head))
+        for tx_horn_clause in LloydToporTransformation(horn_clause):#,
+                                                       #fullReduction=fullReduct):
             tx_horn_clause = NormalizeClause(tx_horn_clause)
 #            print tx_horn_clause
 
@@ -275,14 +275,14 @@ def MapDLPtoNetwork(network,
                                       constructNetwork,
                                       negativeStratus,
                                       ignoreNegativeStratus)
-            else:
-#                print "No Disjunction in the body"
-                for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause),constructNetwork):
-                    _rule=makeRule(hc,network.nsMap)
-                    if _rule.negativeStratus:
-                        negativeStratus.append(_rule)                    
-                    if _rule is not None and (not _rule.negativeStratus or not ignoreNegativeStratus):
-                        ruleset.add(_rule)                    
+            elif isinstance(tx_horn_clause.head,(And,Uniterm)):
+    #                print "No Disjunction in the body"
+                    for hc in ExtendN3Rules(network,NormalizeClause(tx_horn_clause),constructNetwork):
+                        _rule=makeRule(hc,network.nsMap)
+                        if _rule.negativeStratus:
+                            negativeStratus.append(_rule)                    
+                        if _rule is not None and (not _rule.negativeStratus or not ignoreNegativeStratus):
+                            ruleset.add(_rule)                    
             #Extract free variables anre add rule to ruleset
 #        print "#######################"
 #    print "########## Finished Building decision network from DLP ##########"
@@ -388,7 +388,7 @@ def ExtendN3Rules(network,horn_clause,constructNetwork=False):
     if constructNetwork:
         for term in horn_clause.body:
             ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
-    assert isinstance(horn_clause.head,(And,Uniterm))
+    assert isinstance(horn_clause.head,(And,Uniterm)),repr(horn_clause.head)
 
     if IsaFactFormingConclusion(horn_clause.head):
         PrepareHornClauseForRETE(horn_clause)

@@ -31,7 +31,7 @@ EX_ULMAN = Namespace('http://doi.acm.org/10.1145/6012.15399#')
 LOG_NS   = Namespace("http://www.w3.org/2000/10/swap/log#")
 MAGIC = Namespace('http://doi.acm.org/10.1145/28659.28689#')
 
-def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None,strictCheck=False):
+def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None,strictCheck=False,noMagic=[]):
     """
     Takes a goal and a ruleset and returns an iterator
     over the rulest that corresponds to the magic set
@@ -57,61 +57,51 @@ def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None,strictCheck=F
                 # predicate p a in its body, we generate a magic rule defining magic_p a
                 prevPreds=[item for _idx,item in enumerate(rule.formula.body)
                                             if _idx < idx]             
-                if 'b' not in pred.adornment:
-                    #(For a predicate occurrence with no incoming arc, the 
-                    #adornment contains only f‚Äôs. For our purposes here, 
-                    #we do not distinguish between a predicate with such 
-                    #an adornment and an unadorned predicate
-                    continue
-                    print rule
-                    print "\t",pred,pred.adornment,pred.n3()
-                    print rule.sip.serialize(format='n3')
-                    print validSip(rule.sip)
-                    raise 
-                magicPred=pred.makeMagicPred()
-                magicPositions[idx]=(magicPred,pred)
-                inArcs=[(N,x) for (N,x) in IncomingSIPArcs(rule.sip,getOccurrenceId(pred))
-                                    if not set(x).difference(GetArgs(pred))]
-                if len(inArcs) > 1:
-#                    If there are several arcs entering qi, we define the magic rule defining magic_qi
-#                    in two steps. First, for each arc Nj --> qi with label cj , we define a rule with head label_qi_j(cj ). The body
-#                    of the rule is the same as the body of the magic rule in the case where there is a single arc
-#                    entering qi (described above). Then the magic rule is defined as follows. The head is
-#                    magic_q(0). The body contains label_qi_j(cj) for all j (that is, for all arcs entering qi ).
-
-                    #We combine all incoming arcs into a single list of (body) conditions for the magic set
-                                        
-                    PrettyPrintRule(rule)
-                    SIPRepresentation(rule.sip)
-                    print pred, magicPred
-                    _body=[]
-                    additionalRules=[]
-                    for idxSip,(N,x) in enumerate(inArcs):
-                        newPred=pred.clone()
-                        SetOp(newPred,URIRef('%s_label_%s'%(newPred.op,idxSip)))
-                        ruleBody=And(buildMagicBody(
-                                N,
-                                prevPreds,
-                                rule.formula.head,
-                                derivedPreds))
-                        additionalRules.append(Rule(Clause(ruleBody,newPred)))
-                        _body.extend(newPred)                        
-#                        _body.extend(ruleBody)
-                    additionalRules.append(Rule(Clause(And(_body),magicPred)))
-                    newRules.extend(additionalRules)
-                    for i in additionalRules:
-                        print i
-                    raise NotImplementedError()
-                else:
-                    for idxSip,(N,x) in enumerate(inArcs):
-                        ruleBody=And(buildMagicBody(
-                                N,
-                                prevPreds,
-                                rule.formula.head,
-                                derivedPreds))
-                        newRule=Rule(Clause(ruleBody,magicPred))
-                        newRules.append(newRule)
-                magicPredicates.add(magicPred)
+                assert 'b' in pred.adornment,"adorned predicate w/out any bound arguments!"
+                if GetOp(pred) not in noMagic:
+                    magicPred=pred.makeMagicPred()
+                    magicPositions[idx]=(magicPred,pred)
+                    inArcs=[(N,x) for (N,x) in IncomingSIPArcs(rule.sip,getOccurrenceId(pred))
+                                        if not set(x).difference(GetArgs(pred))]
+                    if len(inArcs) > 1:
+    #                    If there are several arcs entering qi, we define the magic rule defining magic_qi
+    #                    in two steps. First, for each arc Nj --> qi with label cj , we define a rule with head label_qi_j(cj ). The body
+    #                    of the rule is the same as the body of the magic rule in the case where there is a single arc
+    #                    entering qi (described above). Then the magic rule is defined as follows. The head is
+    #                    magic_q(0). The body contains label_qi_j(cj) for all j (that is, for all arcs entering qi ).
+    
+                        #We combine all incoming arcs into a single list of (body) conditions for the magic set
+                        PrettyPrintRule(rule)
+                        SIPRepresentation(rule.sip)
+                        print pred, magicPred
+                        _body=[]
+                        additionalRules=[]
+                        for idxSip,(N,x) in enumerate(inArcs):
+                            newPred=pred.clone()
+                            SetOp(newPred,URIRef('%s_label_%s'%(newPred.op,idxSip)))
+                            ruleBody=And(buildMagicBody(
+                                    N,
+                                    prevPreds,
+                                    rule.formula.head,
+                                    derivedPreds))
+                            additionalRules.append(Rule(Clause(ruleBody,newPred)))
+                            _body.extend(newPred)                        
+    #                        _body.extend(ruleBody)
+                        additionalRules.append(Rule(Clause(And(_body),magicPred)))
+                        newRules.extend(additionalRules)
+                        for i in additionalRules:
+                            print i
+                        raise NotImplementedError()
+                    else:
+                        for idxSip,(N,x) in enumerate(inArcs):
+                            ruleBody=And(buildMagicBody(
+                                    N,
+                                    prevPreds,
+                                    rule.formula.head,
+                                    derivedPreds))
+                            newRule=Rule(Clause(ruleBody,magicPred))
+                            newRules.append(newRule)
+                    magicPredicates.add(magicPred)
         #Modify rules
         #we modify the original rule by inserting
         #occurrences of the magic predicates corresponding

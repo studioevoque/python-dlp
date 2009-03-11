@@ -98,7 +98,8 @@ def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None,strictCheck=F
                                     N,
                                     prevPreds,
                                     rule.formula.head,
-                                    derivedPreds))
+                                    derivedPreds,
+                                    noMagic))
                             newRule=Rule(Clause(ruleBody,magicPred))
                             newRules.append(newRule)
                     magicPredicates.add(magicPred)
@@ -534,7 +535,7 @@ class AdornProgramTest(unittest.TestCase):
                                            [MAGIC.sg]):
             self.failUnless(repr(rule) in self.ruleStrings, repr(rule))
         
-def buildMagicBody(N,prevPredicates,adornedHead,derivedPreds):
+def buildMagicBody(N,prevPredicates,adornedHead,derivedPreds,noMagic=[]):
     unboundHead='b' in adornedHead.adornment
     if unboundHead:
         body=[adornedHead.makeMagicPred()]
@@ -552,7 +553,10 @@ def buildMagicBody(N,prevPredicates,adornedHead,derivedPreds):
         if op in derivedPreds and isinstance(prevAPred,AdornedUniTerm) and prevAPred.adornment.count('b')>0:
             #If qj is a derived predicate and its adornment contains at least 
             #one b, we also add the corresponding magic predicate to the body
-            body.append(prevAPred.makeMagicPred())
+            if op in noMagic:
+                body.append(prevAPred)
+            else:
+                body.append(prevAPred.makeMagicPred())
     return body
 
 def PrettyPrintRule(rule):

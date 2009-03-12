@@ -33,12 +33,16 @@ class NominalRangeTransformer(object):
                                  initNs={u'owl':OWL_NS}):
             nominalCollection=Collection(graph,nominal)
             #purge restriction
-            Individual(restriction).clearOutDegree()
+            restr=Class(restriction)
+            parentSets = [i for i in restr.subClassOf]
+            restr.clearOutDegree()
             newConjunct=BooleanClass(restriction,
                                      OWL_NS.unionOf,
                                      [Property(prop)|value|val 
                                                  for val in nominalCollection],
                                      graph)
+            newConjunct.subClassOf = parentSets
+            
             #purge nominalization placeholder
             iClass = BooleanClass(intermediateCl)
             iClass.clear()

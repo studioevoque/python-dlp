@@ -6,13 +6,17 @@ incorporates RIF Positive Conditions defined in Section Positive Conditions
 """
 from PositiveConditions import *
 from rdflib import Variable, BNode, URIRef, Literal, Namespace,RDF,RDFS
-from rdflib.Graph import Graph
-def ExtractVariables(clause):
-    pass
+from rdflib.Graph import Graph, ConjunctiveGraph
 
-def HornFromN3(n3Stream):
-    from FuXi.Rete.RuleStore import SetupRuleStore
-    store,graph=SetupRuleStore(n3Stream)
+def HornFromN3(n3Source,additionalBuiltins=None):
+    from FuXi.Rete.RuleStore import SetupRuleStore, N3RuleStore
+    if isinstance(n3Source,ConjunctiveGraph):
+        store=N3RuleStore(additionalBuiltins=additionalBuiltins)
+        for ctx in n3Source.contexts():
+            for s,p,o in ctx:
+                store.add((s,p,o),ctx)
+    else:
+        store,graph=SetupRuleStore(n3Source,additionalBuiltins=additionalBuiltins)
     store._finalize()
     return Ruleset(n3Rules=store.rules,nsMapping=store.nsMgr)
 
@@ -66,8 +70,14 @@ class Ruleset(object):
                 updateDict       = dict([(var,BNode()) for var in headVars if var not in bodyVars])
                 
                 for uniTerm in iterCondition(head):
-                    newArg      = [ updateDict.get(i,i) for i in uniTerm.arg ]
-                    uniTerm.arg = newArg
+                    def updateUniterm(uterm):
+                        newArg      = [ updateDict.get(i,i) for i in uniTerm.arg ]
+                        uniTerm.arg = newArg                    
+                    if isinstance(uniTerm,Uniterm):
+                        updateUniterm(uniTerm)
+                    else:
+                        for u in uniTerm:
+                            updateUniterm(u)
                                         
                 exist=[list(extractVariables(i)) for i in breadth_first(head)]
                 e=Exists(formula=head,

@@ -234,6 +234,8 @@ class ReteNetwork:
         """
         Stratified Negation Semantics for DLP using SPARQL to handle the negation
         """
+        if not self.negRules:
+            return
         from FuXi.DLP.Negation import StratifiedSPARQL
         from FuXi.Rete.Magic import PrettyPrintRule
         import copy

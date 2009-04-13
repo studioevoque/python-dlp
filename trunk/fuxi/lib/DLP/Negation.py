@@ -36,10 +36,10 @@ def CalculateStratifiedModel(network,ontGraph,derivedPreds,edb=None):
     for i in ignored:
         #Evaluate the Graph pattern, and instanciate the head of the rule with 
         #the solutions returned
-        sel,compiler=StratifiedSPARQl(i)
+        sel,compiler=StratifiedSPARQL(i)
         query=compiler.compile(sel)
         i.stratifiedQuery=query
-        vars = sel.variables
+        vars = sel.projection
         for rt in (edb and edb or ontGraph).query(query):
             solutions={}
             if isinstance(rt,tuple):
@@ -93,7 +93,7 @@ def createCopyPattern(toDo):
         copyPatterns.append(copyTriplePattern)
     return copyPatterns,vars,varExprs
             
-def StratifiedSPARQl(rule,nsMapping={EX_NS: 'ex'}):
+def StratifiedSPARQL(rule,nsMapping={EX_NS: 'ex'}):
     """
     The SPARQL specification indicates that it is possible to test if a graph
     pattern does not match a dataset, via a combination of optional patterns and
@@ -112,7 +112,7 @@ def StratifiedSPARQl(rule,nsMapping={EX_NS: 'ex'}):
     else:
         sipOrder=[rule.formula.head]+[rule.formula.body]
     from telescope import optional, op
-    from telescope.sparql.select import Select
+    from telescope.sparql.queryforms import Select
     from telescope.sparql.compiler import SelectCompiler
     toDo=[]
     negativeVars=set()
@@ -171,9 +171,9 @@ def StratifiedSPARQl(rule,nsMapping={EX_NS: 'ex'}):
     #Create thee SPARQL query: LBGP OPTION RBGP . FILTER(!bound(...))
     sel=Select(GetArgs(rule.formula.head)).where(*[formula.toRDFTuple() for formula in posLiterals]+[negatedBGP])
     if copyPatternNeeded:
-        sel.filter(~op.bound(outerFilterVariable))
+        sel=sel.filter(~op.bound(outerFilterVariable))
     else:
-        sel.filter(~op.bound(outerFilterVariable))        
+        sel=sel.filter(~op.bound(outerFilterVariable))        
     return sel,SelectCompiler(nsMapping)#.compile(sel)
 
 class UniversalRestrictionTest(unittest.TestCase):

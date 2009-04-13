@@ -193,6 +193,7 @@ class ReteNetwork:
         self.universalTruths = []
         from FuXi.Horn.HornRules import Ruleset
         self.rules=set()
+        self.negRules = set()
         for rule in Ruleset(n3Rules=self.ruleStore.rules,nsMapping=self.nsMap):
             self.buildNetwork(iter(rule.formula.body),
                               iter(rule.formula.head),
@@ -228,6 +229,46 @@ class ReteNetwork:
                              iter(self.ruleStore.formulae[rhs]),
                              rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
+        
+    def calculateStratifiedModel(self,database):
+        """
+        Stratified Negation Semantics for DLP using SPARQL to handle the negation
+        """
+        from FuXi.DLP.Negation import StratifiedSPARQL
+        from FuXi.Rete.Magic import PrettyPrintRule
+        import copy
+        for i in self.negRules:
+            #Evaluate the Graph pattern, and instanciate the head of the rule with 
+            #the solutions returned
+            sel,compiler=StratifiedSPARQL(i,dict([(v,k) 
+                                              for k,v in self.nsMap.items()]))
+            query=compiler.compile(sel)
+            i.stratifiedQuery=query
+            vars = sel.projection
+            unionClosureG = self.closureGraph(database)
+            for rt in unionClosureG.query(query):
+                solutions={}
+                if isinstance(rt,tuple):
+                    solutions.update(dict([(vars[idx],i) for idx,i in enumerate(rt)]))
+                else:
+                    solutions[vars[0]]=rt
+                i.solutions=solutions
+                head=copy.deepcopy(i.formula.head)
+                head.ground(solutions)
+                fact=head.toRDFTuple()
+                self.inferredFacts.add(fact)
+                self.feedFactsToAdd(generateTokenSet([fact]))
+        #Now we need to clear assertions that cross the individual, concept, relation divide
+        toRemove=[]
+        for s,p,o in self.inferredFacts.triples((None,RDF.type,None)):
+            if s in unionClosureG.predicates() or\
+               s in [_s for _s,_p,_o in 
+                        unionClosureG.triples_choices(
+                                            (None,
+                                             RDF.type,
+                                             [OWL_NS.Class,
+                                              OWL_NS.Restriction]))]:
+                self.inferredFacts.remove((s,p,o))
                         
     def setupDescriptionLogicProgramming(self,
                                          owlN3Graph,
@@ -235,13 +276,21 @@ class ReteNetwork:
                                          addPDSemantics=True,
                                          classifyTBox=False,
                                          constructNetwork=True,
-                                         derivedPreds=[]):
-        rules=[rule 
+                                         derivedPreds=[],
+                                         ignoreNegativeStratus=False):
+        rt=[rule 
                     for rule in MapDLPtoNetwork(self,
                                                 owlN3Graph,
                                                 complementExpansions=expanded,
                                                 constructNetwork=constructNetwork,
-                                                derivedPreds=derivedPreds)]
+                                                derivedPreds=derivedPreds,
+                                                ignoreNegativeStratus=ignoreNegativeStratus)]
+        if ignoreNegativeStratus:
+            rules,negRules=rt
+            rules = [r for r in rules]
+            self.negRules = set(negRules)
+        else:
+            rules=rt
         if constructNetwork:
             self.rules.update(rules)
         noRules=len(rules)
@@ -297,8 +346,9 @@ class ReteNetwork:
         
     def closureGraph(self,sourceGraph,readOnly=True,store=None):
         if readOnly:
-            if store is None:
+            if store is None and not sourceGraph:
                 store = Graph().store
+            store = store is None and sourceGraph.store or store
             roGraph=ReadOnlyGraphAggregate([sourceGraph,self.inferredFacts],
                                            store=store)
             roGraph.namespace_manager = NamespaceManager(roGraph)

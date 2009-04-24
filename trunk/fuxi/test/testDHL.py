@@ -4,7 +4,7 @@ from FuXi.Rete import *
 from FuXi.Rete.AlphaNode import SUBJECT,PREDICATE,OBJECT,VARIABLE
 from FuXi.Rete.RuleStore import N3RuleStore
 from FuXi.DLP import MapDLPtoNetwork, non_DHL_OWL_Semantics
-from InfixOWL import Class
+from FuXi.Syntax.InfixOWL import Class
 from FuXi.Rete.Util import renderNetwork,generateTokenSet
 from rdflib.Namespace import Namespace
 from rdflib import plugin,RDF,RDFS,URIRef,URIRef

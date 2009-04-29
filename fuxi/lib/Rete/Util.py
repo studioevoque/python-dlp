@@ -92,15 +92,18 @@ def generateBGLNode(dot,node,namespace_manager,identifier):
         peripheries = '3'
     elif isinstance(node,BetaNode) and not node.consequent:     
         peripheries = '1'
-        if node.aPassThru:
+        if node.fedByBuiltin:
+            label = "Built-in pass-thru\\n"
+        elif node.aPassThru:
             label = "Pass-thru Beta node\\n"
         elif node.commonVariables:
             label = "Beta node\\n(%s)"%(','.join(["?%s"%i for i in node.commonVariables]))
         else:
             label = "Beta node"
-        leftLen = node.memories[LEFT_MEMORY] and len(node.memories[LEFT_MEMORY]) or 0
-        rightLen = len(node.memories[RIGHT_MEMORY])
-        label+='\\n %s in left, %s in right memories'%(leftLen,rightLen)
+        if not node.fedByBuiltin:
+            leftLen = node.memories[LEFT_MEMORY] and len(node.memories[LEFT_MEMORY]) or 0
+            rightLen = len(node.memories[RIGHT_MEMORY])
+            label+='\\n %s in left, %s in right memories'%(leftLen,rightLen)
 
     elif isinstance(node,BetaNode) and node.consequent:     
         #rootMap[vertex] = 'true'
@@ -125,7 +128,10 @@ def generateBGLNode(dot,node,namespace_manager,identifier):
             label = "Terminal node"
         leftLen = node.memories[LEFT_MEMORY] and len(node.memories[LEFT_MEMORY]) or 0
         rightLen = len(node.memories[RIGHT_MEMORY])
-        label+='\\n %s in left, %s in right memories'%(leftLen,rightLen)            
+        label+='\\n %s in left, %s in right memories'%(leftLen,rightLen)      
+        inst = node.network.instanciations[node]
+        if inst:
+            label += "\\n%s instanciations"%inst      
         
     elif isinstance(node,BuiltInAlphaNode):
         peripheries = '1'
@@ -168,7 +174,7 @@ def renderNetwork(network,nsMap = {}):
     edges = []
     idx = 0
     for node in network.nodes.values():
-        if not node in visitedNodes and not isinstance(node,BuiltInAlphaNode):
+        if not node in visitedNodes:
             idx += 1
             visitedNodes[node] = generateBGLNode(dot,node,namespace_manager,str(idx))
             dot.add_node(visitedNodes[node])

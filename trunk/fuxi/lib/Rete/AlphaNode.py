@@ -5,7 +5,6 @@ from rdflib import Variable, BNode,RDF,Variable,Literal,RDFS, URIRef, Namespace
 from rdflib.Graph import Graph 
 from sets import Set
 from ReteVocabulary import RETE_NS
-from BuiltinPredicates import FILTERS, FUNCTIONS
 from Node import Node
 
 OWL_NS    = Namespace("http://www.w3.org/2002/07/owl#")
@@ -189,13 +188,14 @@ class AlphaNode(Node):
     """
     Basic Triple Pattern Pattern check
     """
-    def __init__(self,triplePatternOrFunc):
+    def __init__(self,triplePatternOrFunc,filters=None):
+        filters = filters and filters or {}
         self.relinked = False
         self.name = BNode()
         self.triplePattern = triplePatternOrFunc
         self.descendentMemory = []
         self.descendentBetaNodes = Set()
-        self.builtin = bool(FUNCTIONS.get(self.triplePattern[PREDICATE]) or FILTERS.get(self.triplePattern[PREDICATE]))
+        self.builtin = bool(filters.get(self.triplePattern[PREDICATE]))
         self.universalTruths = []
 
     def alphaNetworkHash(self,groundTermHash=False):

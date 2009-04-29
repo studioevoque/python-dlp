@@ -195,9 +195,12 @@ class ReteNetwork:
         self.rules=set()
         self.negRules = set()
         for rule in Ruleset(n3Rules=self.ruleStore.rules,nsMapping=self.nsMap):
-            self.buildNetwork(iter(rule.formula.body),
-                              iter(rule.formula.head),
-                              rule)
+            import warnings
+            warnings.warn(
+          "Rules in a network should be built *after* construction via "+
+          " self.buildNetworkClause(HornFromN3(n3graph)) for instance",
+                          DeprecationWarning,2)            
+            self.buildNetworkFromClause(rule)
             self.rules.add(rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
         self.alphaBuiltInNodes = [node for node in self.nodes.values() if isinstance(node,BuiltInAlphaNode)]
@@ -218,8 +221,17 @@ class ReteNetwork:
     def buildNetworkFromClause(self,rule):
         lhs = BNode()
         rhs = BNode()
+        builtins=[]
         for term in rule.formula.body:
-            self.ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
+            if isinstance(term, N3Builtin):
+                #We want to move builtins to the 'end' of the body
+                #so they only apply to the terminal nodes of 
+                #the corresponding network
+                builtins.append(term)
+            else:
+                self.ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
+        for builtin in builtins:
+            self.ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(builtin.toRDFTuple())
         for term in rule.formula.head:
             assert not hasattr(term,'next')
             assert isinstance(term,Uniterm)
@@ -229,6 +241,7 @@ class ReteNetwork:
                              iter(self.ruleStore.formulae[rhs]),
                              rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
+        self.rules.add(rule)
         
     def calculateStratifiedModel(self,database):
         """
@@ -518,11 +531,11 @@ class ReteNetwork:
         if isinstance(currentPattern,N3Builtin):
             node = BuiltInAlphaNode(currentPattern)
         else:
-            node = AlphaNode(currentPattern)
+            node = AlphaNode(currentPattern,self.ruleStore.filters)
         self.alphaPatternHash[node.alphaNetworkHash()].setdefault(node.alphaNetworkHash(groundTermHash=True),[]).append(node)
         if not isinstance(node,BuiltInAlphaNode) and node.builtin:
             s,p,o = currentPattern
-            node = BuiltInAlphaNode(N3Builtin(p,FILTERS[p](s,o),s,o))
+            node = BuiltInAlphaNode(N3Builtin(p,self.ruleStore.filters[p](s,o),s,o))
         return node
     
     def _resetinstanciationStats(self):

@@ -225,7 +225,8 @@ BuiltIn used out of order
         self.rules = []
         self.referencedVariables = Set()
         self.nsMgr = {u'skolem':URIRef('http://code.google.com/p/python-dlp/wiki/SkolemTerm#')}
-        self.filters=FILTERS
+        self.filters={}
+        self.filters.update(FILTERS)
         if additionalBuiltins:
             self.filters.update(additionalBuiltins)
         
@@ -321,10 +322,11 @@ BuiltIn used out of order
                 self.facts.append((subject,predicate,obj))
         else:
             formula = self.formulae.get(context.identifier,Formula(context.identifier))
-            if predicate in FILTERS:
-                newFilter = N3Builtin(predicate,FILTERS[predicate](subject,obj),subject,obj)
-                self._checkVariableReferences(self.referencedVariables,[subject,obj],newFilter)
-                #print newFilter
+            if predicate in self.filters:
+                newFilter = N3Builtin(predicate,self.filters[predicate](subject,obj),subject,obj)
+                #@attention: The non-deterministic parse order of an RDF graph makes this
+                #check hard to enforce
+                #self._checkVariableReferences(self.referencedVariables,[subject,obj],newFilter)
                 formula.append(newFilter)
             else:
                 #print "(%s,%s,%s) pattern in %s"%(subject,predicate,obj,context.identifier)

@@ -172,7 +172,7 @@ def classOrIdentifier(thing):
     if isinstance(thing,(Property,Class)):
         return thing.identifier
     else:
-        assert isinstance(thing,(URIRef,BNode)),"Expecting a Class, Property, URIRef, or BNode.."
+        assert isinstance(thing,(URIRef,BNode)),"Expecting a Class, Property, URIRef, or BNode.. not a %s"%thing
         return thing
 
 def propertyOrIdentifier(thing):
@@ -266,6 +266,20 @@ def GetIdentifiedClasses(graph):
         if isinstance(c,URIRef):
             yield Class(c)
 
+def termDeletionDecorator(prop):
+    def someFunc(func):
+        func.property = prop
+        return func
+    return someFunc
+
+class TermDeletionHelper:
+    def __init__(self, prop):
+        self.prop = prop
+    def __call__(self, f):
+        def _remover(inst):
+            inst.graph.remove((inst.identifier,self.prop,None))
+        return _remover
+
 class Individual(object):
     """
     A typed individual
@@ -315,7 +329,22 @@ class Individual(object):
             for c in kind:
                 assert isinstance(c,(Individual,Identifier))
                 self.graph.add((self.identifier,RDF.type,classOrIdentifier(c)))
-    type = property(_get_type, _set_type)
+                
+    @TermDeletionHelper(RDF.type)            
+    def _delete_type(self):
+        """
+        >>> g = Graph()
+        >>> b=Individual(OWL_NS.Restriction,g)
+        >>> b.type = RDF.Resource
+        >>> len(list(b.type))
+        1
+        >>> del b.type
+        >>> len(list(b.type))
+        0
+        """
+        pass
+                
+    type = property(_get_type, _set_type, _delete_type)
 
     def _get_identifier(self):
         return self.__identifier
@@ -344,7 +373,7 @@ class AnnotatibleTerms(Individual):
     """
     Terms in an OWL ontology with rdfs:label and rdfs:comment
     """
-    def __init__(self,identifier,graph):
+    def __init__(self,identifier,graph=None):
         super(AnnotatibleTerms, self).__init__(identifier,graph)
     def _get_comment(self):
         for comment in self.graph.objects(subject=self.identifier,predicate=RDFS.comment):
@@ -357,7 +386,12 @@ class AnnotatibleTerms(Individual):
         else:
             for c in comment:
                 self.graph.add((self.identifier,RDFS.comment,c))
-    comment = property(_get_comment, _set_comment)
+                
+    @TermDeletionHelper(RDFS.comment)
+    def _del_comment(self):
+        pass
+    
+    comment = property(_get_comment, _set_comment, _del_comment)
 
     def _get_seeAlso(self):
         for sA in self.graph.objects(subject=self.identifier,predicate=RDFS.seeAlso):
@@ -367,7 +401,11 @@ class AnnotatibleTerms(Individual):
             return        
         for s in seeAlsos:
             self.graph.add((self.identifier,RDFS.seeAlso,s))
-    seeAlso = property(_get_seeAlso, _set_seeAlso)
+            
+    @TermDeletionHelper(RDFS.seeAlso)
+    def _del_seeAlso(self):
+        pass
+    seeAlso = property(_get_seeAlso, _set_seeAlso, _del_seeAlso)
 
     def _get_label(self):
         for label in self.graph.objects(subject=self.identifier,predicate=RDFS.label):
@@ -380,7 +418,22 @@ class AnnotatibleTerms(Individual):
         else:
             for l in label:
                 self.graph.add((self.identifier,RDFS.label,l))
-    label = property(_get_label, _set_label)
+                
+    @TermDeletionHelper(RDFS.label)
+    def _delete_label(self):
+        """
+        >>> g=Graph()
+        >>> b=Individual(OWL_NS.Restriction,g)
+        >>> b.label = Literal('boo')
+        >>> len(list(b.label))
+        1
+        >>> del b.label
+        >>> len(list(b.label))
+        0
+        """
+        pass
+        
+    label = property(_get_label, _set_label, _delete_label)
 
 class Ontology(AnnotatibleTerms):
     """ The owl ontology metadata"""
@@ -402,7 +455,12 @@ class Ontology(AnnotatibleTerms):
             return        
         for o in other:
             self.graph.add((self.identifier,OWL_NS['imports'],o))
-    imports = property(_get_imports, _set_imports)
+            
+    @TermDeletionHelper(OWL_NS['imports'])
+    def _del_imports(self):            
+        pass
+    
+    imports = property(_get_imports, _set_imports, _del_imports)
 
 def AllClasses(graph):
     prevClasses=set()
@@ -535,7 +593,11 @@ class Class(AnnotatibleTerms):
         for m in other:
             self.graph.add((classOrIdentifier(m),RDF.type,self.identifier))
             
-    extent = property(_get_extent, _set_extent)            
+    @TermDeletionHelper(RDF.type)
+    def _del_type(self):            
+        pass            
+            
+    extent = property(_get_extent, _set_extent, _del_type)            
 
     def _get_extentQuery(self):
         return (Variable('CLASS'),RDF.type,self.identifier)
@@ -615,7 +677,12 @@ class Class(AnnotatibleTerms):
             return        
         for sc in other:
             self.graph.add((self.identifier,RDFS.subClassOf,classOrIdentifier(sc)))
-    subClassOf = property(_get_subClassOf, _set_subClassOf)
+            
+    @TermDeletionHelper(RDFS.subClassOf)
+    def _del_subClassOf(self):            
+        pass            
+            
+    subClassOf = property(_get_subClassOf, _set_subClassOf, _del_subClassOf)
 
     def _get_equivalentClass(self):
         for ec in self.graph.objects(subject=self.identifier,predicate=OWL_NS.equivalentClass):
@@ -625,7 +692,12 @@ class Class(AnnotatibleTerms):
             return
         for sc in other:
             self.graph.add((self.identifier,OWL_NS.equivalentClass,classOrIdentifier(sc)))
-    equivalentClass = property(_get_equivalentClass, _set_equivalentClass)
+            
+    @TermDeletionHelper(OWL_NS.equivalentClass)
+    def _del_equivalentClass(self):            
+        pass                        
+            
+    equivalentClass = property(_get_equivalentClass, _set_equivalentClass, _del_equivalentClass)
 
     def _get_disjointWith(self):
         for dc in self.graph.objects(subject=self.identifier,predicate=OWL_NS.disjointWith):
@@ -635,7 +707,12 @@ class Class(AnnotatibleTerms):
             return
         for c in other:
             self.graph.add((self.identifier,OWL_NS.disjointWith,classOrIdentifier(c)))
-    disjointWith = property(_get_disjointWith, _set_disjointWith)
+            
+    @TermDeletionHelper(OWL_NS.disjointWith)
+    def _del_disjointWith(self):            
+        pass            
+                        
+    disjointWith = property(_get_disjointWith, _set_disjointWith, _del_disjointWith)
 
     def _get_complementOf(self):
         comp = list(self.graph.objects(subject=self.identifier,predicate=OWL_NS.complementOf))
@@ -650,18 +727,12 @@ class Class(AnnotatibleTerms):
         if not other:
             return
         self.graph.add((self.identifier,OWL_NS.complementOf,classOrIdentifier(other)))
-    complementOf = property(_get_complementOf, _set_complementOf)
-
-    def _get_seeAlso(self):
-        for ec in self.graph.objects(subject=self.identifier,predicate=RDFS.seeAlso):
-            yield Class(ec,graph=self.graph)
+        
+    @TermDeletionHelper(OWL_NS.complementOf)
+    def _del_complementOf(self):            
+        pass            
                 
-    def _set_seeAlso(self, others):
-        if not others:
-            return
-        for link in others:
-            self.graph.add((self.identifier,RDFS.seeAlso,link))
-    seeAlso = property(_get_seeAlso, _set_seeAlso)
+    complementOf = property(_get_complementOf, _set_complementOf, _del_complementOf)
     
     def isPrimitive(self):
         if (self.identifier,RDF.type,OWL_NS.Restriction) in self.graph:
@@ -995,7 +1066,7 @@ class Restriction(Class):
         Equivalence of restrictions is determined by equivalence of the property 
         in question and the restriction 'range'
         """
-        assert isinstance(other,Class)
+        assert isinstance(other,Class),repr(other)+repr(type(other))
         if isinstance(other,Restriction):
             return other.onProperty == self.onProperty and \
                    other.restrictionRange == self.restrictionRange
@@ -1012,7 +1083,12 @@ class Restriction(Class):
             return
         else:
             self.graph.set(triple)
-    onProperty = property(_get_onProperty, _set_onProperty)
+            
+    @TermDeletionHelper(OWL_NS.onProperty)
+    def _del_onProperty(self):            
+        pass            
+                        
+    onProperty = property(_get_onProperty, _set_onProperty, _del_onProperty)
 
     def _get_allValuesFrom(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.allValuesFrom):
@@ -1026,7 +1102,12 @@ class Restriction(Class):
             return
         else:
             self.graph.set(triple)
-    allValuesFrom = property(_get_allValuesFrom, _set_allValuesFrom)
+            
+    @TermDeletionHelper(OWL_NS.allValuesFrom)
+    def _del_allValuesFrom(self):            
+        pass            
+                        
+    allValuesFrom = property(_get_allValuesFrom, _set_allValuesFrom, _del_allValuesFrom)
 
     def _get_someValuesFrom(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.someValuesFrom):
@@ -1040,7 +1121,12 @@ class Restriction(Class):
             return
         else:
             self.graph.set(triple)
-    someValuesFrom = property(_get_someValuesFrom, _set_someValuesFrom)
+            
+    @TermDeletionHelper(OWL_NS.someValuesFrom)
+    def _del_someValuesFrom(self):            
+        pass            
+                        
+    someValuesFrom = property(_get_someValuesFrom, _set_someValuesFrom, _del_someValuesFrom)
 
     def _get_hasValue(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.hasValue):
@@ -1054,7 +1140,12 @@ class Restriction(Class):
             return
         else:
             self.graph.set(triple)
-    hasValue = property(_get_hasValue, _set_hasValue)
+            
+    @TermDeletionHelper(OWL_NS.hasValue)
+    def _del_hasValue(self):            
+        pass            
+                        
+    hasValue = property(_get_hasValue, _set_hasValue, _del_hasValue)
 
     def _get_cardinality(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.cardinality):
@@ -1068,7 +1159,12 @@ class Restriction(Class):
             return
         else:
             self.graph.set(triple)
-    cardinality = property(_get_cardinality, _set_cardinality)
+            
+    @TermDeletionHelper(OWL_NS.cardinality)
+    def _del_cardinality(self):            
+        pass            
+                        
+    cardinality = property(_get_cardinality, _set_cardinality, _del_cardinality)
 
     def _get_maxCardinality(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.maxCardinality):
@@ -1082,7 +1178,12 @@ class Restriction(Class):
             return
         else:
             self.graph.set(triple)
-    maxCardinality = property(_get_maxCardinality, _set_maxCardinality)
+            
+    @TermDeletionHelper(OWL_NS.maxCardinality)
+    def _del_maxCardinality(self):            
+        pass            
+                        
+    maxCardinality = property(_get_maxCardinality, _set_maxCardinality, _del_maxCardinality)
 
     def _get_minCardinality(self):
         for i in self.graph.objects(subject=self.identifier,predicate=OWL_NS.minCardinality):
@@ -1096,7 +1197,12 @@ class Restriction(Class):
             return
         else:
             self.graph.set(triple)
-    minCardinality = property(_get_minCardinality, _set_minCardinality)
+            
+    @TermDeletionHelper(OWL_NS.minCardinality)
+    def _del_minCardinality(self):            
+        pass            
+                        
+    minCardinality = property(_get_minCardinality, _set_minCardinality, _del_minCardinality)
 
     def restrictionKind(self):
         for p in self.graph.triple_choices((self.identifier,
@@ -1232,7 +1338,12 @@ class Property(AnnotatibleTerms):
             return        
         for sP in other:
             self.graph.add((self.identifier,RDFS.subPropertyOf,classOrIdentifier(sP)))
-    subPropertyOf = property(_get_subPropertyOf, _set_subPropertyOf)
+            
+    @TermDeletionHelper(RDFS.subPropertyOf)
+    def _del_subPropertyOf(self):            
+        pass            
+                        
+    subPropertyOf = property(_get_subPropertyOf, _set_subPropertyOf, _del_subPropertyOf)
 
     def _get_inverseOf(self):
         for anc in self.graph.objects(subject=self.identifier,predicate=OWL_NS.inverseOf):
@@ -1241,7 +1352,12 @@ class Property(AnnotatibleTerms):
         if not other:
             return        
         self.graph.add((self.identifier,OWL_NS.inverseOf,classOrIdentifier(other)))
-    inverseOf = property(_get_inverseOf, _set_inverseOf)
+        
+    @TermDeletionHelper(OWL_NS.inverseOf)
+    def _del_inverseOf(self):            
+        pass            
+                
+    inverseOf = property(_get_inverseOf, _set_inverseOf, _del_inverseOf)
 
     def _get_domain(self):
         for dom in self.graph.objects(subject=self.identifier,predicate=RDFS.domain):
@@ -1254,7 +1370,12 @@ class Property(AnnotatibleTerms):
         else:
             for dom in other:
                 self.graph.add((self.identifier,RDFS.domain,classOrIdentifier(dom)))
-    domain = property(_get_domain, _set_domain)
+                
+    @TermDeletionHelper(RDFS.domain)
+    def _del_domain(self):            
+        pass            
+                                
+    domain = property(_get_domain, _set_domain, _del_domain)
 
     def _get_range(self):
         for ran in self.graph.objects(subject=self.identifier,predicate=RDFS.range):
@@ -1267,7 +1388,24 @@ class Property(AnnotatibleTerms):
         else:        
             for range in ranges:
                 self.graph.add((self.identifier,RDFS.range,classOrIdentifier(range)))
-    range = property(_get_range, _set_range)
+                
+    @TermDeletionHelper(RDFS.range)
+    def _del_range(self):            
+        pass            
+                                
+    range = property(_get_range, _set_range, _del_range)
+        
+def CommonNSBindings(graph,additionalNS={}):
+    """
+    Takes a graph and binds the common namespaces (rdf,rdfs, & owl)
+    """
+    namespace_manager = NamespaceManager(graph)
+    namespace_manager.bind('rdfs',RDFS.RDFSNS)
+    namespace_manager.bind('rdf',RDF.RDFNS)
+    namespace_manager.bind('owl',OWL_NS)
+    for prefix,uri in additionalNS.items():
+        namespace_manager.bind(prefix, uri, override=False)
+    graph.namespace_manager = namespace_manager
         
 def test():
     import doctest

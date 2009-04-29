@@ -7,6 +7,22 @@ incorporates RIF Positive Conditions defined in Section Positive Conditions
 from PositiveConditions import *
 from rdflib import Variable, BNode, URIRef, Literal, Namespace,RDF,RDFS
 from rdflib.Graph import Graph, ConjunctiveGraph
+from FuXi.Rete.RuleStore import SetupRuleStore
+
+def NetworkFromN3(n3Source,additionalBuiltins=None):
+    """
+    Takes an N3 / RDF conjunctive graph and returns a ReteNetwork
+    """
+    rule_store, rule_graph, network = SetupRuleStore(
+                         makeNetwork=True,
+                         additionalBuiltins=additionalBuiltins)
+    for ctx in n3Source.contexts():
+        for s,p,o in ctx:
+            rule_store.add((s,p,o),ctx)
+    rule_store._finalize()
+    for rule in Ruleset(n3Rules=rule_store.rules,nsMapping=rule_store.nsMgr):
+        network.buildNetworkFromClause(rule)
+    return network
 
 def HornFromN3(n3Source,additionalBuiltins=None):
     from FuXi.Rete.RuleStore import SetupRuleStore, N3RuleStore

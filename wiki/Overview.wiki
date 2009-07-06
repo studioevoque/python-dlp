@@ -7,7 +7,7 @@ Briefly, python-dlp aims to be a contemporary expert system based on the Semanti
 
 Typically, the term loosely refers to systems built using two separate (and often competing) architectural approaches to the same general problem: [http://en.wikipedia.org/wiki/Logic_Programming Logic programming] and [http://en.wikipedia.org/wiki/Production_system Production systems].  The former is the basis for modern (deductive) database theory and the latter is the family of systems that underly business rule processing implementations.
 
-One of the more important findings in recent deductive database literature _(1)_ and a key architectural constraint of python-dlp is the fact that for certain classes of formal rule languages (Datalog), the semantics of both systems coincide.  We believe the combination of this important characteristic along with its proven, robust scalability suggests that this language be used as the basis for an expert system for the Semantic Web.  
+One of the more important findings in recent deductive database literature and a key architectural constraint of python-dlp is the fact that for certain classes of formal rule languages (Datalog), the semantics of both systems coincide.  We believe the combination of this important characteristic along with its proven, robust scalability suggests that this language be used as the basis for an expert system for the Semantic Web.  
 
 This particular framework is often placed in contrast to more traditional, logic-based approaches to knowledge representation that are the basis for OWL and emphasize an 'open-world' view of data.  We believe this argument is a red herring and easily addressed by the fact that Datalog (or Horn logic) - the most common of all rule language syntax - has a semantics that does not violate the open world assumption when you remove negation from the language.  
 
@@ -56,4 +56,4 @@ In addition, FuXi includes libraries for
 
 The typical usage of python-dlp (or FuXi more specifically) is to either programatically compose a set of OWL descriptions using the Infix OWL interface or to parse them from an existing OWL/RDF document.  Then, the DLP APIs can be used to construct a RETE network from a ruleset  that corresponds with the OWL descriptions.  Finally, the GMS transformation can be used (in an intermediate step) to re-write the resulting rules into a more optimal form for evaluation against a corresponding RETE network.
 
-_(1)_ Vianu, V.: Rule-based languages, Annals of Mathematics and Artificial Intelligence, Springer 1997.
+#_(1)_ Vianu, V.: Rule-based languages, Annals of Mathematics and Artificial Intelligence, Springer 1997.

@@ -11,7 +11,7 @@ One of the more important findings in recent deductive database literature _(1)_
 
 This particular framework is often placed in contrast to more traditional, logic-based approaches to knowledge representation that are the basis for OWL and emphasize an 'open-world' view of data.  We believe this argument is a red herring and easily addressed by the fact that Datalog (or Horn logic) - the most common of all rule language syntax - has a semantics that does not violate the open world assumption when you remove negation from the language.  
 
-The question of whether such a restricted language is able to meet knowledge representation requirements should be answered for each relevant domain (rather than in general) as each brings their own set of needs.  The development of Python-dlp was motivated by problems in the domain of medical terminology and the knowledge representation requirements have been well met. 
+The question of whether such a restricted language is able to meet knowledge representation requirements should be answered for each relevant domain (rather than in general) as each brings their own set of needs.  The development of Python-dlp was motivated by problems in the domain of medical terminology and the knowledge representation requirements have been well met there. 
 
 At least for this restricted language, we have a versatile language that spans both traditional approaches to expert systems as well as that of database theory and does not violate the open-world assumption.  For this reason, python-dlp seeks to be a framework for the next generation of Semantic Web applications that emphasizes provable scalability, expressive versatility, and a rule-based knowledge representation.  
 

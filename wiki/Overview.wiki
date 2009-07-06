@@ -1,7 +1,7 @@
 #summary This page gives an overview of what python-dlp is (its components and the underlying architectural principles that motivated its development)
 #labels Featured,Phase-Requirements,Phase-Design
 
-= Architectural Motivations =
+= Architectural Motivation =
 
 Briefly, python-dlp aims to be a contemporary expert system based on the Semantic Web technologies.  Traditionally, expert systems are an application of computing and artificial intelligence with the aim of supporting software that attempts to reproduce the deterministic behavior of one or more human experts in a specific problem domain.  
 

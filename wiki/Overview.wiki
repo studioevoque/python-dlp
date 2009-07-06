@@ -1,0 +1,46 @@
+#summary This page gives an overview of what python-dlp is (its components and the underlying architectural principles that motivated its development)
+#labels Featured,Phase-Requirements,Phase-Design
+
+= Architectural Motivations =
+
+Briefly, python-dlp aims to be a contemporary expert system based on the Semantic Web technologies.  Traditionally, expert systems are an application of computing and artificial intelligence with the aim of supporting software that attempts to reproduce the deterministic behavior of one or more human experts in a specific problem domain.  
+
+Typically, the term loosely refers to systems built using two separate (and often competing) architectural approaches to the same general problem: [http://en.wikipedia.org/wiki/Logic_Programming Logic programming] and [http://en.wikipedia.org/wiki/Production_system Production systems].  The former is the basis for modern (deductive) database theory and the latter is the family of systems that underly business rule processing implementations.
+
+One of the more important findings in recent deductive database literature [1] and a key architectural constraint of python-dlp is the fact that for certain classes of formal rule languages (Datalog), the semantics of both systems coincide.  We believe the combination of this important characteristic along with its proven, robust scalability suggests that this language be used as the basis for an expert system for the Semantic Web.  
+
+This particular framework is often placed in contrast to more traditional approaches to knowledge representation that are the basis for OWL and emphasis an 'open-world' view of data.  We believe this argument is a red herring, easily dismissed by the fact that Datalog (or Horn logic) - the most common of all rule languages - does not violate the open world assumption when you remove negation from the language.  
+
+The question of whether such a restricted language is able to meet knowledge representation requirements should be answered for each relevant domain (rather than in general) as each brings their own set of needs.  The development of Python-dlp was motivated by problems in the domain of medical terminology and the knowledge representation requirements have been well met. 
+
+At least for this restricted language, we have a versatile language that spans both traditional approaches to expert systems as well as that of database theory and does not violate the open-world assumption.  For this reason, python-dlp seeks to be a framework for the next generation of Semantic Web applications that emphasizes provable scalability, expressive versatility, and a rule-based knowledge representation.  
+
+=  Knowledge Representation Languages =
+
+Python-dlp uses RDF for its core knowledge representation of facts in a particular domain.   It relies on RDFS and a fragment of OWL/OWL2 (specifically the fragment of Description Logic that intersects with Datalog) for a model-theoretic knowledge representation of restrictions on how the RDF is [http://www.w3.org/TR/rdf-mt/#interp interpreted].  Finally, RIF-Core is adopted for capturing rule-based (_IF_ ... _THEN_ ..) logic for the RDF.
+
+= Components =
+
+== FuXi RETE-UL Network ==
+
+At the heart of the python-dlp framework is an implementation of most of the RETE-UL algorithms outlined in the PhD thesis (1995) of Robert Doorenbos:
+
+   Production Matching for Large Learning Systems.
+
+Robert's thesis describes a modification of the original [http://en.wikipedia.org/wiki/Rete_algorithm Rete] algorithm that (amongst other things) limits the fact syntax (referred to as Working Memory Elements) to 3-item tuples (which corresponds quite nicely with the RDF abstract syntax). The thesis also describes methods for using hash tables to improve efficiency of alpha nodes and beta nodes.
+
+== FuXi Magic Set ==
+
+FuXi uses the RETE-UL as the implementation for evaluating rules via forward-chaining.  This limitation in the direction of rule evaluation is overcome (partly) by the use of one of the more important algorithms in database theory called the Generalized Magic Set (GMS) transformation.  Briefly, the GMS transformation is used to efficiently evaluate a query against a database with (possibly recursive) [http://en.wikipedia.org/wiki/Database_view views].
+
+The algorithm is re-used to transform a set of RIF-Core rules, given a simple SPARQL basic graph pattern, into a new ruleset that (when evaluated via forward chaining) is optimal and simulates a backward chained evaluation over the same ruleset.  The method is the subject of a manuscript submitted to ISWC 2009. 
+
+== FuXi and Description Logic Programming ==
+
+FuXi includes an implementation of the Description Logic Programming language.  Specifically, for certain restricted classes of OWL-DL and OWL2 (OWL2 RL in particular), axioms expressed in this language can be converted into a set of rules that exactly capture the semantics for efficient evaluation via the RETE-UL network .
+
+== OWL and Rule APIs ==
+
+FuXi includes two Python APIs that seek to leverage the versatility and expressiveness of the host language for managing rulesets and OWL axioms.  The former API is described in more detail in the [FuXiUserManual user manual] and the latter is the subject of the 2008 OWLED paper [http://ftp.informatik.rwth-aachen.de/Publications/CEUR-WS/Vol-432/owled2008eu_submission_19.pdf InfixOWL: An Idiomatic Interface for OWL]
+
+[1] Vianu, V.: Rule-based languages, Annals of Mathematics and Artificial Intelligence, Springer 1997.

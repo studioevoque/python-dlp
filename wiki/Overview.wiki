@@ -47,10 +47,13 @@ FuXi includes two Python APIs that seek to leverage the versatility and expressi
 
 In addition, FuXi includes libraries for
 
-  * Reducing DL and Horn clauses into _normal_ forms, (limited) support for default negation (different from the interpretation of negation associated with OWL, but using OWL as a syntax for this purpose), proof generation, and visualization libraries for the corresponding RETE networks built from the rulesets and of proof trees.
+  * Reducing DL and Horn clauses into _normal_ forms
+  * (Limited) support for default negation (different from the interpretation of negation associated with OWL, but using OWL as a surface syntax for this purpose)
+  * Proof generation
+  * Visualization libraries for the corresponding RETE networks built from the rulesets and of proof trees.
 
 == Usage ==
 
 The typical usage of python-dlp (or FuXi more specifically) is to either programatically compose a set of OWL descriptions using the Infix OWL interface or to parse them from an existing OWL/RDF document.  Then, the DLP APIs can be used to construct a RETE network from a ruleset  that corresponds with the OWL descriptions.  Finally, the GMS transformation can be used (in an intermediate step) to re-write the resulting rules into a more optimal form for evaluation against a corresponding RETE network.
 
-[1] Vianu, V.: Rule-based languages, Annals of Mathematics and Artificial Intelligence, Springer 1997.
+_(1)_ Vianu, V.: Rule-based languages, Annals of Mathematics and Artificial Intelligence, Springer 1997.

@@ -9,7 +9,7 @@ Typically, the term loosely refers to systems built using two separate (and ofte
 
 One of the more important findings in recent deductive database literature _(1)_ and a key architectural constraint of python-dlp is the fact that for certain classes of formal rule languages (Datalog), the semantics of both systems coincide.  We believe the combination of this important characteristic along with its proven, robust scalability suggests that this language be used as the basis for an expert system for the Semantic Web.  
 
-This particular framework is often placed in contrast to more traditional approaches to knowledge representation that are the basis for OWL and emphasis an 'open-world' view of data.  We believe this argument is a red herring, easily dismissed by the fact that Datalog (or Horn logic) - the most common of all rule languages - does not violate the open world assumption when you remove negation from the language.  
+This particular framework is often placed in contrast to more traditional, logic-based approaches to knowledge representation that are the basis for OWL and emphasize an 'open-world' view of data.  We believe this argument is a red herring and easily addressed by the fact that Datalog (or Horn logic) - the most common of all rule language syntax - has a semantics that does not violate the open world assumption when you remove negation from the language.  
 
 The question of whether such a restricted language is able to meet knowledge representation requirements should be answered for each relevant domain (rather than in general) as each brings their own set of needs.  The development of Python-dlp was motivated by problems in the domain of medical terminology and the knowledge representation requirements have been well met. 
 
@@ -41,6 +41,16 @@ FuXi includes an implementation of the Description Logic Programming language.  
 
 == OWL and Rule APIs ==
 
-FuXi includes two Python APIs that seek to leverage the versatility and expressiveness of the host language for managing rulesets and OWL axioms.  The former API is described in more detail in the [FuXiUserManual user manual] and the latter is the subject of the 2008 OWLED paper [http://ftp.informatik.rwth-aachen.de/Publications/CEUR-WS/Vol-432/owled2008eu_submission_19.pdf InfixOWL: An Idiomatic Interface for OWL]
+FuXi includes two Python APIs that seek to leverage the versatility and expressiveness of the host language for managing rulesets and OWL axioms.  The former API is described in more detail in the [FuXiUserManual user manual] and the latter (InfixOWL) is the subject of the 2008 OWLED paper [http://ftp.informatik.rwth-aachen.de/Publications/CEUR-WS/Vol-432/owled2008eu_submission_19.pdf InfixOWL: An Idiomatic Interface for OWL]
+
+== Additional Capabilities ==
+
+In addition, FuXi includes libraries for
+
+  * Reducing DL and Horn clauses into _normal_ forms, (limited) support for default negation (different from the interpretation of negation associated with OWL, but using OWL as a syntax for this purpose), proof generation, and visualization libraries for the corresponding RETE networks built from the rulesets and of proof trees.
+
+== Usage ==
+
+The typical usage of python-dlp (or FuXi more specifically) is to either programatically compose a set of OWL descriptions using the Infix OWL interface or to parse them from an existing OWL/RDF document.  Then, the DLP APIs can be used to construct a RETE network from a ruleset  that corresponds with the OWL descriptions.  Finally, the GMS transformation can be used (in an intermediate step) to re-write the resulting rules into a more optimal form for evaluation against a corresponding RETE network.
 
 [1] Vianu, V.: Rule-based languages, Annals of Mathematics and Artificial Intelligence, Springer 1997.

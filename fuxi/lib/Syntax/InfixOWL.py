@@ -368,6 +368,26 @@ class Individual(object):
                 pass
             
     identifier = property(_get_identifier, _set_identifier)
+    
+    def _get_sameAs(self):
+        for _t in self.graph.objects(subject=self.identifier,predicate=OWL_NS.sameAs):
+            yield _t
+    def _set_sameAs(self, term):
+        if not kind:
+            return  
+        if isinstance(term,(Individual,Identifier)):
+            self.graph.add((self.identifier,OWL_NS.sameAs,classOrIdentifier(term)))
+        else:
+            for c in term:
+                assert isinstance(c,(Individual,Identifier))
+                self.graph.add((self.identifier,OWL_NS.sameAs,classOrIdentifier(c)))
+                
+    @TermDeletionHelper(OWL_NS.sameAs)            
+    def _delete_sameAs(self):
+        pass
+                
+    sameAs = property(_get_sameAs, _set_sameAs, _delete_sameAs)
+    
 
 class AnnotatibleTerms(Individual):
     """
@@ -599,6 +619,12 @@ class Class(AnnotatibleTerms):
             
     extent = property(_get_extent, _set_extent, _del_type)            
 
+    def _get_annotation(self,term=RDFS.label):
+        for annotation in self.graph.objects(subject=self,predicate=term):
+            yield annotation
+            
+    annotation = property(_get_annotation,lambda x:x)            
+
     def _get_extentQuery(self):
         return (Variable('CLASS'),RDF.type,self.identifier)
 
@@ -671,7 +697,9 @@ class Class(AnnotatibleTerms):
             
     def _get_subClassOf(self):
         for anc in self.graph.objects(subject=self.identifier,predicate=RDFS.subClassOf):
-            yield Class(anc,graph=self.graph)
+            yield Class(anc,
+                        graph=self.graph,
+                        skipOWLClassMembership=True)
     def _set_subClassOf(self, other):
         if not other:
             return        
@@ -920,6 +948,37 @@ class EnumeratedClass(Class,OWLRDFListProxy):
     
 BooleanPredicates = [OWL_NS.intersectionOf,OWL_NS.unionOf]
 
+class BooleanClassExtentHelper:
+    """
+    >>> testGraph = Graph()
+    >>> Individual.factoryGraph = testGraph
+    >>> EX = Namespace("http://example.com/")
+    >>> namespace_manager = NamespaceManager(Graph())
+    >>> namespace_manager.bind('ex', EX, override=False)
+    >>> testGraph.namespace_manager = namespace_manager
+    >>> fire  = Class(EX.Fire)
+    >>> water = Class(EX.Water) 
+    >>> testClass = BooleanClass(members=[fire,water])
+    >>> testClass2 = BooleanClass(operator=OWL_NS.unionOf,members=[fire,water])
+    >>> for c in BooleanClass.getIntersections():
+    ...     print c
+    ( ex:Fire and ex:Water )
+    >>> for c in BooleanClass.getUnions():
+    ...     print c
+    ( ex:Fire or ex:Water )
+    """    
+    def __init__(self, operator):
+        self.operator = operator
+    def __call__(self, f):
+        def _getExtent():
+            for c in Individual.factoryGraph.subjects(self.operator):
+                yield BooleanClass(c,operator=self.operator)            
+        return _getExtent
+    
+class Callable:
+    def __init__(self, anycallable):
+        self.__call__ = anycallable    
+
 class BooleanClass(Class,OWLRDFListProxy):
     """
     See: http://www.w3.org/TR/owl-ref/#Boolean
@@ -927,6 +986,16 @@ class BooleanClass(Class,OWLRDFListProxy):
     owl:complementOf is an attribute of Class, however
     
     """
+    @BooleanClassExtentHelper(OWL_NS.intersectionOf)
+    @Callable
+    def getIntersections(): pass
+    getIntersections = Callable(getIntersections)    
+
+    @BooleanClassExtentHelper(OWL_NS.unionOf)
+    @Callable
+    def getUnions(): pass
+    getUnions = Callable(getUnions)    
+            
     def __init__(self,identifier=None,operator=OWL_NS.intersectionOf,
                  members=None,graph=None):
         if operator is None:
@@ -1027,12 +1096,22 @@ class Restriction(Class):
                         OWL_NS.maxCardinality,
                         OWL_NS.minCardinality]
     
-    def __init__(self,onProperty,graph = Graph(),allValuesFrom=None,someValuesFrom=None,value=None,
-                      cardinality=None,maxCardinality=None,minCardinality=None,identifier=None):
+    def __init__(self,
+                 onProperty,
+                 graph = Graph(),
+                 allValuesFrom=None,
+                 someValuesFrom=None,
+                 value=None,
+                 cardinality=None,
+                 maxCardinality=None,
+                 minCardinality=None,
+                 identifier=None):
         super(Restriction, self).__init__(identifier,
                                           graph=graph,
                                           skipOWLClassMembership=True)
-        if (self.identifier,OWL_NS.onProperty,propertyOrIdentifier(onProperty)) not in graph:
+        if (self.identifier,
+            OWL_NS.onProperty,
+            propertyOrIdentifier(onProperty)) not in graph:
             graph.add((self.identifier,OWL_NS.onProperty,propertyOrIdentifier(onProperty)))
         self.onProperty = onProperty
         restrTypes = [
@@ -1284,7 +1363,7 @@ class Property(AnnotatibleTerms):
     def __repr__(self):
         rt=[]
         if OWL_NS.ObjectProperty in self.type:
-            rt.append('ObjectProperty( %s annotation(%s)'\
+            rt.append(u'ObjectProperty( %s annotation(%s)'\
                        %(self.qname,first(self.comment) and first(self.comment) or ''))
             if first(self.inverseOf):
                 twoLinkInverse=first(first(self.inverseOf).inverseOf)
@@ -1292,43 +1371,43 @@ class Property(AnnotatibleTerms):
                     inverseRepr=first(self.inverseOf).qname
                 else:
                     inverseRepr=repr(first(self.inverseOf))
-                rt.append("  inverseOf( %s )%s"%(inverseRepr,
-                            OWL_NS.Symmetric in self.type and ' Symmetric' or ''))
+                rt.append(u"  inverseOf( %s )%s"%(inverseRepr,
+                            OWL_NS.Symmetric in self.type and u' Symmetric' or u''))
             for s,p,roleType in self.graph.triples_choices((self.identifier,
                                                             RDF.type,
                                                             [OWL_NS.Functional,
                                                              OWL_NS.InverseFunctionalProperty,
                                                              OWL_NS.Transitive])):
-                rt.append(roleType.split(OWL_NS)[-1])
+                rt.append(unicode(roleType.split(OWL_NS)[-1]))
         else:
             rt.append('DatatypeProperty( %s %s'\
                        %(self.qname,first(self.comment) and first(self.comment) or ''))            
             for s,p,roleType in self.graph.triples((self.identifier,
                                                     RDF.type,
                                                     OWL_NS.Functional)):
-                rt.append('   Functional')
+                rt.append(u'   Functional')
         def canonicalName(term,g):
             normalizedName=classOrIdentifier(term)
             if isinstance(normalizedName,BNode):
                 return term
             elif normalizedName.startswith(_XSD_NS):
-                return term
+                return unicode(term)
             elif first(g.triples_choices((
                       normalizedName,
                       [OWL_NS.unionOf,
                        OWL_NS.intersectionOf],None))):
                 return repr(term)
             else:
-                return str(term.qname)
-        rt.append(' '.join(["   super( %s )"%canonicalName(superP,self.graph) 
+                return unicode(term.qname)
+        rt.append(u' '.join([u"   super( %s )"%canonicalName(superP,self.graph) 
                               for superP in self.subPropertyOf]))                        
-        rt.append(' '.join(["   domain( %s )"% canonicalName(domain,self.graph) 
+        rt.append(u' '.join([u"   domain( %s )"% canonicalName(domain,self.graph) 
                               for domain in self.domain]))
-        rt.append(' '.join(["   range( %s )"%canonicalName(range,self.graph) 
+        rt.append(u' '.join([u"   range( %s )"%canonicalName(range,self.graph) 
                               for range in self.range]))
-        rt='\n'.join([expr for expr in rt if expr])
-        rt+='\n)'
-        return rt
+        rt=u'\n'.join([expr for expr in rt if expr])
+        rt+=u'\n)'
+        return unicode(rt).encode('utf-8')
                     
     def _get_subPropertyOf(self):
         for anc in self.graph.objects(subject=self.identifier,predicate=RDFS.subPropertyOf):

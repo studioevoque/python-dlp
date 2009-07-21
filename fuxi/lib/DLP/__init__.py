@@ -722,6 +722,10 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
             body = Uniterm(prop,[variable,newVar],newNss=owlGraph.namespaces())
             for head in Th(owlGraph,o,variable=newVar):
                 yield Clause(body,head)
+    elif OWL_NS.hasValue in props:
+        prop = list(owlGraph.objects(subject=_class,predicate=OWL_NS.onProperty))[0]
+        o =first(owlGraph.objects(subject=_class,predicate=OWL_NS.hasValue))
+        yield Uniterm(prop,[variable,o],newNss=owlGraph.namespaces())
     elif OWL_NS.someValuesFrom in props:
         #http://www.w3.org/TR/owl-semantics/#someValuesFrom
         for s,p,o in owlGraph.triples((_class,OWL_NS.someValuesFrom,None)):
@@ -729,6 +733,9 @@ def Th(owlGraph,_class,variable=Variable('X'),position=LHS):
             newVar = BNode()
             yield And([Uniterm(prop,[variable,newVar],newNss=owlGraph.namespaces()),
                         generatorFlattener(Th(owlGraph,o,variable=newVar))])
+    elif OWL_NS.intersectionOf in props:
+        from FuXi.Syntax.InfixOWL import BooleanClass
+        yield And([first(Th(owlGraph,h,variable)) for h in BooleanClass(_class)])
     else:
         #Simple class
         yield Uniterm(RDF.type,[variable,

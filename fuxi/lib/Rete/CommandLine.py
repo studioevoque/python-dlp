@@ -194,13 +194,10 @@ def main():
     factGraph = Graph(store) 
     factGraph.namespace_manager = namespace_manager
     for fileN in ruleGraphs:
-        print >>sys.stderr,"Parsed %s N3 rules from %s"%(len(ruleGraph.parse(open(fileN),
-                                                         format='n3')), 
-                                                         fileN)
         if useRuleFacts:
-            factGraph.parse(open(fileN),format='n3')
+            factGraph.parse(fileN,format='n3')
             print >>sys.stderr,"Parsing RDF facts from ", fileN
-    assert not ruleGraphs or len(ruleGraph),"Nothing parsed from %s"%(ruleGraphs)
+        ruleGraph.parse(fileN,format='n3')
     if optimize:
         ruleStore.optimizeRules()
         sys.exit(1)
@@ -282,6 +279,10 @@ def main():
                               inferredTarget = closureDeltaGraph,
                               graphVizOutFile = gVizOut,
                               nsMap = nsBinds)
+        if not closure and outMode == 'rif':
+            for rule in network.rules:
+                print rule
+
     if not extract:
         start = time.time()  
         network.feedFactsToAdd(workingMemory)

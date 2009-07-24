@@ -317,7 +317,9 @@ BuiltIn used out of order
             if not self.rootFormula:
                 self.rootFormula = context.identifier
             if predicate == LOG.implies:
-                self.rules.append((subject.identifier,obj.identifier))
+                self.rules.append(
+                      (isinstance(subject,URIRef) and subject or subject.identifier,
+                       isinstance(obj,URIRef) and obj or obj.identifier))
             else:                
                 self.facts.append((subject,predicate,obj))
         else:

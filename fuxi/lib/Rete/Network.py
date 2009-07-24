@@ -201,7 +201,6 @@ class ReteNetwork:
           " self.buildNetworkClause(HornFromN3(n3graph)) for instance",
                           DeprecationWarning,2)            
             self.buildNetworkFromClause(rule)
-            self.rules.add(rule)
         self.alphaNodes = [node for node in self.nodes.values() if isinstance(node,AlphaNode)]
         self.alphaBuiltInNodes = [node for node in self.nodes.values() if isinstance(node,BuiltInAlphaNode)]
         self._setupDefaultRules()
@@ -232,10 +231,18 @@ class ReteNetwork:
                 self.ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(term.toRDFTuple())
         for builtin in builtins:
             self.ruleStore.formulae.setdefault(lhs,Formula(lhs)).append(builtin.toRDFTuple())
+        nonEmptyHead=False
         for term in rule.formula.head:
+            nonEmptyHead=True
             assert not hasattr(term,'next')
             assert isinstance(term,Uniterm)
             self.ruleStore.formulae.setdefault(rhs,Formula(rhs)).append(term.toRDFTuple())
+        if not nonEmptyHead:
+            import warnings
+            warnings.warn(
+          "Integrity constraints (rules with empty heads) are not supported!: %s"%rule,
+                          SyntaxWarning,2)            
+            return
         self.ruleStore.rules.append((self.ruleStore.formulae[lhs],self.ruleStore.formulae[rhs]))
         self.buildNetwork(iter(self.ruleStore.formulae[lhs]),
                              iter(self.ruleStore.formulae[rhs]),
@@ -322,18 +329,17 @@ class ReteNetwork:
 #        print "##### DLP rules fired against OWL/RDF TBOX",self
         return rules
     
-    def reportConflictSet(self,closureSummary=False):
+    def reportConflictSet(self,closureSummary=False,stream=sys.stdout):
         tNodeOrder = [tNode 
                         for tNode in self.terminalNodes 
                             if self.instanciations.get(tNode,0)]
         tNodeOrder.sort(key=lambda x:self.instanciations[x],reverse=True)
         for termNode in tNodeOrder:
-            print >>sys.stdout,termNode
-            #print "\t %s => %s"%(lhsF,rhsF)
-            print >>sys.stdout,"\t", termNode.clause
-            print >>sys.stdout,"\t\t%s instanciations"%self.instanciations[termNode]
+            print >>stream,termNode
+            print >>stream,"\t", termNode.clause
+            print >>stream,"\t\t%s instanciations"%self.instanciations[termNode]
         if closureSummary:        
-            print self.inferredFacts.serialize(format='turtle')
+            print >>stream ,self.inferredFacts.serialize(format='turtle')
                 
     def parseN3Logic(self,src):
         store=N3RuleStore(additionalBuiltins=self.ruleStore.filters)

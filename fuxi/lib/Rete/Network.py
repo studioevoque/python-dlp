@@ -259,6 +259,7 @@ class ReteNetwork:
         from FuXi.DLP.Negation import StratifiedSPARQL
         from FuXi.Rete.Magic import PrettyPrintRule
         import copy
+        noNegFacts = 0
         for i in self.negRules:
             #Evaluate the Graph pattern, and instanciate the head of the rule with 
             #the solutions returned
@@ -280,6 +281,7 @@ class ReteNetwork:
                 fact=head.toRDFTuple()
                 self.inferredFacts.add(fact)
                 self.feedFactsToAdd(generateTokenSet([fact]))
+                noNegFacts += 1
         #Now we need to clear assertions that cross the individual, concept, relation divide
         toRemove=[]
         for s,p,o in self.inferredFacts.triples((None,RDF.type,None)):
@@ -291,6 +293,7 @@ class ReteNetwork:
                                              [OWL_NS.Class,
                                               OWL_NS.Restriction]))]:
                 self.inferredFacts.remove((s,p,o))
+        return noNegFacts
                         
     def setupDescriptionLogicProgramming(self,
                                          owlN3Graph,

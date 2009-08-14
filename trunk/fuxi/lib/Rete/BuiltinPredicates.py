@@ -36,7 +36,7 @@ def StringGreaterThan(subject,object_):
             assert isinstance(term,Literal),"str:greaterThan can only be used with Literals! (%s)"%term
     def greaterThanF(s,o):
         for term in [s,o]:
-            assert isinstance(term,Literal),"str:greaterThan can only be used with Literals!: %s %s"%(s,0)
+            assert isinstance(term,Literal),"str:greaterThan can only be used with Literals!: %s %s"%(s,o)
         return str(s) > str(o)
     return greaterThanF
 

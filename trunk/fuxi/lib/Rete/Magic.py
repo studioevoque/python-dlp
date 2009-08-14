@@ -46,6 +46,8 @@ def MagicSetTransformation(factGraph,rules,GOALS,derivedPreds=None,strictCheck=F
         derivedPreds=list(DerivedPredicateIterator(factGraph,rules))
     replacement={}
     rs=AdornProgram(factGraph,rules,GOALS,derivedPreds)
+    if factGraph:
+        factGraph.adornedProgram = rs
     newRules=[]
     for rule in rs: 
         magicPositions={}

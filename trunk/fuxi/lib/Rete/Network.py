@@ -11,7 +11,7 @@ The network :
     - stores inferred triples in provided triple source (an RDFLib graph) or a temporary IOMemory Graph by default
 
 """
-from itertools import izip,ifilter
+from itertools import izip,ifilter,chain
 import time,sys
 from sets import Set
 from pprint import pprint
@@ -593,30 +593,33 @@ class ReteNetwork:
                     else:
                         paddedLHSPattern = HashablePatternList([None])+attachedPatterns[0]                    
                         terminalNode = self.nodes.get(paddedLHSPattern,BetaNode(None,node,aPassThru=True))
-                        if True:#clause not in self.ruleSet:
-                            self.nodes[paddedLHSPattern] = terminalNode    
-                            node.connectToBetaNode(terminalNode,RIGHT_MEMORY)                            
-                    if True:#clause not in self.ruleSet:
-                        #self.ruleSet.add(clause)                        
-                        terminalNode.rule = (LHS,consequents)
-                        terminalNode.consequent.update(consequents)
-                        terminalNode.network    = self
-                        terminalNode.clause = rule.formula
-                        terminalNode.horn_rule = rule
-                        self.terminalNodes.add(terminalNode)                    
+                        self.nodes[paddedLHSPattern] = terminalNode    
+                        node.connectToBetaNode(terminalNode,RIGHT_MEMORY)                            
+                    terminalNode.rule = (LHS,consequents)
+                    terminalNode.consequent.update(consequents)
+                    terminalNode.network    = self
+                    terminalNode.clause = rule.formula
+                    terminalNode.horn_rule = rule
+                    self.terminalNodes.add(terminalNode)                    
                 else:              
-                    for aP in attachedPatterns:
-                        assert isinstance(aP,HashablePatternList),repr(aP)                    
-                    terminalNode = self.attachBetaNodes(iter(attachedPatterns))
-                    if True:#clause not in self.ruleSet:
-                        #self.ruleSet.add(clause)
-                        terminalNode.rule = (LHS,consequents)
-                        terminalNode.consequent.update(consequents)
-                        terminalNode.network    = self
-                        terminalNode.clause = rule.formula
-                        terminalNode.horn_rule = rule
-                        self.terminalNodes.add(terminalNode)
-                        self._resetinstanciationStats()                        
+                    moveToEnd = []
+                    endIdx = len(attachedPatterns) - 1
+                    finalPatternList = []
+                    for idx,pattern in enumerate(attachedPatterns):
+                        assert isinstance(pattern,HashablePatternList),repr(pattern)                    
+                        currNode = self.nodes[pattern]
+                        if isinstance(currNode,BuiltInAlphaNode) and idx < endIdx:
+                            moveToEnd.append(pattern)
+                        else:
+                            finalPatternList.append(pattern)
+                    terminalNode = self.attachBetaNodes(chain(finalPatternList,moveToEnd))
+                    terminalNode.rule = (LHS,consequents)
+                    terminalNode.consequent.update(consequents)
+                    terminalNode.network    = self
+                    terminalNode.clause = rule.formula
+                    terminalNode.horn_rule = rule
+                    self.terminalNodes.add(terminalNode)
+                    self._resetinstanciationStats()                        
                 #self.checkDuplicateRules()
                 return
             if HashablePatternList([currentPattern]) in self.nodes:

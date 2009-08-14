@@ -4,7 +4,7 @@
 Implementation of Sideways Information Passing graph (builds it from a given ruleset)
 """
 
-import unittest, os, sys, itertools
+import unittest, os, sys, itertools, md5
 from FuXi.Horn.PositiveConditions import *
 from FuXi.Horn.HornRules import Ruleset
 from FuXi.Rete.RuleStore import SetupRuleStore, N3Builtin
@@ -21,6 +21,62 @@ MAGIC = Namespace('http://doi.acm.org/10.1145/28659.28689#')
 
 def iterCondition(condition):
     return isinstance(condition,SetOperator) and condition or iter([condition])
+
+def normalizeTerm(uri,sipGraph):
+    try:
+        return sipGraph.qname(uri).split(':')[-1]
+    except:
+        return uri.n3()
+
+def RenderSIPCollection(sipGraph,dot=None):
+    try:
+        from pydot import Node,Edge,Dot
+    except:
+        import warnings
+        warnings.warn("Missing pydot library",ImportWarning)
+    if not dot:
+        dot = Dot(graph_type='digraph')
+        dot.leftNodesLookup = {}                
+    nodes = {}
+    for N,prop,q in sipGraph.query(
+        'SELECT ?N ?prop ?q {  ?prop a magic:SipArc . ?N ?prop ?q . }',
+        initNs={u'magic':MAGIC}):
+
+        if MAGIC.BoundHeadPredicate in sipGraph.objects(subject=N,
+                                                        predicate=RDF.type):
+            NCol = [N]
+        else:
+            NCol=Collection(sipGraph,N)
+            
+        if q not in nodes:
+            newNode=Node(md5.new(q).hexdigest(),
+                         label=normalizeTerm(q,sipGraph),
+                         shape='plaintext')                
+            nodes[q]=newNode        
+            dot.add_node(newNode)
+        
+        bNode = BNode()
+        nodeLabel = ', '.join([normalizeTerm(term,sipGraph) 
+                      for term in NCol ])
+        edgeLabel = ', '.join([var.n3() 
+                           for var in Collection(sipGraph,first(sipGraph.objects(prop,
+                                                                    MAGIC.bindings)))])
+        markedEdgeLabel = ''
+        if nodeLabel in dot.leftNodesLookup:
+            bNode,leftNode,markedEdgeLabel = dot.leftNodesLookup[nodeLabel]
+#            print "\t",nodeLabel,edgeLabel, markedEdgeLabel,not edgeLabel == markedEdgeLabel
+        else:
+            leftNode=Node(md5.new(bNode).hexdigest(),label=nodeLabel,shape='plaintext')
+            dot.leftNodesLookup[nodeLabel] = (bNode,leftNode,edgeLabel)
+            nodes[bNode]=leftNode
+            dot.add_node(leftNode)
+        
+        if not edgeLabel == markedEdgeLabel:
+            edge = Edge(leftNode,
+                        nodes[q],
+                        label=edgeLabel)
+            dot.add_edge(edge)
+    return dot
 
 class SIPGraphArc(object):
     """
@@ -232,8 +288,6 @@ def BuildNaturalSIP(clause,derivedPreds,adornedHead):
     return sipGraph
 
 def SIPRepresentation(sipGraph):
-    def normalizeTerm(uri,sipGraph):
-        return sipGraph.qname(uri).split(':')[-1]
     for N,prop,q in sipGraph.query(
         'SELECT ?N ?prop ?q {  ?prop a magic:SipArc . ?N ?prop ?q . }',
         initNs={u'magic':MAGIC}):

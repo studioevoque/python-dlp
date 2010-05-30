@@ -7,4 +7,4 @@ This is the implementation used for the Segmenting and Merging Domain-specific O
 
 = Details =
 
-More details to come.  See source code in subversion
+More details to come.  See [http://code.google.com/p/python-dlp/source/browse/trunk/clinical-ontology-modules source code] in subversion

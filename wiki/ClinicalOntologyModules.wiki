@@ -8,3 +8,56 @@ This is the implementation used for the Segmenting and Merging Domain-specific O
 = Details =
 
 More details to come.  See [http://code.google.com/p/python-dlp/source/browse/trunk/clinical-ontology-modules source code] in subversion
+
+= Command-line Options =
+
+{{{
+Usage: ManageSNOMED-CT.py [options]
+
+Options:
+  -h, --help            show this help message and exit
+  --root=ROOT           Determines the termination point for the extraction
+                        algorithm (either stop at the closest primitive
+                        concept going upwards or at the very top of the SNOMED
+                        taxonomy).  Respectively the value of this option can
+                        be one of "primitive" or "root" (the default)
+  --load                Load SNOMED-CT distribution files (in the current
+                        directory) into a MySQL DB
+  --verbose             Output debug print statements or not
+  -e EXTRACT, --extract=EXTRACT
+                        Extract an OWL representation from SNOMED-CT using the
+                        comma-separated list of SNOMED-CT identifiers as the
+                        starting point
+  --snomedCore          Extract an OWL representation from SNOMED-CT using the
+                        concepts with human readable definitions as the
+                        starting point
+  --extractFile=EXTRACTFILE
+                        Same as --extract, except the comma-separated list of
+                        SNOMED-CT identifiers are in the specified file
+  -o OUTPUT, --output=OUTPUT
+                        The name of the file to write out the OWL/RDF to
+                        (STDOUT is used otherwise
+  -n NORMALFORM, --normalForm=NORMALFORM
+                        Whether to extract using the long normal form (long),
+                        short normal form (short), or neither (- the default
+                        -)
+  -l LOCATION, --location=LOCATION
+                        The directory where the delimited files or SNOMED-CT
+                        -> FMA mappings will be loaded from (the default is
+                        the current directory)
+  -s SERVER, --server=SERVER
+                        Host name of the MySQL database to connect to
+  -f FILES, --files=FILES
+                        A comma-separated list of distribution files to load
+                        from in the order: concept, descriptions,
+                        relationship, definition
+  -p PORT, --port=PORT  The port to use when connecting to the MySQL database
+  -w PASSWORD, --password=PASSWORD
+                        Password
+  -u USERNAME, --username=USERNAME
+                        User name to use when connecting to the MySQL database
+  -d DATABASE, --database=DATABASE
+                        The name of the MySQL database to connect to
+  --profile             Enable profiling statistics
+
+}}}

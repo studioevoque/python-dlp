@@ -1,0 +1,10 @@
+#summary This is an implementation of a method for segmenting and merging modules from these ontologies for a specific domain
+#labels Featured
+
+= Introduction =
+
+This is the implementation used for the Segmenting and Merging Domain-specific Ontology Modules for Clinical Informatics [http://copia.posterous.com/segmenting-and-merging-domain-specific-ontolo method]. 
+
+= Details =
+
+More details to come.  See source code in subversion

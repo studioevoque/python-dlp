@@ -3,7 +3,7 @@
 
 = Introduction =
 
-This wiki lists the major divergence from the rdflib 3.0 beyond just the differences in the new APIs.  It mostly chronicles modifications that were made since [http://code.google.com/p/rdflib/source/detail?r=1658 this] merge from a [http://www.w3.org/2001/sw/sweo/public/UseCases/ClevelandClinic/ patient registry] mercurial maintenance branch.
+This wiki lists the major divergence from the rdflib 3.0 beyond just the differences in the new APIs.  It mostly chronicles modifications that were made since [http://code.google.com/p/rdflib/source/detail?r=1658 this] merge from a mercurial maintenance branch used for a [http://www.w3.org/2001/sw/sweo/public/UseCases/ClevelandClinic/ patient registry].
 
 The source is here _[http://code.google.com/p/python-dlp/source/browse/trunk/#trunk/layercake-python /trunk/layercake-python/]_
 

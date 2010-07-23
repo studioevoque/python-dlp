@@ -43,14 +43,7 @@ setup(
 
     packages = find_packages(),
 
-    ext_modules = [
-        Extension(
-            name='rdflib.sparql.bison.SPARQLParserc',
-            sources=['src/bison/SPARQLParser.c'],
-            ),
-        ],
-
-    tests_require = ["nose>=0.9.2"],
+    tests_require = ["nose>=0.9.2","pyparsing"],
 
     test_suite = 'nose.collector',
 

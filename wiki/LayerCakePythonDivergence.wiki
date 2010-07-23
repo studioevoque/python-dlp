@@ -26,6 +26,10 @@ Added rdflib.store.SPARQL store which is an implementation of the readonly subse
   * Replaced 'native' Python XML DOM api with 4Suite-XML Domlette 
   *  Incorporated as an rdflib store
 
+== GRDDL Implementation with Amara ==
+
+It also [http://code.google.com/p/python-dlp/source/browse/trunk/layercake-python/rdflib_tools/GRDDLAmara.py includes] an updated version of GRDDL.py ported to work with [http://xml3k.org/Amara2 Amara 2] (the successor to 4Suite XML).
+
 Acknowledgements:
   * [http://code.google.com/u/exogen/ Brian Beck]
   * [http://code.google.com/u/John.L.Clark/ John Clark]

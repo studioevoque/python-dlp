@@ -1,0 +1,31 @@
+#summary layercake-python is a reluctant fork from rdflib 2.4.+ primarily used by FuXi
+#labels Featured,Phase-Design,Phase-Requirements
+
+= Introduction =
+
+This wiki lists the major divergence from the rdflib 3.0 beyond just the differences in the new APIs.  It mostly chronicles modifications that were made since [http://code.google.com/p/rdflib/source/detail?r=1658 this] merge from a [http://www.w3.org/2001/sw/sweo/public/UseCases/ClevelandClinic/ patient registry] mercurial maintenance branch.
+
+== Details ==
+
+  * Various fixes to the in-memory, [http://www.ivan-herman.net/Misc/2010/sparqlDesc.html sparql-p] based SPARQL algebra implementation
+  * Various fixes to [http://chimezie.posterous.com/a-complete-translation-from-sparql-into-effic SPARQL-to-SQL] implementation (including significant performance enhancements)
+    *  Support for told BNode queries (queries with BNodes having explicit labels - _:a are matched by name)
+    * ASK query fixes
+  * Completely removed old C parser (so it is 100% Python again)
+
+== Additional SPARQL Layers  ==
+
+New *sparql_query* method on all Store instances and a default that is a 'native' SPARQL implementation based on sparql-p's expansion trees layered on top of the read-only RDF APIs of the underlying store 
+
+== Generic SPARQL Store ==
+
+Added rdflib.store.SPARQL store which is an implementation of the readonly subset of the APIs to use SPARQL against a remote endpoint.  Augments Ivan Herman's [http://ivan-herman.name/2007/07/06/sparql-endpoint-interface-to-python/ SPARQL Endpoint interface to Python] in the following ways:
+  * Support for namespace binding
+  * Replaced 'native' Python XML DOM api with 4Suite-XML Domlette 
+  *  Incorporated as an rdflib store
+
+Acknowledgements:
+  * [http://code.google.com/u/exogen/ Brian Beck]
+  * [http://code.google.com/u/John.L.Clark/ John Clark]
+  * [http://code.google.com/u/risukun/ Brendan Elliot]
+  * Ivan Herman

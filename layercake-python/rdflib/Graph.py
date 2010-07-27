@@ -720,7 +720,6 @@ class Graph(Node):
               dataSetBase=None,
               processor="sparql",
               extensionFunctions={sparql.DESCRIBE:describe},
-              USE_PYPARSING=False,
               parsedQuery=None):
         """
         Executes a SPARQL query (eventually will support Versa queries with
@@ -736,8 +735,6 @@ class Graph(Node):
          	 evaluation engine
          - `processor`: The kind of RDF query (must be 'sparql' until Versa
          	 is ported)
-         - `USE_PYPARSING`: A flag indicating whether to use the
-         	 experimental pyparsing parser for SPARQL
         """
         assert processor == 'sparql',"SPARQL is currently the only supported RDF query language"
         p = plugin.get(processor, sparql.Processor)(self)
@@ -748,7 +745,6 @@ class Graph(Node):
                        PARSE_DEBUG,
                        dataSetBase,
                        extensionFunctions,
-                       USE_PYPARSING,
                        parsedQuery)
 
     def n3(self):

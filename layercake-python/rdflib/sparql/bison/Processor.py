@@ -13,14 +13,12 @@ class Processor(sparql.Processor):
               PARSE_DEBUG=False,
               dataSetBase=None,
               extensionFunctions={},
-              USE_PYPARSING=True,
               parsedQuery=None):
         from rdflib import RDFS, RDF, OWL
         initNs.update({u'rdfs':RDFS.RDFSNS,u'owl':OWL.OWLNS,u'rdf':RDF.RDFNS}) 
         from rdflib.sparql.bison.Query import Query, Prolog
         assert isinstance(queryString, basestring),"%s must be a string"%queryString
         if parsedQuery is None:
-            assert USE_PYPARSING,'C-based BisonGen SPARQL parser has been removed'
             import rdflib.sparql.parser
             parsedQuery = sparql.parser.parse(queryString)
         if not parsedQuery.prolog:

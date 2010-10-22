@@ -1,1 +1,0 @@
-/Users/chimezieogbuji/Projects/SemanticDB/SNOMED-CT/AnatomyLocusGraphs.py

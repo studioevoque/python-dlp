@@ -1,13 +1,27 @@
 #summary This is an implementation of a method for segmenting and merging modules from these ontologies for a specific domain
-#labels Featured
+#labels Featured,Phase-Deploy
 
 = Introduction =
 
 This is the implementation used for the Segmenting and Merging Domain-specific Ontology Modules for Clinical Informatics [http://copia.posterous.com/segmenting-and-merging-domain-specific-ontolo method]. 
 
-= Details =
+= Source =
 
-More details to come.  See [http://code.google.com/p/python-dlp/source/browse/trunk/clinical-ontology-modules source code] in subversion
+See [http://code.google.com/p/python-dlp/source/browse/trunk/clinical-ontology-modules source code] in subversion
+
+
+= Installation =
+
+== Software Dependencies ==
+
+The following Python libraries are needed to use this module
+
+  * FuXi (Uses its [http://code.google.com/p/fuxi/wiki/InfixOwl OWL API] for creating and manipulating OWL/RDF graphs)
+  * Either rdflib 2.4.+ or [http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence layercake-python] (needed by FuXi and used for managing / parsing / serializing OWL RDF graphs)
+  * [MySQLdb http://sourceforge.net/projects/mysql-python/] (Used to persist SNOMED-CT distribution files)
+  * MySQL server and client (5.1 preferred)
+
+== Loading SNOMED-CT ==
 
 = Command-line Options =
 

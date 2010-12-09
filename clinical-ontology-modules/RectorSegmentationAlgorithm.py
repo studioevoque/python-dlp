@@ -5,8 +5,7 @@ OWL ontology (GALEN) into logically consistent subsections via
 a segementation algorithm outlined by Alan Rector and Julian 
 Seidenberg.
 """
-import os,re,sys,sha, time, pprint
-import httplib, urllib
+import os,re,sys, time, pprint, urllib
 from cStringIO import StringIO
 from urllib import quote
 from rdflib.term_utils import *

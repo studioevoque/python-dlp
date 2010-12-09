@@ -10,11 +10,6 @@ from RectorSegmentationAlgorithm import FMA as FMA_NS
 from rdflib import RDF, OWL, RDFS, Variable, URIRef
 from rdflib.store import *
 
-from pygraph.classes.graph import graph as PyGraph
-from pygraph.classes.digraph import digraph
-from pygraph.algorithms.searching import breadth_first_search
-from pygraph.readwrite.dot import write
-
 CPRNS    = Namespace("http://purl.org/cpr/0.9#")
 CPR      = ClassNamespaceFactory(CPRNS)
 RO       = Namespace('http://purl.org/obo/owl/obo#')
@@ -412,7 +407,9 @@ def main():
         ripGraphFile = open(options.file+'.n3','w')
         ripGraphFile.write(ripGraph.serialize(format='n3'))
             
-    else:    
+    else:
+        from pygraph.classes.digraph import digraph
+        from pygraph.readwrite.dot import write
         vizGraph = digraph()
         graph = Graph().parse(args[0])
         Individual.factoryGraph = graph

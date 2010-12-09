@@ -84,7 +84,7 @@ from FuXi.Syntax.InfixOWL import *
 from FuXi.Rete.Util import selective_memoize
 from RectorSegmentationAlgorithm import FMA as FMA_NS,SegmentOntology, OBO_OWL    
 from AnatomyReification import *
-from AnatomyLocusGraphs import FMARestrictionQuery, PClassTransitiveTraversal
+from AnatomyLocusGraphs import PClassTransitiveTraversal
 
 def getConnection((user,passwd,db,port,host)):  
     db = MySQLdb.connect(user=user,
@@ -1110,7 +1110,7 @@ def extractSNOMEDDef(targetGraph,
                         #remove role group members from list of conjuncts
                         #and add mereological conjunct instead
                         for item in groups:
-                            members.remove(item)
+                            members.discard(item)
                         members.add(mereologicalGroup)
                     else:
                         #If the role group has only member, it loses its relevance

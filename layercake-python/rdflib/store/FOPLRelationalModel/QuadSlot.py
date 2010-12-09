@@ -8,10 +8,14 @@ from rdflib.BNode import BNode
 from rdflib import RDF
 from rdflib.Literal import Literal
 from rdflib.URIRef import URIRef
-import md5
 from rdflib.term_utils import *
 from rdflib.Graph import QuotedGraph
 from rdflib.store.REGEXMatching import REGEXTerm
+
+try:
+    from hashlib import md5 as createDigest
+except:
+    from md5 import new as createDigest
 
 Any = None
 
@@ -58,15 +62,17 @@ def genQuadSlots(quads, useSignedInts=False):
     return [QuadSlot(index, quads[index], useSignedInts)
             for index in POSITION_LIST]
 
+def makeMD5Digest(value):
+    return createDigest(
+            isinstance(value, unicode) and value.encode('utf-8')
+            or value).hexdigest()
+
 def normalizeValue(value, termType, useSignedInts=False):
     if value is None:
         value = u'http://www.w3.org/2002/07/owl#NothingU'
     else:
         value = (isinstance(value,Graph) and value.identifier or str(value)) + termType
-    unsigned_hash = int(md5.new(
-                      isinstance(value, unicode) and value.encode('utf-8')
-                                                 or value)
-                    .hexdigest()[:16], 16)
+    unsigned_hash = int(makeMD5Digest(value)[:16], 16)
 
     if useSignedInts:
         return makeSigned(unsigned_hash)

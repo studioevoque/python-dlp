@@ -43,7 +43,9 @@ mysql>
 Next, I load the distribution files, passing their location to the _-l_ option:
 
 {{{
-$ python ManageSNOMED-CT.py --load -l SnomedCT_INT_20100131/Terminology/Content -s localhost -f sct1_Concepts_Core_INT_20100131.txt,sct1_Descriptions_en_INT_20100131.txt,sct1_Relationships_Core_INT_20100131.txt,sct1_TextDefinitions_en-US_INT_20100131.txt -u root --password= -d snomed_distro  
+$ python ManageSNOMED-CT.py --load -l SnomedCT_INT_20100131/Terminology/Content -s localhost \
+  -f sct1_Concepts_Core_INT_20100131.txt,sct1_Descriptions_en_INT_20100131.txt,sct1_Relationships_Core_INT_20100131.txt,sct1_TextDefinitions_en-US_INT_20100131.txt \
+-u root --password= -d snomed_distro  
 SnomedCT_INT_20100131/Terminology/Content
 Droping table Concepts
 Droping table Descriptions
@@ -100,7 +102,19 @@ mysql> describe Concepts;
 6 rows in set (0.01 sec)
 }}}
 
-The table names follow the specifications described in the SNOMED-CT Technical Implementation Guide.
+The table names follow the specifications described in the SNOMED-CT Technical Implementation Guide.  Finally, I can extract OWL axioms regarding essential hypertension (using the FuXi command-line tool to render them in the Manchester OWL syntax):
+
+{{{
+$ python ManageSNOMED-CT.py -e 59621000  -s localhost -u ..user.. --password=..password.. -d snomed_distro | FuXi --ns=sno=tag:info@ihtsdo.org,2007-07-31:SNOMED-CT# --output=man-owl --class=sno:EssentialHypertension --stdin
+..snip...
+Class: sno:EssentialHypertension 
+    ## Primitive Type (Essential hypertension) ##
+    SNOMED-CT Code:  (a primitive concept)59621000
+    SubClassOf: ( sno:hasDefinitionalManifestation some Finding of increased blood pressure )
+                Hypertensive disorder
+                ( sno:findingSite some Systemic arterial structure )
+..snip..
+}}}
 
 
 = Command-line Options =

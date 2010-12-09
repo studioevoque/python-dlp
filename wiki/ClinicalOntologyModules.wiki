@@ -43,9 +43,13 @@ mysql>
 Next, I load the distribution files, passing their location to the _-l_ option:
 
 {{{
-$ python ManageSNOMED-CT.py --load -l SnomedCT_INT_20100131/Terminology/Content -s localhost \
+$ python ManageSNOMED-CT.py --load \
+   -l SnomedCT_INT_20100131/Terminology/Content \
+   -s localhost \
   -f sct1_Concepts_Core_INT_20100131.txt,sct1_Descriptions_en_INT_20100131.txt,sct1_Relationships_Core_INT_20100131.txt,sct1_TextDefinitions_en-US_INT_20100131.txt \
--u root --password= -d snomed_distro  
+  -u root \
+  --password=..password..\
+   -d snomed_distro  
 SnomedCT_INT_20100131/Terminology/Content
 Droping table Concepts
 Droping table Descriptions

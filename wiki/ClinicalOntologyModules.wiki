@@ -1,4 +1,4 @@
-#summary This is an implementation of a method for segmenting and merging modules from these ontologies for a specific domain
+#summary This is (the core part of) an implementation of a method for segmenting and merging modules from both FMA and SNOMED-CT a specific domain
 #labels Featured,Phase-Deploy
 
 = Introduction =

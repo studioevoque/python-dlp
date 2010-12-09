@@ -1,6 +1,5 @@
 from rdflib import URIRef, BNode, Variable
 from Util import ListRedirect
-from sets import Set
 
 class RDFTerm(object):
     """
@@ -37,7 +36,7 @@ class TwiceReferencedBlankNode(RDFTerm):
     """
     def __init__(self,props1,props2):
         self.identifier = BNode()
-        self.propVals = list(Set(props1+props2))
+        self.propVals = list(set(props1+props2))
 
 class ParsedCollection(ListRedirect,RDFTerm):
     """

@@ -17,11 +17,30 @@ See [http://code.google.com/p/python-dlp/source/browse/trunk/clinical-ontology-m
 The following Python libraries are needed to use this module
 
   * [http://code.google.com/p/fuxi/ FuXi] (Uses its [http://code.google.com/p/fuxi/wiki/InfixOwl OWL API] for creating and manipulating OWL/RDF graphs)
-  * Either rdflib 2.4.+ or [http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence layercake-python] (needed by FuXi and used for managing / parsing / serializing OWL RDF graphs)
-  * [MySQLdb http://sourceforge.net/projects/mysql-python/] (Used to persist SNOMED-CT distribution files)
+  * Either rdflib 2.4.+ or [http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence layercake-python] (needed by FuXi! and used for managing / parsing / serializing OWL RDF graphs)
+  * [http://sourceforge.net/projects/mysql-python/ MySQLdb] (Used to persist SNOMED-CT distribution files)
   * MySQL server and client (5.1 preferred)
 
 == Loading SNOMED-CT ==
+
+Below are step-by-step instructions for loading in a SNOMED-CT distribution into a MySQL database using this library.  The last release this has been tested on is the distribution released on January 31st 2010.
+
+First, we need to create a MySQL database (we will call it _snomed_distro_, but any valid database name will suffice)
+
+{{{
+$ mysql -u ..user.. -p
+Enter password: 
+Server version: 5.1.29-rc MySQL Community Server (GPL)
+
+Type 'help;' or '\h' for help. Type '\c' to clear the buffer.
+
+mysql> create database snomed_distro;
+Query OK, 1 row affected (0.00 sec)
+
+mysql> 
+}}}
+
+
 
 = Command-line Options =
 

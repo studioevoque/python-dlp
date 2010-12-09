@@ -23,7 +23,7 @@ The following Python libraries are needed to use this module
 
 == Loading SNOMED-CT ==
 
-Below are step-by-step instructions for loading in a SNOMED-CT distribution into a MySQL database using this library.  The last release this has been tested on is the distribution released on January 31st 2010.
+Below are step-by-step instructions for loading in a SNOMED-CT distribution into a MySQL database using this library.  The last release this has been tested on is the [http://www.nlm.nih.gov/research/umls/sourcereleasedocs/2010AA/SNOMEDCT/sourcerepresentation.html distribution] released on January 31st 2010.
 
 First, we need to create a MySQL database (we will call it _snomed_distro_, but any valid database name will suffice)
 
@@ -40,6 +40,67 @@ Query OK, 1 row affected (0.00 sec)
 mysql> 
 }}}
 
+Next, I load the distribution files, passing their location to the _-l_ option:
+
+{{{
+$ python ManageSNOMED-CT.py --load -l SnomedCT_INT_20100131/Terminology/Content -s localhost -f sct1_Concepts_Core_INT_20100131.txt,sct1_Descriptions_en_INT_20100131.txt,sct1_Relationships_Core_INT_20100131.txt,sct1_TextDefinitions_en-US_INT_20100131.txt -u root --password= -d snomed_distro  
+SnomedCT_INT_20100131/Terminology/Content
+Droping table Concepts
+Droping table Descriptions
+Droping table Relationships
+Droping table Text_Definitions
+Loading  Concepts
+Executing:
+LOAD DATA LOCAL INFILE 'SnomedCT_INT_20100131/Terminology/Content/sct1_Concepts_Core_INT_20100131.txt' IGNORE INTO TABLE Concepts IGNORE 1 LINES
+Result:  ()
+Loading  Descriptions
+Executing:
+LOAD DATA LOCAL INFILE 'SnomedCT_INT_20100131/Terminology/Content/sct1_Descriptions_en_INT_20100131.txt' IGNORE INTO TABLE Descriptions IGNORE 1 LINES
+Result:  ()
+Loading  Relationships
+Executing:
+LOAD DATA LOCAL INFILE 'SnomedCT_INT_20100131/Terminology/Content/sct1_Relationships_Core_INT_20100131.txt' IGNORE INTO TABLE Relationships IGNORE 1 LINES
+Result:  ()
+Loading  Text_Definitions
+Executing:
+LOAD DATA LOCAL INFILE 'SnomedCT_INT_20100131/Terminology/Content/sct1_TextDefinitions_en-US_INT_20100131.txt' IGNORE INTO TABLE Text_Definitions IGNORE 1 LINES
+Result:  ()
+}}}
+
+Afterwards, I can verify the database has been loaded: 
+
+{{{
+mysql> use snomed_distro;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> show tables;           
++-------------------------+
+| Tables_in_snomed_distro |
++-------------------------+
+| Concepts                | 
+| Descriptions            | 
+| Relationships           | 
+| Text_Definitions        | 
++-------------------------+
+4 rows in set (0.00 sec)
+
+mysql> describe Concepts;
++--------------------+-------------+------+-----+---------+-------+
+| Field              | Type        | Null | Key | Default | Extra |
++--------------------+-------------+------+-----+---------+-------+
+| ConceptId          | char(18)    | NO   | PRI | NULL    |       | 
+| ConceptStatus      | smallint(6) | NO   |     | NULL    |       | 
+| FullySpecifiedName | text        | NO   |     | NULL    |       | 
+| CTV3ID             | char(5)     | NO   |     | NULL    |       | 
+| SNOMEDID           | text        | NO   |     | NULL    |       | 
+| IsPrimitive        | smallint(6) | NO   |     | NULL    |       | 
++--------------------+-------------+------+-----+---------+-------+
+6 rows in set (0.01 sec)
+}}}
+
+The table names follow the specifications described in the SNOMED-CT Technical Implementation Guide.
 
 
 = Command-line Options =

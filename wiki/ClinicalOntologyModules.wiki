@@ -105,7 +105,15 @@ mysql> describe Concepts;
 The table names follow the specifications described in the SNOMED-CT Technical Implementation Guide.  Finally, I can extract OWL axioms regarding essential hypertension (using the FuXi command-line tool to render them in the Manchester OWL syntax):
 
 {{{
-$ python ManageSNOMED-CT.py -e 59621000  -s localhost -u ..user.. --password=..password.. -d snomed_distro | FuXi --ns=sno=tag:info@ihtsdo.org,2007-07-31:SNOMED-CT# --output=man-owl --class=sno:EssentialHypertension --stdin
+$ python ManageSNOMED-CT.py -e 59621000 \
+    -s localhost \
+    -u ..user.. \
+   --password=..password.. \
+   -d snomed_distro  | \
+    FuXi --ns=sno=tag:info@ihtsdo.org,2007-07-31:SNOMED-CT# \
+            --output=man-owl \
+            --class=sno:EssentialHypertension \
+            --stdin
 ..snip...
 Class: sno:EssentialHypertension 
     ## Primitive Type (Essential hypertension) ##

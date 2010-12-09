@@ -17,7 +17,7 @@ See [http://code.google.com/p/python-dlp/source/browse/trunk/clinical-ontology-m
 The following Python libraries are needed to use this module
 
   * [http://code.google.com/p/fuxi/ FuXi] (Uses its [http://code.google.com/p/fuxi/wiki/InfixOwl OWL API] for creating and manipulating OWL/RDF graphs)
-  * Either rdflib 2.4.+ or [http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence layercake-python] (needed by FuXi! and used for managing / parsing / serializing OWL RDF graphs)
+  * Either rdflib 2.4.+ or [http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence layercake-python] (needed by !FuXi and used for managing / parsing / serializing OWL RDF graphs)
   * [http://sourceforge.net/projects/mysql-python/ MySQLdb] (Used to persist SNOMED-CT distribution files)
   * MySQL server and client (5.1 preferred)
 

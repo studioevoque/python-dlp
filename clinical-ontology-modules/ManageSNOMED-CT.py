@@ -1389,6 +1389,14 @@ SELECT ?dangler
   FILTER(!bound(?dangler1)) 
 }"""
 
+RESTRICTION_CLASS_HYBRID_QUERY=\
+"""
+SELECT ?restr ?other
+{
+    ?restr a owl:Restriction;
+           rdfs:subClassOf ?other
+}"""
+
 SITES_QUERIES=[ SNOMED_SITES_QUERY,SNOMED_SITESBY_PART ]
 
 ID_COMMENT_PATTERN=re.compile('SNOMED-CT Code: (\d+).*$')
@@ -1425,6 +1433,8 @@ def extract(output,db,options,concepts=[],verbose=False,normalForm=None):
     conceptObjs=set()   
     Property(SKOS.definition,baseType=OWL_NS.AnnotationProperty)
     Property(SKOS.scopeNote,baseType=OWL_NS.AnnotationProperty)
+    Property(SKOS.prefSymbol,baseType=OWL_NS.AnnotationProperty)
+    Property(SKOS.editorialNote,baseType=OWL_NS.AnnotationProperty)
     for code in set(concepts):
         rt=extractSNOMEDDef(g,
                          code,
@@ -1494,6 +1504,7 @@ def extract(output,db,options,concepts=[],verbose=False,normalForm=None):
             
             fmaName=options.output.split('.')[0]+'-anatomy.owl'            
             #First identify and cleanup SNOMED -> FMA mappings:
+
             for old,newTerms in restrictionMaps.items():
                 replacement = None
                 members = set()
@@ -1602,23 +1613,17 @@ def extract(output,db,options,concepts=[],verbose=False,normalForm=None):
                 elif not replacement:
                     replacement = members.pop()
                 _cls = Class(old)
-                
+
                 replIdentifier = replacement.identifier
-                if isinstance(replacement,BooleanClass):
-                    pass
-                    # for fillerReference in g.query("SELECT ?RESTR { ?RESTR owl:someValuesFrom ?CLS  }",
-                    #                                 initBindings={Variable('CLS'):old}):
-                    #         ind=Individual(fillerReference)
-                    #         ind.identifier = replacement.identifier
+
+                if isinstance(replacement,Restriction):
+                    _cls.equivalentClass = [replacement]
                 else:
-                    oldId=_cls.identifier
                     newId=replacement.identifier
                     _cls.identifier = newId
                     fmaToKeep.add(newId)
-                    #replace all relations to the candidate w/ the FMA term
-                    # import warnings
-                    # warnings.warn("Replacing %s with %s"%(oldId,newId))            
-                    #remove all statements about SNOMED candidate term
+                #remove all statements about SNOMED candidate term
+                del _cls.subClassOf
 
                 restrictionsToReplace = [ fillerRestriction
                     for fillerRestriction in \
@@ -1633,7 +1638,8 @@ def extract(output,db,options,concepts=[],verbose=False,normalForm=None):
                 if _cls in conceptObjs:
                     mapTerms += replacement
                     conceptObjs.remove(Class(old))
-            
+
+
             axiomMetaDataFName=options.output.split('.')[0]+'-axioms.owl'            
             f=open(axiomMetaDataFName,'w')
             f.write(axiomReplacementGraph.serialize(format='pretty-xml'))
@@ -1659,8 +1665,13 @@ def extract(output,db,options,concepts=[],verbose=False,normalForm=None):
                 g.remove((danglingFMA,None,None))   
             print len(fmaExtracts), " selected FMA terms"         
 
+        partOfProp = Property(RO['part_of'])
+        Individual(SNOMEDCT.partOf).replace(RO['part_of'])
+
         for sct_term in conceptObjs:
             mapTerms += sct_term
+
+
         for cl in fmaExtracts:
             if (None,None,cl) not in g:
                 print >> sys.stderr, "dangling FMA class", cl
@@ -1815,9 +1826,8 @@ def main():
         print "Either --extractFile or --extract can be specified, not both"  
         sys.exit(1)
         
-    if True:#options.password:
-        password=options.password
-    else:
+    password=options.password
+    if not password:
         import getpass
         password = getpass.getpass("Enter the MySQL password (%s): "%options.username)
 
@@ -1888,8 +1898,4 @@ def main():
 
 
 if __name__ == '__main__':
-#    import pycallgraph
-#    pycallgraph.start_trace()
     main()
-#    pycallgraph.make_dot_graph('snomed-timing.png')
-#    sys.exit(1)

@@ -1,5 +1,5 @@
 #summary SPARQL server  implemented as a Python library using Python Paste and wsgiutils as a WSGI application
-#labels Featured
+#labels Featured,Phase-Implementation,Phase-Deploy
 
 = Introduction =
 
@@ -50,3 +50,7 @@ This variable determines whether or not the MySQL query optimizer should evaluat
 {{{
 NO_BASE_RESOLUTION=1
 }}}
+
+= Proxy SPARQL Endpoint =
+
+Using the _[http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence SPARQL client library as Generic SPARQL Store]_ capability, Triclops can be used as a [http://www.w3.org/TR/rdf-sparql-protocol/ SPARQL protocol for RDF] [http://en.wikipedia.org/wiki/Proxy_server proxy server] to a live SPARQL endpoint in the sense that it simply delegates the evaluation of SPARQL queries to the remote server but handles the rendering and (term-based) browsing of results from the query.

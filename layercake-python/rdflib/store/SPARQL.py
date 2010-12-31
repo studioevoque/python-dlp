@@ -177,7 +177,6 @@ class SPARQLStore(SPARQLWrapper,Store):
 
     #Namespace persistence interface implementation
     def bind(self, prefix, namespace):
-        """ """
         self.nsBindings[prefix]=namespace
 
     def prefix(self, namespace):
@@ -188,6 +187,5 @@ class SPARQLStore(SPARQLWrapper,Store):
         return self.nsBindings.get(prefix)
 
     def namespaces(self):
-        """ """
-        for ns in self.nsBindings.values():
-            yield ns
+        for prefix,ns in self.nsBindings.items():
+            yield prefix,ns

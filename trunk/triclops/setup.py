@@ -3,7 +3,7 @@
 #ez_setup.use_setuptools()
 from setuptools  import setup
 setup(name="Triclops",
-      version="0.4",
+      version="0.9b",
       description="A Paste-based SPARQL Server for RDFLib",
       author="Chime Ogbuji",
       author_email="chimezie@gmail.com",
@@ -14,22 +14,24 @@ setup(name="Triclops",
         "Triclops",
       ],
       install_requires = [
-        #'4Suite-XML>=1.0.2',
+        '4Suite-XML>=1.0.2',
         'Paste>=1.1.1',
         'PasteScript',        
-        #'rdflib>=2.3.3',
         'Beaker',
-        #'wsgiutils',
+        'wsgiutils',
       ],
       license = "CC",
       keywords = "python rdf sparql query",
       url = "http://code.google.com/p/python-dlp/wiki/Triclops",
       entry_points = """
       [paste.app_factory]
+      entailmentManager = Triclops.wsgiapp:make_entailment_manager
       main   = Triclops.wsgiapp:make_app
       usher  = Triclops.wsgiapp:make_usher
       about  = Triclops.wsgiapp:make_about
+      owlBrowser  = Triclops.wsgiapp:make_owlBrowser
       browse = Triclops.wsgiapp:make_browser
+      ticketManager = Triclops.wsgiapp:make_ticket_manager
       """,
       zip_safe=False
 )

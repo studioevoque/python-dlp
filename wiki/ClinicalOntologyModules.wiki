@@ -1,6 +1,10 @@
 #summary This is (the core part of) an implementation of a method for segmenting and merging modules from both FMA and SNOMED-CT a specific domain
 #labels Featured,Phase-Deploy
 
+[http://python-dlp.googlecode.com/files/Method-diagram.jpg] 
+
+*Note*: the [http://sig.biostr.washington.edu/projects/fm/ FMA] to SNOMED-CT _mapping_ / _segmenting_ / _transliteration_ capability (step 3-4)  is inert without the mapping file and corresponding database (more on this later).
+
 = Introduction =
 
 This is the implementation used for the Segmenting and Merging Domain-specific Ontology Modules for Clinical Informatics [http://copia.posterous.com/segmenting-and-merging-domain-specific-ontolo method]. 

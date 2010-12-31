@@ -1,0 +1,52 @@
+#summary SPARQL server  implemented as a Python library using Python Paste and wsgiutils as a WSGI application
+#labels Featured
+
+= Introduction =
+
+This wiki describes how Triclops can be configured to be used with the MySQL /  SPARQL-to-SQL implementation.
+
+The package comes with a skeletal configuration file ( SPARQLServer-sample.conf ) snippets of which are shown below This file should be copied and modified accordingly for one or more SPARQL servers
+
+{{{
+[DEFAULT]
+ #Configuration options for underlying RDFLib store
+ store_identifier=..store identifier.
+}}}
+
+The store identifier is usually given for a particular dataset. MySQL credentials are placed to use to connect to a particular database (also given). So, this file probably should not be readable by anyone except priviledged users (preferably the same one that launches the server)
+
+{{{
+connection=user=..change me..,password=..change me..,host=..change me..,db=.. change me..
+ store=MySQL
+ static_files=%(here)s/htdocs
+}}}
+
+The relevant OWL file for a dataset is also given.
+
+{{{
+#This is the path to the OWL file to use for optimizing SPARQL queries
+ datastore_owl=.. path to OWL file ..
+}}}
+
+Below is what should be used to register default namespace bindings:
+
+{{{
+#'|' delimited strings of the form _key_=_val_ where _key_ is a prefix and _val_ is the URI to bind it to
+ #Whether or not to output additional (detailed) debugging information relevant
+ #to the SPARQL query evaluation process.  An absence of this variable is
+ #interpreted as being set to false (or 0)
+ debugQuery=1
+}}}
+
+This variable determines whether or not the MySQL query optimizer should evaluate BGPs in the given triple pattern order to allow it to use statistical data to determine an appropriate join order
+
+{{{
+ #Whether or not to allow MySQL to use it's own methods to determine join order
+ #This cannot be used in conjunction with DISABLE_SELECTION_ESTIMATION.
+ #An absence of this variable is interpreted as being set to false (or 0)
+ MYSQL_ORDER=1
+}}}
+
+{{{
+NO_BASE_RESOLUTION=1
+}}}

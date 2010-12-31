@@ -1,4 +1,4 @@
-import types, sets
+import types
 from pprint import pprint
 from rdflib import URIRef, BNode, Literal, Variable, RDF
 from rdflib.Graph import Graph, ConjunctiveGraph, ReadOnlyGraphAggregate

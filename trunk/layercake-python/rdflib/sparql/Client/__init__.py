@@ -52,7 +52,7 @@ def TraverseSPARQLResultDOM(doc,asDictionary=False):
         if asDictionary:
             yield currBind,vars
         else:
-            yield tuple(values),vars
+            yield values[0] if len(values)==1 else tuple(values),vars
 
 
 class SPARQLResult(QueryResult.QueryResult):
@@ -71,7 +71,7 @@ class SPARQLResult(QueryResult.QueryResult):
         self.askAnswer = None
 
     def _parseResults(self):
-        if self.resultDOM is not None:
+        if self.resultDOM is None:
             from Ft.Xml.Domlette import NonvalidatingReader
             self.resultDOM = NonvalidatingReader.parseString(self.result)
             self.askAnswer=self.resultDOM.xpath('string(/sparql:sparql/sparql:boolean)',
@@ -84,7 +84,7 @@ class SPARQLResult(QueryResult.QueryResult):
         """Iterates over the result entries"""
         self._parseResults()
         if not self.askAnswer:
-            for rt,vars in TraverseSPARQLResultDOC(self.resultDOM):
+            for rt,vars in TraverseSPARQLResultDOM(self.resultDOM):
                 self.noAnswers += 1
                 yield rt
 

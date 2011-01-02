@@ -1,4 +1,4 @@
-﻿#!/usr/local/bin/python
+#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 """
 An implementation of the W3C SPARQL Algebra on top of sparql-p's expansion trees
@@ -17,7 +17,8 @@ from StringIO import StringIO
 from rdflib.Graph import Graph, ReadOnlyGraphAggregate, ConjunctiveGraph
 from rdflib import URIRef, Variable, plugin, BNode, Literal
 from rdflib.util import first, MakeImmutableDict
-from rdflib.store import Store 
+from rdflib.store import Store
+from rdflib import sparql
 from rdflib.sparql.bison.Query import AskQuery, SelectQuery, DescribeQuery, Query, Prolog
 from rdflib.sparql.bison.IRIRef import NamedGraph,RemoteGraph
 from rdflib.sparql.bison.SolutionModifier import ASCENDING_ORDER, ParsedOrderConditionExpression, DESCENDING_ORDER
@@ -1229,73 +1230,6 @@ WHERE
   GRAPH ?ppd { ?b foaf:name "Bob" . } .
   GRAPH ?ppd { ?doc a foaf:PersonalProfileDocument . }
 }"""     
-
-class TestSPARQLAlgebra(unittest.TestCase):
-    def setUp(self):
-        self.store = plugin.get('IOMemory', Store)()
-        self.graph1 = Graph(self.store,identifier=URIRef('http://example.org/foaf/aliceFoaf'))
-        self.graph1.parse(StringIO(test_graph_a), format="n3")
-        self.graph2 = Graph(self.store,identifier=URIRef('http://example.org/foaf/bobFoaf'))
-        self.graph2.parse(StringIO(test_graph_b), format="n3")
-        self.unionGraph = ReadOnlyGraphAggregate(graphs=[self.graph1,self.graph2],store=self.store)
-        
-#    def testScoping(self):
-#        from rdflib.sparql.bison.Processor import Parse
-#        from rdflib.sparql.QueryResult import SPARQLQueryResult
-#        from rdflib.sparql.bison.Query import Prolog  
-#        p = Parse(scopingQuery)
-#        prolog = p.prolog
-#        if prolog is None:
-#            prolog = Prolog(u'',[])
-#            prolog.DEBUG = True
-#        rt = TopEvaluate(p,self.unionGraph,passedBindings = {},DEBUG=False)
-#        rt = SPARQLQueryResult(rt).serialize(format='python')
-#        self.failUnless(len(rt) == 1,"Expected 1 item solution set")
-#        for ppd in rt:
-#            self.failUnless(ppd == URIRef('http://example.org/foaf/aliceFoaf'),
-#                            "Unexpected ?mbox binding :\n %s" % ppd)
-
-    def testExpressions(self):
-        from rdflib.sparql.bison.Processor import Parse
-        global prolog
-        for inExpr,outExpr in ExprTests:
-            p = Parse(inExpr)
-            prolog = p.prolog
-            p = p.query.whereClause.parsedGraphPattern.graphPatterns
-            if prolog is None:
-                from rdflib.sparql.bison.Query import Prolog  
-                prolog = Prolog(u'',[])
-            if not hasattr(prolog,'DEBUG'):                
-                prolog.DEBUG = False
-            self.assertEquals(repr(reduce(ReduceToAlgebra,p,None)),outExpr)
-
-    def testSimpleGraphPattern(self):
-        from rdflib.sparql.bison.Processor import Parse
-        global prolog
-        p = Parse("BASE <http://example.com/> SELECT ?ptrec WHERE { GRAPH ?ptrec { ?data :foo 'bar'. } }")
-        prolog = p.prolog
-        p = p.query.whereClause.parsedGraphPattern.graphPatterns
-        if prolog is None:
-            from rdflib.sparql.bison.Query import Prolog  
-            prolog = Prolog(u'',[])
-            prolog.DEBUG = True
-        assert isinstance(reduce(ReduceToAlgebra,p,None),GraphExpression)
-
-#    def testGraphEvaluation(self):
-#        from rdflib.sparql.bison.Processor import Parse
-#        p = Parse(TEST10)
-#        print TEST10
-#        rt = TopEvaluate(p,self.unionGraph,passedBindings = {})
-#        from rdflib.sparql.QueryResult import SPARQLQueryResult
-#        rt = SPARQLQueryResult(rt).serialize(format='python')
-#        self.failUnless(len(rt) == 1,"Expected 1 item solution set")
-#        for mbox,nick,ppd in rt:
-#            self.failUnless(mbox == URIRef('mailto:bob@work.example'),
-#                            "Unexpected ?mbox binding :\n %s" % mbox)
-#            self.failUnless(nick  == Literal("Robert"),
-#                            "Unexpected ?nick binding :\n %s" % nick)
-#            self.failUnless(ppd == URIRef('http://example.org/foaf/bobFoaf'),
-#                            "Unexpected ?ppd binding :\n %s" % ppd)
 
 if __name__ == '__main__':
     unittest.main()

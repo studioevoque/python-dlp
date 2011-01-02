@@ -10,26 +10,25 @@ except ImportError:
 
 class Serializer(object):
 
-    def __init__(self, serializer):
-        self.serializer = serializer
-        self.__save_lock = Lock()
+    def __init__(self, store):
+        self.encoding = "UTF-8"
+        self.base = None
+        self.store = store
 
-    def _get_store(self):
-        return self.serializer.store
-
-    def _set_store(self, store):
-        self.serializer.store = store
-
-    store = property(_get_store, _set_store)
+    def relativize(self, uri):
+        base = self.base
+        if base is not None and uri.startswith(base):
+            uri = URIRef(uri.replace(base, "", 1))
+        return uri
 
     def serialize(self, destination=None, format="xml", base=None, encoding=None, **args):
         if destination is None:
             stream = StringIO()
-            self.serializer.serialize(stream, base=base, encoding=encoding)
+            self.store.serialize(stream, base=base, encoding=encoding)
             return stream.getvalue()
         if hasattr(destination, "write"):
             stream = destination
-            self.serializer.serialize(stream, base=base, encoding=encoding)
+            self.store.serialize(stream, base=base, encoding=encoding)
         else:
             location = destination
             try:
@@ -40,7 +39,7 @@ class Serializer(object):
                     return
                 name = tempfile.mktemp()
                 stream = open(name, 'wb')
-                self.serializer.serialize(stream, base=base, encoding=encoding, **args)
+                self.store.serialize(stream, base=base, encoding=encoding, **args)
                 stream.close()
                 if hasattr(shutil,"move"):
                     shutil.move(name, path)

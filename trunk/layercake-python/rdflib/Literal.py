@@ -283,6 +283,87 @@ class Literal(Identifier):
             else:
                 return '%s' % encoded
 
+    def _quote_encode(self):
+        # This simpler encoding doesn't work; a newline gets encoded as "\\n",
+        # which is ok in sourcecode, but we want "\n".
+        #encoded = self.encode('unicode-escape').replace(
+        #        '\\', '\\\\').replace('"','\\"')
+        #encoded = self.replace.replace('\\', '\\\\').replace('"','\\"')
+
+        # NOTE: Could in theory chose quotes based on quotes appearing in the
+        # string, i.e. '"' and "'", but N3/turtle doesn't allow "'"(?).
+
+        # which is nicer?
+        # if self.find("\"")!=-1 or self.find("'")!=-1 or self.find("\n")!=-1:
+        if "\n" in self:
+            # Triple quote this string.
+            encoded = self.replace('\\', '\\\\')
+            if '"""' in self:
+                # is this ok?
+                encoded = encoded.replace('"""','\\"""')
+            if encoded.endswith('"'):
+                encoded = encoded[:-1] + "\\\""
+            return '"""%s"""' % encoded
+        else:
+            return '"%s"' % self.replace('\n','\\n').replace('\\', '\\\\'
+                            ).replace('"', '\\"')            
+
+    def _literal_n3(self, use_plain=False, qname_callback=None):
+        '''
+        Using plain literal (shorthand) output::
+
+            >>> Literal(1)._literal_n3(use_plain=True)
+            u'1'
+
+            >>> Literal(1.0)._literal_n3(use_plain=True)
+            u'1.0'
+
+            >>> from rdflib.namespace import XSD
+            >>> Literal("foo", datatype=XSD.string)._literal_n3(
+            ...         use_plain=True)
+            u'"foo"^^<http://www.w3.org/2001/XMLSchema#string>'
+
+            >>> Literal(True)._literal_n3(use_plain=True)
+            u'true'
+
+            >>> Literal(False)._literal_n3(use_plain=True)
+            u'false'
+
+        Using callback for datatype QNames::
+
+            >>> Literal(1)._literal_n3(
+            ...         qname_callback=lambda uri: u"xsd:integer")
+            u'"1"^^xsd:integer'
+
+        '''
+        if use_plain and self.datatype in _PLAIN_LITERAL_TYPES:
+            try:
+                self.toPython() # check validity
+                return '%s' % self
+            except ValueError:
+                pass # if it's in, we let it out?
+
+        encoded = self._quote_encode()
+
+        datatype = self.datatype
+        quoted_dt = None
+        if datatype:
+            if qname_callback:
+                quoted_dt = qname_callback(datatype)
+            if not quoted_dt:
+                quoted_dt = "<%s>" % datatype
+
+        language = self.language
+        if language:
+            if datatype:
+                # TODO: this isn't valid RDF (it's datatype XOR language)
+                return '%s@%s^^%s' % (encoded, language, quoted_dt)
+            return '%s@%s' % (encoded, language)
+        elif datatype:
+            return '%s^^%s' % (encoded, quoted_dt)
+        else:
+            return '%s' % encoded
+            
     def __str__(self):
         return self.encode("unicode-escape")
 
@@ -325,6 +406,12 @@ class Literal(Identifier):
 
 
 _XSD_NS = Namespace(u'http://www.w3.org/2001/XMLSchema#')
+
+_PLAIN_LITERAL_TYPES = (
+    URIRef(_XSD_NS+'integer'),
+    URIRef(_XSD_NS+'float'),
+    URIRef(_XSD_NS+'boolean'),
+)
 
 #Casts a python datatype to a tuple of the lexical value and a datatype URI (or None)
 def _castPythonToLiteral(obj):

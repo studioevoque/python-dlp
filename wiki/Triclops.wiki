@@ -64,6 +64,10 @@ A running SPARQL service can be stopped with the following command (note the giv
 
 This should be run from the working directory of Triclops
 
+= Entailment Regime Configuration =
+
+For now, see [http://code.google.com/p/python-dlp/source/detail?r=351 log] for commit
+
 = Proxy SPARQL Endpoint =
 
 Using the _[http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence SPARQL client library as Generic SPARQL Store]_ capability, Triclops can be used as a [http://www.w3.org/TR/rdf-sparql-protocol/ SPARQL protocol for RDF] [http://en.wikipedia.org/wiki/Proxy_server proxy server] to a live SPARQL endpoint in the sense that it simply delegates the evaluation of SPARQL queries to the remote server but handles the rendering and (term-based) browsing of results from the query.

@@ -148,15 +148,11 @@ Parameterized SPARQL Queries
 
 
 from cStringIO import StringIO
-from rdflib import URIRef, BNode, Namespace, Literal, Variable
-from rdflib import RDF, RDFS
-
+from rdflib import URIRef, BNode, Namespace, Literal, Variable, RDF, RDFS, OWL
+from rdflib.Literal import _XSD_NS
 from rdflib.Node import Node
-
 from rdflib import plugin, exceptions
-
 from rdflib.store import Store
-
 from rdflib.syntax.serializer import Serializer
 from rdflib.syntax.parsers import Parser
 from rdflib.syntax.NamespaceManager import NamespaceManager
@@ -676,6 +672,9 @@ class Graph(Node):
         string. Format defaults to xml (AKA rdf/xml).
         """
         serializer = plugin.get(format, Serializer)(self)
+        self.bind(u'rdfs', RDFS.RDFSNS)
+        self.bind(u'owl', OWL.OWLNS)
+        self.bind(u'xsd',_XSD_NS)
         return serializer.serialize(destination, base=base, encoding=encoding, **args)
 
     def prepare_input_source(self, source, publicID=None):

@@ -3,6 +3,9 @@ from rdflib       import Namespace, Variable, BNode, URIRef, Literal
 
 SPARQL_NS        = Namespace('http://www.w3.org/2005/sparql-results#')
 sparqlNsBindings = {u'sparql':SPARQL_NS}
+DESCRIBE=URIRef('http://www.w3.org/TR/rdf-sparql-query/#describe')
+_questChar  = "?"
+Debug = False
 
 def CastToTerm(node):
     """
@@ -99,3 +102,21 @@ class SPARQLResult(QueryResult.QueryResult):
             return self.result
         else:
            raise Exception("Result format not implemented: %s"%format)
+
+class Processor(object):
+
+    def __init__(self, graph):
+        pass
+
+    def query(self, strOrQuery, initBindings={}, initNs={}, DEBUG=False):
+        pass
+
+from rdflib.exceptions  import Error
+
+##
+# SPARQL Error Exception (subclass of the RDFLib Exceptions)
+class SPARQLError(Error) :
+    """Am SPARQL error has been detected"""
+    def __init__(self,msg):
+        Error.__init__(self, ("SPARQL Error: %s." % msg))
+    

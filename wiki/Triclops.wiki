@@ -51,6 +51,19 @@ This variable determines whether or not the MySQL query optimizer should evaluat
 NO_BASE_RESOLUTION=1
 }}}
 
+At this point, the server can be launched as a system daemon via:
+{{{
+ paster serve someConfigurationFile.conf --daemon --log=someLogFileName.log --pid-file=somePidFileName.pid
+}}}
+
+A running SPARQL service can be stopped with the following command (note the given pid and log file must be the same as the one used to start the daemon):
+
+{{{
+ paster serve someConfigurationFile.conf --stop-daemon --log=someLogFileName.log --pid-file=somePidFileName.pid
+}}}
+
+This should be run from the working directory of Triclops
+
 = Proxy SPARQL Endpoint =
 
 Using the _[http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence SPARQL client library as Generic SPARQL Store]_ capability, Triclops can be used as a [http://www.w3.org/TR/rdf-sparql-protocol/ SPARQL protocol for RDF] [http://en.wikipedia.org/wiki/Proxy_server proxy server] to a live SPARQL endpoint in the sense that it simply delegates the evaluation of SPARQL queries to the remote server but handles the rendering and (term-based) browsing of results from the query.

@@ -5,12 +5,18 @@ from rdflib.Literal import Literal
 from rdflib.URIRef import URIRef
 from rdflib.BNode import BNode
 from pprint import pprint
-import sha,sys, weakref
+import sys, weakref
 from rdflib.term_utils import *
 from rdflib.Graph import QuotedGraph
 from rdflib.store.REGEXMatching import REGEXTerm, PYTHON_REGEX
 from rdflib.store import Store
 Any = None
+
+try:
+    from hashlib import sha1 as createDigest
+except:
+    from sha import new as createDigest
+
 
 COUNT_SELECT   = 0
 CONTEXT_SELECT = 1
@@ -25,6 +31,11 @@ ASSERTED_LITERAL_PARTITION  = 6
 FULL_TRIPLE_PARTITIONS = [QUOTED_PARTITION,ASSERTED_LITERAL_PARTITION]
 
 INTERNED_PREFIX = 'kb_'
+
+def createSHADigest(value):
+    return createDigest(
+            isinstance(value, unicode) and value.encode('utf-8')
+            or value).hexdigest()
 
 #Helper function for executing EXPLAIN on all dispatched SQL statements - for the pupose of analyzing
 #index usage
@@ -369,7 +380,7 @@ class AbstractSQLStore(SQLGenerator,Store):
         """
         self.identifier = identifier and identifier or 'hardcoded'
         #Use only the first 10 bytes of the digest
-        self._internedId = INTERNED_PREFIX + sha.new(self.identifier).hexdigest()[:10]
+        self._internedId = INTERNED_PREFIX + createSHADigest(self.identifier)[:10]
 
         #This parameter controls how exlusively the literal table is searched
         #If true, the Literal partition is searched *exclusively* if the object term

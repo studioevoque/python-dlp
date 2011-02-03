@@ -409,6 +409,7 @@ _XSD_NS = Namespace(u'http://www.w3.org/2001/XMLSchema#')
 
 _PLAIN_LITERAL_TYPES = (
     URIRef(_XSD_NS+'integer'),
+    URIRef(_XSD_NS+'int'),
     URIRef(_XSD_NS+'float'),
     URIRef(_XSD_NS+'boolean'),
 )

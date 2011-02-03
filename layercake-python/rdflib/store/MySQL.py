@@ -15,6 +15,15 @@ from FOPLRelationalModel.BinaryRelationPartition import *
 from FOPLRelationalModel.QuadSlot import *
 import cPickle, time, datetime
 
+try:
+    from hashlib import sha1 as createDigest
+except:
+    from sha import new as createDigest
+
+def createSHADigest(value):
+    return createDigest(
+            value.encode('utf-8') if isinstance(value, unicode) else value).hexdigest()
+
 Any = None
 
 class TimeStamp(object):
@@ -499,7 +508,7 @@ class SQL(Store):
         self.identifier = identifier and identifier or 'hardcoded'
         
         #Use only the first 10 bytes of the digest
-        self._internedId = INTERNED_PREFIX + sha.new(self.identifier).hexdigest()[:10]
+        self._internedId = INTERNED_PREFIX + createSHADigest(self.identifier)[:10]
 
         self.engine = engine
         self.showDBsCommand = 'SHOW DATABASES'
@@ -1108,7 +1117,7 @@ class SQL(Store):
         )
 
     def __len__(self, context=None):
-        if self.length is not None:
+        if context is None and self.length is not None:
           return self.length
 
         rows = []
@@ -1122,8 +1131,10 @@ class SQL(Store):
                 self.executeSQL(c,countRows%part)
             rowCount = c.fetchone()[0]
             rows.append(rowCount)
-        self.length = reduce(lambda x,y: x+y,rows)
-        return self.length
+        length = reduce(lambda x,y: x+y,rows)
+        if context is None:
+            self.length = length
+        return length
 
     def contexts(self, triple=None):
         c=self._db.cursor()
@@ -1131,19 +1142,28 @@ class SQL(Store):
             subject,predicate,obj = triple
         else:
             subject = predicate = obj = None
-        rt=PatternResolution((subject,predicate,obj,None),
-                              c,
-                              self.partitions,
-                              fetchall=False,
-                              fetchContexts=True)
-        fetchedGraphNames=[]
-        while rt:
-            contextId,cTerm = rt
-            if contextId not in fetchedGraphNames:
-                graphKlass, idKlass = constructGraph(cTerm)
-                yield graphKlass(self,idKlass(contextId))
-                fetchedGraphNames.append(contextId)
-            rt = c.fetchone()
+        contextQuery = "select distinct uris.lexical, uris.term_type from %s uris inner join %s facts on uris.id = facts.context and uris.term_type = facts.context_term"
+        if not triple:
+            _contexts = set()
+            for part in self.partitions:
+                self.executeSQL(c,contextQuery%(self.idHash,part))
+                _contexts.update(c.fetchall())
+            for ctxId,termType in _contexts:
+                yield Graph(self,TERM_INSTANCIATION_DICT[termType](ctxId))
+        else:
+            rt=PatternResolution((subject,predicate,obj,None),
+                                  c,
+                                  self.partitions,
+                                  fetchall=False,
+                                  fetchContexts=True)
+            fetchedGraphNames=[]
+            while rt:
+                contextId,cTerm = rt
+                if contextId not in fetchedGraphNames:
+                    graphKlass, idKlass = constructGraph(cTerm)
+                    yield graphKlass(self,idKlass(contextId))
+                    fetchedGraphNames.append(contextId)
+                rt = c.fetchone()
 
     #Namespace persistence interface implementation
     def bind(self, prefix, namespace):

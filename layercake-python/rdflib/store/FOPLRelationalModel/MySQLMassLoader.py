@@ -192,9 +192,14 @@ class Loader(SQL):
                 self.recent_hits += 1
 
             for row in table.listLiterals(qSlots):
-              self.valueHash.delimited_file.write(make_delimited(
+              row = isinstance(row, unicode) and row.encode('utf-8') or row
+              try:
+                self.valueHash.delimited_file.write(make_delimited(
                 row) + ROW_DELIMITER)
-
+              except UnicodeEncodeError:
+                longVal,val = row
+                row = (longVal,row[-1].encode('ascii', 'ignore'))
+                import warnings;warnings.warn("Ignored character with encoding issues")
             if False:
                 #print 'Writing data...', qSlots
                 # Add to the denormalized delimited file: 

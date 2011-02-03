@@ -22,7 +22,7 @@ import sys, time
 from rdflib.sparql.bison.Query import Prolog
 from rdflib import plugin, Namespace, URIRef, RDF, BNode, Variable, Literal, RDFS, util
 from rdflib.store import Store
-from rdflib.sparql.bison import Parse
+import rdflib.sparql.parser
 from rdflib.Graph import ConjunctiveGraph, Graph
 from rdflib.sparql.sql.RelationalAlgebra import RdfSqlBuilder, ParseQuery, DEFAULT_OPT_FLAGS
 from rdflib.sparql.sql.RdfSqlBuilder import *
@@ -61,7 +61,7 @@ def print_set(intro, aSet, stream=sys.stderr):
     print >> stream, ' ', el
 
 def prepQuery(queryString,ontGraph):
-    query=Parse(queryString)
+    query=sparql.parser.parse(queryString)
     if ontGraph:
         if not query.prolog:
             query.prolog = Prolog(None, [])

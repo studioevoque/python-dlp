@@ -51,6 +51,8 @@ setup(
         'console_scripts': [
             'rdfpipe = rdflib_tools.RDFPipe:main',
             'mysql-rdfload = rdflib_tools.RDFload:main',
+            'dataset-description = rdflib_tools.RDFload:datasetInfo',
+            'sparqler = rdflib_tools.sparqler:main',
         ],
         'nose.plugins': [
             'EARLPlugin = rdflib_tools.EARLPlugin:EARLPlugin',

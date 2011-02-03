@@ -15,6 +15,14 @@ svn checkout http://python-dlp.googlecode.com/svn/trunk/ python-dlp
 
 See the [http://code.google.com/p/python-dlp/source/checkout Source] tab for more information.
 
+Once the directory has been checked out, you can install the module (see: [http://docs.python.org/install/index.html#the-new-standard-distutils Installing Python Modules]) it to your local machine by running the following command in the root directory of the local copy of the source tree:
+
+{{{
+$ python setup.py install
+}}}
+
+Once, you have done this, the [#Command-line_scripts scripts] below should be available to use.
+
 = Details =
 
   * Various fixes to the in-memory, [http://www.ivan-herman.net/Misc/2010/sparqlDesc.html sparql-p] based SPARQL algebra implementation

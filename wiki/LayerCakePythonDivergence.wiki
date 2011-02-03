@@ -1,5 +1,6 @@
 #summary layercake-python is a reluctant fork from rdflib 2.4.+ primarily used by various SW healthcare informatics and other components
 #labels Featured,Phase-Design,Phase-Requirements
+#sidebar TableOfContents
 
 = Introduction =
 

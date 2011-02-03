@@ -1,14 +1,13 @@
 #summary layercake-python is a reluctant fork from rdflib 2.4.+ primarily used by various SW healthcare informatics and other components
 #labels Featured,Phase-Design,Phase-Requirements
-#sidebar TableOfContents
 
-= Introduction =
+<wiki:toc max_depth="3" />
 
 This wiki lists the major points of divergence from rdflib 3.0 beyond just the differences in the new APIs.  It mostly chronicles modifications that were made since [http://code.google.com/p/rdflib/source/detail?r=1658 this] merge from a mercurial maintenance branch used for a [http://www.w3.org/2001/sw/sweo/public/UseCases/ClevelandClinic/ patient registry].
 
 The source is here _[http://code.google.com/p/python-dlp/source/browse/trunk/#trunk/layercake-python /trunk/layercake-python/]_
 
-== Details ==
+= Details =
 
   * Various fixes to the in-memory, [http://www.ivan-herman.net/Misc/2010/sparqlDesc.html sparql-p] based SPARQL algebra implementation
   * Various fixes to [http://chimezie.posterous.com/a-complete-translation-from-sparql-into-effic SPARQL-to-SQL] implementation (including significant performance enhancements)
@@ -16,22 +15,22 @@ The source is here _[http://code.google.com/p/python-dlp/source/browse/trunk/#tr
     * ASK query fixes
   * Completely removed old C parser (so it is 100% Python again)
 
-== Additional SPARQL Layers  ==
+= Additional SPARQL Layers  =
 
 New *sparql_query* method on all Store instances and a default that is a 'native' SPARQL implementation based on sparql-p's expansion trees layered on top of the read-only RDF APIs of the underlying store 
 
-== Generic SPARQL Store ==
+= Generic SPARQL Store =
 
 Added rdflib.store.SPARQL store which is an implementation of the readonly subset of the APIs to use SPARQL against a remote endpoint.  Augments Ivan Herman's [http://ivan-herman.name/2007/07/06/sparql-endpoint-interface-to-python/ SPARQL Endpoint interface to Python] in the following ways:
   * Support for namespace binding
   * Replaced 'native' Python XML DOM api with 4Suite-XML Domlette 
   *  Incorporated as an rdflib store
 
-== GRDDL Implementation with Amara ==
+= GRDDL Implementation with Amara =
 
 It also [http://code.google.com/p/python-dlp/source/browse/trunk/layercake-python/rdflib_tools/GRDDLAmara.py includes] an updated version of GRDDL.py ported to work with [http://xml3k.org/Amara2 Amara 2] (the successor to 4Suite XML).
 
-== Command-line scripts ==
+= Command-line scripts =
 
 There are several command-line scripts installed along with this package and are described briefly after the list below:
   * rdfpipe
@@ -39,7 +38,7 @@ There are several command-line scripts installed along with this package and are
   * dataset-description
   * sparqler
 
-=== rdfpipe Command-line Script ===
+== rdfpipe Command-line Script ==
 
 This command-line script is used for parsing and serializing RDF document using the supported RDF formats both from files and from STDIN
 
@@ -59,7 +58,7 @@ USAGE: RDFPipe.py [options]
                                   base URI).  This can be used more than once
 }}}
 
-=== mysql-rdfload Command-line Script ===
+== mysql-rdfload Command-line Script ==
 
 This script is used for the initial large-scale loading of a MySQL-backed store.  
 
@@ -98,7 +97,7 @@ Options:
                         serialization(s) into
 }}}
 
-=== dataset-description Command-line Script ===
+== dataset-description Command-line Script ==
 
 This script returns a document describing the dataset (or ConjunctiveGraph) indicated by the given options using the [http://www.w3.org/TR/sparql11-service-description/ SPARQL service description document vocabulary]
 
@@ -113,7 +112,7 @@ Options:
   -i ID, --id=ID        Database table set identifier
 }}}
 
-=== sparqler Command-line Script ===
+== sparqler Command-line Script ==
 
 This command-line is used for dispatching SPARQL queries against the indicated dataset 
 
@@ -143,7 +142,7 @@ Options:
                         URI).  This can be used more than once
 }}}
 
-== Acknowledgements: ==
+= Acknowledgements: =
 
   * [http://code.google.com/u/exogen/ Brian Beck]
   * [http://code.google.com/u/John.L.Clark/ John Clark]

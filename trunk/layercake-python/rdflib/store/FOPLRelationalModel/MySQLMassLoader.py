@@ -184,9 +184,16 @@ class Loader(SQL):
               table.makeRowComponents(qSlots)) + ROW_DELIMITER)
 
             for row in table.listIdentifiers(qSlots):
+              row = isinstance(row, unicode) and row.encode('utf-8') or row
               if not self.recent.check((row[2], row[1])):
-                self.idHash.delimited_file.write(make_delimited(
+                try:
+                  self.idHash.delimited_file.write(make_delimited(
                   row) + ROW_DELIMITER)
+                except UnicodeEncodeError:
+                  longVal,termType,val = row
+                  row = (longVal,termType,val.encode('ascii', 'ignore'))
+                  self.idHash.delimited_file.write(make_delimited(row) + ROW_DELIMITER)
+                  import warnings;warnings.warn("Ignored character with encoding issues")
                 self.recent_misses += 1
               else:
                 self.recent_hits += 1
@@ -194,39 +201,12 @@ class Loader(SQL):
             for row in table.listLiterals(qSlots):
               row = isinstance(row, unicode) and row.encode('utf-8') or row
               try:
-                self.valueHash.delimited_file.write(make_delimited(
-                row) + ROW_DELIMITER)
+                self.valueHash.delimited_file.write(make_delimited(row) + ROW_DELIMITER)
               except UnicodeEncodeError:
                 longVal,val = row
-                row = (longVal,row[-1].encode('ascii', 'ignore'))
+                row = (longVal,val[-1].encode('ascii', 'ignore'))
+                self.valueHash.delimited_file.write(make_delimited(row) + ROW_DELIMITER)
                 import warnings;warnings.warn("Ignored character with encoding issues")
-            if False:
-                #print 'Writing data...', qSlots
-                # Add to the denormalized delimited file: 
-                beginning = True
-                for item in qSlots:
-                    parts = [item.md5Int, item.termType]
-                    self.lexicalFile.write(make_delimited(
-                      parts + [item.normalizeTerm()]) + ROW_DELIMITER)
-                    if item.position == OBJECT:
-                      dqs = item.getDatatypeQuadSlot()
-                      if dqs is not None:
-                        parts.append(dqs.md5Int)
-                        self.lexicalFile.write(make_delimited(
-                          [dqs.md5Int, 'U', dqs.normalizeTerm()]) +
-                          ROW_DELIMITER)
-                      else:
-                        parts.append(None)
-
-                      if item.termType == 'L':
-                        parts.append(item.term.language)
-                      else:
-                        parts.append(None)
-                    if not beginning:
-                        self.triplesFile.write(COL_DELIMITER)
-                    beginning = False    
-                    self.triplesFile.write(make_delimited(parts))
-                self.triplesFile.write(ROW_DELIMITER)
 
     def dumpRDF(self, suffix):
       for table in self.tables:

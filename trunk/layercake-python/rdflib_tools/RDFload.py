@@ -30,12 +30,14 @@ def parseFromDirectory(directory,op,options,extMap,factGraph,uri=None,uriPattern
 
     for entry in dir[2]:
       if entry.find('.')+1:
-          try:
-            fName,extension = entry.split('.')
-          except ValueError:
-            print entry
+        parts = entry.split('.')
+        if len(parts) == 2:
+          fName,extension = parts
+        else:
+          fName = parts[0]
+          extension = '.'.join(parts[1:])
       else:
-          fName,extension = None,None
+        fName,extension = None,None
       if not uri:
         assert extension is not None
         assert uriPattern
@@ -43,10 +45,10 @@ def parseFromDirectory(directory,op,options,extMap,factGraph,uri=None,uriPattern
       parseFormat = options.inputFormat
       if extMap:
           if extension and extension in extMap:
-              parseFormat = extMap[extension]
+            parseFormat = extMap[extension]
           else:
-              print >>sys.stderr,"\tSkipping", entry
-              continue
+            print >>sys.stderr,"\tSkipping", entry
+            continue
       print >>sys.stderr,"Parsing %s as %s into Graph named %s"%(entry,parseFormat,entryUri)
       factGraph.parse(os.path.join(dir[0], entry), publicID=entryUri, format=parseFormat)
     

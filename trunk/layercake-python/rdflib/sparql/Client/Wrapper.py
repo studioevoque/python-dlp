@@ -123,7 +123,7 @@ class SPARQLWrapper :
             self.returnFormat = XML
         self._defaultReturnFormat = self.returnFormat
         self.queryString = """SELECT * WHERE{ ?s ?p ?o }"""
-        self.method    = GET
+        self.method    = POST#GET
         self.queryType = SELECT
 
     def resetQuery(self) :

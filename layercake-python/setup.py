@@ -53,6 +53,7 @@ setup(
             'mysql-rdfload = rdflib_tools.RDFload:main',
             'dataset-description = rdflib_tools.RDFload:datasetInfo',
             'sparqler = rdflib_tools.sparqler:main',
+            'sparqlcsv = rdflib_tools.SPARQLResultsCSV:main',
         ],
         'nose.plugins': [
             'EARLPlugin = rdflib_tools.EARLPlugin:EARLPlugin',

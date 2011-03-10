@@ -94,20 +94,23 @@ def main():
                   help='Render a SPARQL snippet')    
     op.add_option('--timing', action='store_true',default=False,
                 help='Whether or not to print out timing information')
-    op.add_option('--flatten', action='store_true',default=False,
-                  help='Used with --render to determine if the SQL should be flattened or not')    
     op.add_option('-l', '--literal',
                   action='append', dest='literal_properties',
                   metavar='URI',
                   help='Add URI to the list of literal properties')
     op.add_option('-p', '--profile',action='store_true',
                   help='Enable profiling statistics')
-    op.add_option('--originalSPARQL',action='store_true',default=False,
-                  help='Bypass SPARQL-to-SQL method?')    
+    op.add_option('-o','--output',
+                  help='The location where to store the SPARQL XML result file '+
+                       '(it is printed to STDOUT otherwise)')
     op.add_option('-r', '--resource',
                   action='append', dest='resource_properties',
                   metavar='URI',
                   help='Add URI to the list of resource properties')
+    op.add_option('--endpoint',
+                  metavar='URL',
+                  help='The URL of a SPARQL service to query (DB connection and '+
+                       'table identifier not required)')
     op.add_option('--ns',
                   action='append',
                   default=[],
@@ -119,118 +122,147 @@ def main():
     op.set_defaults(debug=False, storeKind='MySQL')
     (options, args) = op.parse_args()
 
-    if len(args) <2 :
-      op.error(
-        'You need to provide a connection string ' +
-        '\n(of the form "user=...,password=...,db=...,host=..."), ' +
-        '\na table identifier, and a query string.')
+    if options.endpoint:
 
-    from rdflib.sparql import Algebra
-    Algebra.DAWG_DATASET_COMPLIANCE = False
-    if len(args)==3:
-        connection, identifier, query = args
-    else:
-        connection, identifier = args
-    store = plugin.get(options.storeKind, Store)(identifier)
-    ontGraph=None
-    if options.owl:
-        ontGraph=Graph().parse(options.owl)
-    elif options.rdfs:
-        ontGraph=Graph().parse(options.rdfs)
+        ontGraph=None
+        if options.owl:
+            ontGraph=Graph().parse(options.owl)
+        elif options.rdfs:
+            ontGraph=Graph().parse(options.rdfs)
 
-    if ontGraph is None:
-        nsBinds = {}
-    else:
-        nsBinds = dict(ontGraph.namespace_manager.namespaces())
-    for nsBind in options.ns:
-        pref,nsUri = nsBind.split('=')
-        nsBinds[pref]=nsUri    
-
-    if options.storeKind == 'MySQL' and options.owl:
-        for litProp,resProp in ontGraph.query(OWL_PROPERTIES_QUERY,
-                                              initNs={u'owl':OWL_NS}):
-            if litProp:
-                store.literal_properties.add(litProp)
-            if resProp: 
-                store.resource_properties.add(resProp)
-    if options.storeKind == 'MySQL' and options.rdfs:
-        for litProp,resProp in ontGraph.query(RDFS_PROPERTIES_QUERY,
-                                              initNs={u'owl':OWL_NS}):
-            if litProp:
-                store.literal_properties.add(litProp)
-            if resProp: 
-                store.resource_properties.add(resProp)
-    if options.debug and (options.rdfs or options.owl):
-        print "literalProperties: ", litProp
-        print "resourceProperties: ", resProp
-    rt = store.open(connection, create=False)
-    dataset = ConjunctiveGraph(store)
-    if options.literal_properties:
-        for literalProp in options.literal_properties:
-            prefixSplit = literalProp.split(':')
-            if prefixSplit and prefixSplit[0] in nsBinds:
-                store.literal_properties.add(URIRef(nsBinds[prefixSplit[0]] + prefixSplit[-1]))
-            else:
-                store.literal_properties.add(URIRef(literalProp))
-    if options.resource_properties:
-        for resourceProp in options.resource_properties:
-            prefixSplit = resourceProp.split(':')
-            if prefixSplit and prefixSplit[0] in nsBinds:
-                store.resource_properties.add(URIRef(nsBinds[prefixSplit[0]] + prefixSplit[-1]))
-            else:
-                store.resource_properties.add(URIRef(resourceProp))
-    if options.debug:
-        print_set('literal_properties', store.literal_properties)
-        print_set('resource_properties', store.resource_properties)
-        store.debug = True
-    if options.profile:
-        import hotshot, hotshot.stats
-        prof = hotshot.Profile("sparqler.prof")
-        res = prof.runcall(dataset.query,query,DEBUG=options.sparqlDebug)
-        prof.close()
-        stats = hotshot.stats.load("sparqler.prof")
-        stats.strip_dirs()
-        stats.sort_stats('time', 'calls')
-        print "==="*20
-        stats.print_stats(20)
-        print "==="*20  
-
-    if options.render:
-        flags=DEFAULT_OPT_FLAGS.copy()
-        if options.flatten:
-            flags[OPT_FLATTEN]=False
-        sb = RdfSqlBuilder(Graph(store), optimizations=flags)
-        if options.file:
-            query=prepQuery(open(options.file).read(),ontGraph)
-            res = dataset.query(query,DEBUG=True)
-            print res
+        if ontGraph is None:
+            nsBinds = {}
         else:
-            query = prepQuery(query,ontGraph)
-            root = ParseQuery(query,sb)
-            print repr(root)
-            root.GenSql(sb)        
-            sql = sb.Sql()
-            print sql
-        return
+            nsBinds = dict(ontGraph.namespace_manager.namespaces())
+        for nsBind in options.ns:
+            pref,nsUri = nsBind.split('=')
+            nsBinds[pref]=nsUri
+
+        if len(args) <1 and not options.file:
+          op.error('You need to at least provide the query.')
+
+        dataset = Graph(plugin.get('SPARQL', Store)(options.endpoint))
+        if options.timing:
+            now=time.time()
+        res = dataset.query(open(options.file).read() if options.file else args[0],
+                            initNs=nsBinds,
+                            DEBUG=options.sparqlDebug)
     else:
-        flags=DEFAULT_OPT_FLAGS.copy()
-        if options.flatten:
-            flags[OPT_FLATTEN]=False
-        dataset.store.optimizations = flags
-        if options.file:
-            query=prepQuery(open(options.file).read(),ontGraph)
-            if options.timing:
-                now=time.time()
-            res = dataset.query(query,
-                                initNs=nsBinds,
-                                DEBUG=options.sparqlDebug)
+        if len(args) <2:
+          op.error(
+            'You need to provide a connection string ' +
+            '\n(of the form "user=...,password=...,db=...,host=..."), ' +
+            '\na table identifier, and a query string.')
+
+        from rdflib.sparql import Algebra
+        Algebra.DAWG_DATASET_COMPLIANCE = False
+        if len(args)==3:
+            connection, identifier, query = args
         else:
-            if options.timing:
-                now=time.time()
-            res = dataset.query(query,DEBUG=options.sparqlDebug,initNs=nsBinds)
-    print res.serialize(format='xml')
+            connection, identifier = args
+        store = plugin.get(options.storeKind, Store)(identifier)
+        ontGraph=None
+        if options.owl:
+            ontGraph=Graph().parse(options.owl)
+        elif options.rdfs:
+            ontGraph=Graph().parse(options.rdfs)
+
+        if ontGraph is None:
+            nsBinds = {}
+        else:
+            nsBinds = dict(ontGraph.namespace_manager.namespaces())
+        for nsBind in options.ns:
+            pref,nsUri = nsBind.split('=')
+            nsBinds[pref]=nsUri
+
+        if options.storeKind == 'MySQL' and options.owl:
+            for litProp,resProp in ontGraph.query(OWL_PROPERTIES_QUERY,
+                                                  initNs={u'owl':OWL_NS}):
+                if litProp:
+                    store.literal_properties.add(litProp)
+                if resProp:
+                    store.resource_properties.add(resProp)
+        if options.storeKind == 'MySQL' and options.rdfs:
+            for litProp,resProp in ontGraph.query(RDFS_PROPERTIES_QUERY,
+                                                  initNs={u'owl':OWL_NS}):
+                if litProp:
+                    store.literal_properties.add(litProp)
+                if resProp:
+                    store.resource_properties.add(resProp)
+        if options.debug and (options.rdfs or options.owl):
+            print "literalProperties: ", litProp
+            print "resourceProperties: ", resProp
+        rt = store.open(connection, create=False)
+        dataset = ConjunctiveGraph(store)
+        if options.literal_properties:
+            for literalProp in options.literal_properties:
+                prefixSplit = literalProp.split(':')
+                if prefixSplit and prefixSplit[0] in nsBinds:
+                    store.literal_properties.add(URIRef(nsBinds[prefixSplit[0]] + prefixSplit[-1]))
+                else:
+                    store.literal_properties.add(URIRef(literalProp))
+        if options.resource_properties:
+            for resourceProp in options.resource_properties:
+                prefixSplit = resourceProp.split(':')
+                if prefixSplit and prefixSplit[0] in nsBinds:
+                    store.resource_properties.add(URIRef(nsBinds[prefixSplit[0]] + prefixSplit[-1]))
+                else:
+                    store.resource_properties.add(URIRef(resourceProp))
+        if options.debug:
+            print_set('literal_properties', store.literal_properties)
+            print_set('resource_properties', store.resource_properties)
+            store.debug = True
+        if options.profile:
+            import hotshot, hotshot.stats
+            prof = hotshot.Profile("sparqler.prof")
+            res = prof.runcall(dataset.query,query,DEBUG=options.sparqlDebug)
+            prof.close()
+            stats = hotshot.stats.load("sparqler.prof")
+            stats.strip_dirs()
+            stats.sort_stats('time', 'calls')
+            print "==="*20
+            stats.print_stats(20)
+            print "==="*20
+
+        if options.render:
+            flags=DEFAULT_OPT_FLAGS.copy()
+            flags[OPT_FLATTEN]=False
+            sb = RdfSqlBuilder(Graph(store), optimizations=flags)
+            if options.file:
+                query=prepQuery(open(options.file).read(),ontGraph)
+                res = dataset.query(query,DEBUG=True)
+                print res
+            else:
+                query = prepQuery(query,ontGraph)
+                root = ParseQuery(query,sb)
+                print repr(root)
+                root.GenSql(sb)
+                sql = sb.Sql()
+                print sql
+            return
+        else:
+            flags=DEFAULT_OPT_FLAGS.copy()
+            flags[OPT_FLATTEN]=False
+            dataset.store.optimizations = flags
+            if options.file:
+                query=prepQuery(open(options.file).read(),ontGraph)
+                if options.timing:
+                    now=time.time()
+                res = dataset.query(query,
+                                    initNs=nsBinds,
+                                    DEBUG=options.sparqlDebug)
+            else:
+                if options.timing:
+                    now=time.time()
+                res = dataset.query(query,DEBUG=options.sparqlDebug,initNs=nsBinds)
+    if options.output:
+        f=open(options.output,'w')
+        f.write(res.serialize(format='xml'))
+        f.close()
+    else:
+        print res.serialize(format='xml')
     if options.timing:
-        print "Time to query and serialize answers ", time.time() - now
+        print >> sys.stderr,"Time to query and serialize answers ", time.time() - now
 
 if __name__ == '__main__':
     main()

@@ -12,7 +12,7 @@ import csv,sys, re
 from amara.lib import U
 from amara.pushtree import pushtree
 from amara.bindery.nodes import entity_base
-from amara import bindery, parse
+from amara import bindery, parse, ReaderError
 from amara.lib.util import coroutine
 from amara.writers.struct import structwriter, E, NS, ROOT, E_CURSOR
 from cStringIO import StringIO
@@ -22,7 +22,14 @@ class Counter(object):
         self.counter     = 0
         self.skipCounter = 0
 
-def produce_csv(doc,csvWriter,justCount):
+def produce_csv(doc,csvWriter,justCount,projectVars):
+    if not projectVars:
+        def receive_header(node):
+            for var in node.variable:
+                projectVars.append(U(var.name))
+
+        pushtree(doc, u'head', receive_header)
+
     cnt=Counter()
 
     @coroutine
@@ -34,13 +41,18 @@ def produce_csv(doc,csvWriter,justCount):
             else:
                 rt=[]
                 badChars = False
+                bindings = {}
                 for binding in node.binding:
                     try:
-                        rt.append(U(binding).encode('ascii'))
+                        newterm=U(binding).encode('ascii')
                     except UnicodeEncodeError:
-                        rt.append(U(binding).encode('ascii', 'ignore'))
+                        newterm=U(binding).encode('ascii', 'ignore')
                         badChars = True
-                        print >> sys.stderr, "Skipping character", U(binding)
+                        print >> sys.stderr, "Skipping character"
+                    if newterm:
+                        bindings[binding.name]=newterm
+                for head in projectVars:
+                    rt.append(bindings.get(head,''))
                 if badChars:
                     cnt.skipCounter += 1
                 csvWriter.writerow(rt)
@@ -64,10 +76,17 @@ def main():
                   action='store_true',
                   default=False,
                   help='Just count the results, do not serialize to CSV')
+    op.add_option('--chopped',
+              action='store_true',
+              default=False,
+              help='Whether or not this is one of many files chopped up by <result> tag')
     op.add_option('-d',
                   '--delimiter',
                   default='\t',
                   help='The delimiter to use')
+    op.add_option('--header',
+                  default='',
+                  help='The comma separated list of selected variables in order')
     op.add_option('-o',
                   '--output',
                   metavar='FILEPATH',
@@ -84,7 +103,22 @@ def main():
     else:
         writer = None
     doc = open(args[0]) if args else sys.stdin
-    counter=produce_csv(doc,writer,options.count)
+    skeleton=None
+    if options.chopped:
+        doc=doc.read()
+        assert isinstance(doc,basestring)
+        if doc.find('<sparql')+1:
+            skeleton='%s</results></sparql>'
+        elif doc.find('</sparql>')+1:
+            skeleton='<?xml version="1.0"?><sparql><results>%s'
+        else:
+            skeleton='<?xml version="1.0"?><sparql><results>%s</results></sparql>'
+        doc = skeleton%doc
+    counter=produce_csv(doc,
+                        writer,
+                        options.count,
+                        [head.strip() for head in options.header.split(',')])
+
     if options.count:
         print "Number of results: ", counter.counter
     if counter.skipCounter:

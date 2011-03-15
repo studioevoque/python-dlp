@@ -28,7 +28,7 @@ def produce_csv(doc,csvWriter,justCount,projectVars):
             for var in node.variable:
                 projectVars.append(U(var.name))
 
-        pushtree(doc, u'head', receive_header)
+        pushtree(doc, u'head', receive_header, entity_factory=entity_base)
 
     cnt=Counter()
 
@@ -50,7 +50,11 @@ def produce_csv(doc,csvWriter,justCount,projectVars):
                         badChars = True
                         print >> sys.stderr, "Skipping character"
                     if newterm:
-                        bindings[binding.name]=newterm
+                        if projectVars:
+                            bindings[binding.name]=newterm
+                        else:
+                            rt.append(newTerm)
+
                 for head in projectVars:
                     rt.append(bindings.get(head,''))
                 if badChars:
@@ -104,8 +108,8 @@ def main():
         writer = None
     doc = open(args[0]) if args else sys.stdin
     skeleton=None
+    doc=doc.read()
     if options.chopped:
-        doc=doc.read()
         assert isinstance(doc,basestring)
         if doc.find('<sparql')+1:
             skeleton='%s</results></sparql>'
@@ -114,10 +118,12 @@ def main():
         else:
             skeleton='<?xml version="1.0"?><sparql><results>%s</results></sparql>'
         doc = skeleton%doc
+
+    vars = [head.strip() for head in options.header.split(',')] if options.header else []
     counter=produce_csv(doc,
                         writer,
                         options.count,
-                        [head.strip() for head in options.header.split(',')])
+                        vars)
 
     if options.count:
         print "Number of results: ", counter.counter

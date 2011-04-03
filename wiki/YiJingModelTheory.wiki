@@ -85,6 +85,8 @@ Forall ?GUA (
 Forall ?GUA ( 
     upperPrimaryGua(?GUA huang:Lake) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yang) sixthLine(?GUA Yin) ) 
 )
+}}}
+
 == Summary of Classes (in Manchester OWL)  ==
 
 {{{

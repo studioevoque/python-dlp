@@ -1,0 +1,81 @@
+#summary A model theory of primordial forces as described in the Zhou Yi
+#labels Featured,Phase-Requirements
+
+= Introduction =
+
+The [http://metacognition.info/owl/yijing.owl ontology] documents a set of first-order constants interpreted as elements of a set of primordial forces defined by axioms on the (Zhou Yi) symbols which are written characters with a structural form that 'illustrate' the forces underlying all natural phenomena ( as purported and described by the authors of the text ).
+
+== Rules ==
+
+Accompanying rules as RIF human readable syntax
+
+{{{
+Forall ?GUA ?INVERSE ?YAO ( iching:sixthLine(?INVERSE ?YAO) :- And( iching:inverse(?GUA ?INVERSE) iching:firstLine(?GUA ?YAO) ) )
+Forall ?GUA ?INVERSE ?YAO ( iching:fifthLine(?INVERSE ?YAO) :- And( iching:inverse(?GUA ?INVERSE) iching:secondLine(?GUA ?YAO) ) )
+Forall ?GUA ?INVERSE ?YAO ( iching:fourthLine(?INVERSE ?YAO) :- And( iching:inverse(?GUA ?INVERSE) iching:thirdLine(?GUA ?YAO) ) )
+Forall ?GUA ?INVERSE ?YAO ( iching:thirdLine(?INVERSE ?YAO) :- And( iching:inverse(?GUA ?INVERSE) iching:fourthLine(?GUA ?YAO) ) )
+Forall ?GUA ?INVERSE ?YAO ( iching:secondLine(?INVERSE ?YAO) :- And( iching:inverse(?GUA ?INVERSE) iching:fifthLine(?GUA ?YAO) ) )
+Forall ?GUA ?INVERSE ?YAO ( iching:firstLine(?INVERSE ?YAO) :- And( iching:inverse(?GUA ?INVERSE) iching:sixthLine(?GUA ?YAO) ) )
+Forall ?GUA ?OTHER ( iching:inverse(?OTHER ?GUA) :- iching:inverse(?GUA ?OTHER) )
+Forall ?UPPER ?LOWER ?GUA ?GUA2 ?GUA1 ( Exists _:hKrlctKJ135 ( And( iching:NonInvertibleGua(hKrlctKJ135) iching:NonInvertibleGua(?GUA2) ) ) :- And( iching:lowerPrimaryGua(?GUA1 ?LOWER) iching:upperPrimaryGua(?GUA1 ?UPPER) iching:inverse(?GUA1 ?GUA2) iching:lowerPrimaryGua(?GUA2 ?LOWER) iching:upperPrimaryGua(?GUA2 ?UPPER) ) )
+Forall ?GUA ( iching:lowerPrimaryGua(?GUA huang:Heaven) :- And( iching:firstLine(?GUA iching:Yang) iching:secondLine(?GUA iching:Yang) iching:thirdLine(?GUA iching:Yang) ) )
+Forall ?GUA ( iching:lowerPrimaryGua(?GUA huang:Earth) :- And( iching:firstLine(?GUA iching:Yin) iching:secondLine(?GUA iching:Yin) iching:thirdLine(?GUA iching:Yin) ) )
+Forall ?GUA ( iching:lowerPrimaryGua(?GUA huang:Water) :- And( iching:firstLine(?GUA iching:Yin) iching:secondLine(?GUA iching:Yang) iching:thirdLine(?GUA iching:Yin) ) )
+Forall ?GUA ( iching:lowerPrimaryGua(?GUA huang:Wind) :- And( iching:firstLine(?GUA iching:Yin) iching:secondLine(?GUA iching:Yang) iching:thirdLine(?GUA iching:Yang) ) )
+Forall ?GUA ( iching:lowerPrimaryGua(?GUA huang:Thunder) :- And( iching:firstLine(?GUA iching:Yang) iching:secondLine(?GUA iching:Yin) iching:thirdLine(?GUA iching:Yin) ) )
+Forall ?GUA ( iching:lowerPrimaryGua(?GUA huang:Fire) :- And( iching:firstLine(?GUA iching:Yang) iching:secondLine(?GUA iching:Yin) iching:thirdLine(?GUA iching:Yang) ) )
+Forall ?GUA ( iching:lowerPrimaryGua(?GUA huang:Lake) :- And( iching:firstLine(?GUA iching:Yang) iching:secondLine(?GUA iching:Yang) iching:thirdLine(?GUA iching:Yin) ) )
+Forall ?GUA ( iching:lowerPrimaryGua(?GUA huang:Mountain) :- And( iching:firstLine(?GUA iching:Yin) iching:secondLine(?GUA iching:Yin) iching:thirdLine(?GUA iching:Yang) ) )
+Forall ?GUA ( iching:upperPrimaryGua(?GUA huang:Heaven) :- And( iching:fourthLine(?GUA iching:Yang) iching:fifthLine(?GUA iching:Yang) iching:sixthLine(?GUA iching:Yang) ) )
+Forall ?GUA ( iching:upperPrimaryGua(?GUA huang:Mountain) :- And( iching:fourthLine(?GUA iching:Yin) iching:fifthLine(?GUA iching:Yin) iching:sixthLine(?GUA iching:Yang) ) )
+Forall ?GUA ( iching:upperPrimaryGua(?GUA huang:Earth) :- And( iching:fourthLine(?GUA iching:Yin) iching:fifthLine(?GUA iching:Yin) iching:sixthLine(?GUA iching:Yin) ) )
+Forall ?GUA ( iching:upperPrimaryGua(?GUA huang:Water) :- And( iching:fourthLine(?GUA iching:Yin) iching:fifthLine(?GUA iching:Yang) iching:sixthLine(?GUA iching:Yin) ) )
+Forall ?GUA ( iching:upperPrimaryGua(?GUA huang:Wind) :- And( iching:fourthLine(?GUA iching:Yin) iching:fifthLine(?GUA iching:Yang) iching:sixthLine(?GUA iching:Yang) ) )
+Forall ?GUA ( iching:upperPrimaryGua(?GUA huang:Thunder) :- And( iching:fourthLine(?GUA iching:Yang) iching:fifthLine(?GUA iching:Yin) iching:sixthLine(?GUA iching:Yin) ) )
+Forall ?GUA ( iching:upperPrimaryGua(?GUA huang:Fire) :- And( iching:fourthLine(?GUA iching:Yang) iching:fifthLine(?GUA iching:Yin) iching:sixthLine(?GUA iching:Yang) ) )
+Forall ?GUA ( iching:upperPrimaryGua(?GUA huang:Lake) :- And( iching:fourthLine(?GUA iching:Yang) iching:fifthLine(?GUA iching:Yang) iching:sixthLine(?GUA iching:Yin) ) )
+
+}}}
+
+== Summary of Classes (in Manchester OWL)  ==
+
+{{{
+Class: NonInvertibleGua 
+    ## Primitive Type (Vertically symmetric gua) ##
+    SubClassOf: Hexagram / gua
+Class: NaturalPhenomenon 
+    ## Primitive Type (Natural phenomenon) ##
+    The fundamental natural phenomena signified by the images / signs in the YiJing
+    SubClassOf: ns3:RealizableEntity
+Class: InvertibleGua 
+    ## Primitive Type (Paired gua) ##
+    SubClassOf: ( 'inverse gua' SOME ( NOT Vertically symmetric gua ) )
+                Hexagram / gua . 
+    DisjointWith Vertically symmetric gua
+
+Class: PrimaryEnergySymbol 
+    ## Primitive Type (Symbol for Primary energy) ##
+    SubClassOf: Symbol
+Class: ChangeSymbol 
+    ## Primitive Type (Symbol) ##
+    The images set forth by the sages (FuXi and King Wen) that signify natural phenomena
+    SubClassOf: ( obo:IAO_0000136 SOME Natural phenomenon )
+                obo:IAO_0000030
+Class: PrimaryGua 
+    ## Primitive Type (Trigram) ##
+    SubClassOf: ( foaf:maker VALUE dbpedia:Fu_X> )
+                Symbol
+Class: yijing:AccomplishedGua 
+    ## A Defined Class (Hexagram / gua) ##
+    SubClassOf: ( 'King Wen order' SOME ns2:integer )
+                Symbol
+                ( foaf:maker VALUE dbpedia:King_Wen_of_Zhou> )
+                ( ( lowerPrimaryGua SOME Trigram ) AND 
+                  ( upperPrimaryGua SOME Trigram ) ) . 
+    EquivalentTo: ( ( firstLine SOME Symbol for Primary energy ) AND 
+                            ( secondLine SOME Symbol for Primary energy ) AND 
+                            ( thirdLine SOME Symbol for Primary energy ) AND 
+                            ( fourthLine SOME Symbol for Primary energy ) AND 
+                            ( fifthLine SOME Symbol for Primary energy ) AND 
+                            ( sixthLine SOME Symbol for Primary energy ) )
+}}}

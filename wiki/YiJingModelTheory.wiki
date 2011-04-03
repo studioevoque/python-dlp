@@ -96,7 +96,7 @@ Class: NonInvertibleGua
 Class: NaturalPhenomenon 
     ## Primitive Type (Natural phenomenon) ##
     The fundamental natural phenomena signified by the images / signs in the YiJing
-    SubClassOf: ns3:RealizableEntity
+    SubClassOf: snap:RealizableEntity
 Class: InvertibleGua 
     ## Primitive Type (Paired gua) ##
     SubClassOf: ( 'inverse gua' SOME ( NOT Vertically symmetric gua ) )
@@ -117,7 +117,7 @@ Class: PrimaryGua
                 Symbol
 Class: yijing:AccomplishedGua 
     ## A Defined Class (Hexagram / gua) ##
-    SubClassOf: ( 'King Wen order' SOME ns2:integer )
+    SubClassOf: ( 'King Wen order' SOME xsd:integer )
                 Symbol
                 ( foaf:maker VALUE dbpedia:King_Wen_of_Zhou> )
                 ( ( lowerPrimaryGua SOME Trigram ) AND 

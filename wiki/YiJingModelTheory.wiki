@@ -5,6 +5,12 @@
 
 The [http://metacognition.info/owl/yijing.owl ontology] documents a set of first-order constants interpreted as elements of a set of primordial forces defined by axioms on the (Zhou Yi) symbols which are written characters with a structural form that 'illustrate' the forces underlying all natural phenomena ( as purported and described by the authors of the text ).
 
+== Example ==
+
+Individual resource 'heaven'
+
+[http://metacognition.info/images/HeavenGua.jpg]
+
 == Rules ==
 
 Accompanying rules in the [http://www.w3.org/TR/rif-bld/#Direct_Specification_of_RIF-BLD_Presentation_Syntax RIF BLD presentation syntax]

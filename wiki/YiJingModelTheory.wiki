@@ -7,7 +7,7 @@ The [http://metacognition.info/owl/yijing.owl ontology] documents a set of first
 
 == Rules ==
 
-Accompanying rules as RIF human readable syntax
+Accompanying rules in the [http://www.w3.org/TR/rif-bld/#Direct_Specification_of_RIF-BLD_Presentation_Syntax RIF BLD presentation syntax]
 
 {{{
 Forall ?GUA ?INVERSE ?YAO ( 
@@ -37,23 +37,54 @@ Forall ?UPPER ?LOWER ?GUA ?GUA2 ?GUA1 (
                                     inverse(?GUA1 ?GUA2) lowerPrimaryGua(?GUA2 ?LOWER) 
                                     upperPrimaryGua(?GUA2 ?UPPER) ) 
 )
-Forall ?GUA ( lowerPrimaryGua(?GUA huang:Heaven) :- And( firstLine(?GUA Yang) secondLine(?GUA Yang) thirdLine(?GUA Yang) ) )
-Forall ?GUA ( lowerPrimaryGua(?GUA huang:Earth) :- And( firstLine(?GUA Yin) secondLine(?GUA Yin) thirdLine(?GUA Yin) ) )
-Forall ?GUA ( lowerPrimaryGua(?GUA huang:Water) :- And( firstLine(?GUA Yin) secondLine(?GUA Yang) thirdLine(?GUA Yin) ) )
-Forall ?GUA ( lowerPrimaryGua(?GUA huang:Wind) :- And( firstLine(?GUA Yin) secondLine(?GUA Yang) thirdLine(?GUA Yang) ) )
-Forall ?GUA ( lowerPrimaryGua(?GUA huang:Thunder) :- And( firstLine(?GUA Yang) secondLine(?GUA Yin) thirdLine(?GUA Yin) ) )
-Forall ?GUA ( lowerPrimaryGua(?GUA huang:Fire) :- And( firstLine(?GUA Yang) secondLine(?GUA Yin) thirdLine(?GUA Yang) ) )
-Forall ?GUA ( lowerPrimaryGua(?GUA huang:Lake) :- And( firstLine(?GUA Yang) secondLine(?GUA Yang) thirdLine(?GUA Yin) ) )
-Forall ?GUA ( lowerPrimaryGua(?GUA huang:Mountain) :- And( firstLine(?GUA Yin) secondLine(?GUA Yin) thirdLine(?GUA Yang) ) )
-Forall ?GUA ( upperPrimaryGua(?GUA huang:Heaven) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yang) sixthLine(?GUA Yang) ) )
-Forall ?GUA ( upperPrimaryGua(?GUA huang:Mountain) :- And( fourthLine(?GUA Yin) fifthLine(?GUA Yin) sixthLine(?GUA Yang) ) )
-Forall ?GUA ( upperPrimaryGua(?GUA huang:Earth) :- And( fourthLine(?GUA Yin) fifthLine(?GUA Yin) sixthLine(?GUA Yin) ) )
-Forall ?GUA ( upperPrimaryGua(?GUA huang:Water) :- And( fourthLine(?GUA Yin) fifthLine(?GUA Yang) sixthLine(?GUA Yin) ) )
-Forall ?GUA ( upperPrimaryGua(?GUA huang:Wind) :- And( fourthLine(?GUA Yin) fifthLine(?GUA Yang) sixthLine(?GUA Yang) ) )
-Forall ?GUA ( upperPrimaryGua(?GUA huang:Thunder) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yin) sixthLine(?GUA Yin) ) )
-Forall ?GUA ( upperPrimaryGua(?GUA huang:Fire) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yin) sixthLine(?GUA Yang) ) )
-Forall ?GUA ( upperPrimaryGua(?GUA huang:Lake) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yang) sixthLine(?GUA Yin) ) )}}}
-
+Forall ?GUA ( 
+    lowerPrimaryGua(?GUA huang:Heaven) :- And( firstLine(?GUA Yang) secondLine(?GUA Yang) thirdLine(?GUA Yang) ) 
+)
+Forall ?GUA ( 
+    lowerPrimaryGua(?GUA huang:Earth) :- And( firstLine(?GUA Yin) secondLine(?GUA Yin) thirdLine(?GUA Yin) ) 
+)
+Forall ?GUA ( 
+    lowerPrimaryGua(?GUA huang:Water) :- And( firstLine(?GUA Yin) secondLine(?GUA Yang) thirdLine(?GUA Yin) ) 
+)
+Forall ?GUA ( 
+    lowerPrimaryGua(?GUA huang:Wind) :- And( firstLine(?GUA Yin) secondLine(?GUA Yang) thirdLine(?GUA Yang) ) 
+)
+Forall ?GUA ( 
+    lowerPrimaryGua(?GUA huang:Thunder) :- And( firstLine(?GUA Yang) secondLine(?GUA Yin) thirdLine(?GUA Yin) ) 
+)
+Forall ?GUA ( 
+    lowerPrimaryGua(?GUA huang:Fire) :- And( firstLine(?GUA Yang) secondLine(?GUA Yin) thirdLine(?GUA Yang) ) 
+)
+Forall ?GUA ( 
+    lowerPrimaryGua(?GUA huang:Lake) :- And( firstLine(?GUA Yang) secondLine(?GUA Yang) thirdLine(?GUA Yin) ) 
+)
+Forall ?GUA ( 
+    lowerPrimaryGua(?GUA huang:Mountain) :- And( firstLine(?GUA Yin) secondLine(?GUA Yin) thirdLine(?GUA Yang) ) 
+)
+Forall ?GUA ( 
+    upperPrimaryGua(?GUA huang:Heaven) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yang) sixthLine(?GUA Yang) ) 
+)
+Forall ?GUA ( 
+    upperPrimaryGua(?GUA huang:Mountain) :- And( fourthLine(?GUA Yin) fifthLine(?GUA Yin) sixthLine(?GUA Yang) ) 
+)
+Forall ?GUA ( 
+    upperPrimaryGua(?GUA huang:Earth) :- And( fourthLine(?GUA Yin) fifthLine(?GUA Yin) sixthLine(?GUA Yin) ) 
+)
+Forall ?GUA ( 
+    upperPrimaryGua(?GUA huang:Water) :- And( fourthLine(?GUA Yin) fifthLine(?GUA Yang) sixthLine(?GUA Yin) ) 
+)
+Forall ?GUA ( 
+    upperPrimaryGua(?GUA huang:Wind) :- And( fourthLine(?GUA Yin) fifthLine(?GUA Yang) sixthLine(?GUA Yang) ) 
+)
+Forall ?GUA ( 
+    upperPrimaryGua(?GUA huang:Thunder) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yin) sixthLine(?GUA Yin) ) 
+)
+Forall ?GUA ( 
+    upperPrimaryGua(?GUA huang:Fire) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yin) sixthLine(?GUA Yang) ) 
+)
+Forall ?GUA ( 
+    upperPrimaryGua(?GUA huang:Lake) :- And( fourthLine(?GUA Yang) fifthLine(?GUA Yang) sixthLine(?GUA Yin) ) 
+)
 == Summary of Classes (in Manchester OWL)  ==
 
 {{{

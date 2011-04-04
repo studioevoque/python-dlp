@@ -5,6 +5,10 @@
 
 The [http://metacognition.info/owl/yijing.owl ontology] documents a set of first-order constants interpreted as elements of a set of primordial forces defined by axioms on the (Zhou Yi) symbols which are written characters with a structural form that 'illustrate' the forces underlying all natural phenomena ( as purported and described by the authors of the text ).
 
+[http://metacognition.info/images/yijing-conceptualization1.png]
+[http://metacognition.info/images/yijing-conceptualization2.png]
+[http://metacognition.info/images/yijing-conceptualization3.png]
+
 == Example ==
 
 Individual resource 'heaven'

@@ -144,8 +144,6 @@ Class: yijing:AccomplishedGua
 
 = Heaven =
 
-URN:ISBN:0-89281-656-2#Heaven
-
 See: [http://en.wiktionary.org/wiki/%E4%B9%BE 乾]
 
 = Earth =

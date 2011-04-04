@@ -150,43 +150,28 @@ See: [http://en.wiktionary.org/wiki/%E4%B9%BE 乾]
 
 = Earth =
 
-
-URN:ISBN:0-89281-656-2#Earth
-
 See: [http://en.wiktionary.org/wiki/%E5%9D%A4 坤]
 
 = Water =
-
-URN:ISBN:0-89281-656-2#Water
 
 See: [http://en.wiktionary.org/wiki/%E5%9D%8E 坎]
 
 = Fire =
 
-URN:ISBN:0-89281-656-2#Fire in RDF
-
 See: [http://en.wiktionary.org/wiki/%E9%9B%A2 離]
 
 = Wind =
-
-URN:ISBN:0-89281-656-2#Wind in RDF
 
 See: [http://en.wiktionary.org/wiki/%E5%B7%BD 巽]
 
 = Mountain =
 
-URN:ISBN:0-89281-656-2#Mountain in RDF
-
 See: [http://en.wiktionary.org/wiki/%E8%89%AE 艮]
 
 = Lake =
 
-URN:ISBN:0-89281-656-2#Lake in RDF
-
 See: [http://en.wiktionary.org/wiki/%E5%85%8C 兌]
 
 = Thunder =
-
-URN:ISBN:0-89281-656-2#Thunder in RDF
 
 See: [http://en.wiktionary.org/wiki/%E9%9C%87 震]

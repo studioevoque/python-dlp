@@ -1,6 +1,8 @@
 #summary A model theory of primordial forces as described in the Zhou Yi
 #labels Featured,Phase-Requirements
 
+<wiki:toc max_depth="1" />
+
 = Introduction =
 
 The [http://metacognition.info/owl/yijing.owl ontology] documents a set of first-order constants interpreted as elements of a set of primordial forces defined by axioms on the (Zhou Yi) symbols which are written characters with a structural form that 'illustrate' the forces underlying all natural phenomena ( as purported and described by the authors of the text ).
@@ -139,3 +141,35 @@ Class: yijing:AccomplishedGua
                             ( fifthLine SOME Symbol for Primary energy ) AND 
                             ( sixthLine SOME Symbol for Primary energy ) )
 }}}
+
+= Heaven =
+
+See: [http://en.wiktionary.org/wiki/%E4%B9%BE 乾]
+
+= Earth =
+
+See: [http://en.wiktionary.org/wiki/%E5%9D%A4 坤]
+
+= Water =
+
+See: [http://en.wiktionary.org/wiki/%E5%9D%8E 坎]
+
+= Fire =
+
+See: [http://en.wiktionary.org/wiki/%E9%9B%A2 離]
+
+= Wind =
+
+See: [http://en.wiktionary.org/wiki/%E5%B7%BD 巽]
+
+= Mountain =
+
+See: [http://en.wiktionary.org/wiki/%E8%89%AE 艮]
+
+= Lake =
+
+See: [http://en.wiktionary.org/wiki/%E5%85%8C 兌]
+
+= Thunder =
+
+See: [http://en.wiktionary.org/wiki/%E9%9C%87 震]

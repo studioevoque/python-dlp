@@ -30,6 +30,8 @@ from rdflib.sparql.graphPattern import BasicGraphPattern
 from rdflib.sparql.bison.Triples import ParsedConstrainedTriples
 from rdflib.sparql.bison.SPARQLEvaluate import createSPARQLPConstraint,\
      CONSTRUCT_NOT_SUPPORTED,convertTerm
+from rdflib import sparql as sparqlModule
+
 #A variable to determine whether we obey SPARQL definition of RDF dataset
 #which does not allow matching of default graphs (or any graph with a BNode for a name)
 #"An RDF Dataset comprises one graph, 
@@ -100,7 +102,7 @@ def ReduceToAlgebra(left,right):
             if right.nonTripleGraphPattern:
                 #left is None, just return right (a GraphPatternNotTriples)
                 if isinstance(right.nonTripleGraphPattern,ParsedGraphGraphPattern):
-                    right = Join(ReduceGraphPattern(right,prolog),
+                    right = Join(ReduceGraphPattern(right,sparqlModule.prolog),
                                  GraphExpression(
                                     right.nonTripleGraphPattern.name,
                                     reduce(ReduceToAlgebra,
@@ -111,7 +113,7 @@ def ReduceToAlgebra(left,right):
                     # Join(LeftJoin( ..left.. ,{..}),..triples..)
                     if left:
                         assert isinstance(left,(Join,BasicGraphPattern)),repr(left)
-                        rightTriples = ReduceGraphPattern(right,prolog)
+                        rightTriples = ReduceGraphPattern(right,sparqlModule.prolog)
                         LJright = LeftJoin(left,
                                            reduce(ReduceToAlgebra,
                                                   right.nonTripleGraphPattern.graphPatterns,
@@ -129,7 +131,7 @@ def ReduceToAlgebra(left,right):
                       [ reduce(ReduceToAlgebra,i.graphPatterns,None) for i in 
                           right.nonTripleGraphPattern.alternativePatterns ]                        
                     right = Join(reduce(Union,unionList),
-                                 ReduceGraphPattern(right,prolog))
+                                 ReduceGraphPattern(right,sparqlModule.prolog))
                 else:
                     raise Exception(right)
             else:
@@ -137,25 +139,25 @@ def ReduceToAlgebra(left,right):
                     if right.filter:
                         if not left.patterns:
                             #{ } FILTER E1 FILTER E2 BGP(..)
-                            filter2=createSPARQLPConstraint(right.filter,prolog)
-                            right = ReduceGraphPattern(right,prolog)
+                            filter2=createSPARQLPConstraint(right.filter,sparqlModule.prolog)
+                            right = ReduceGraphPattern(right,sparqlModule.prolog)
                             right.addConstraints(left.constraints)
                             right.addConstraint(filter2)
                             return right
                         else:
                             #BGP(..) FILTER E1 FILTER E2 BGP(..)
                             left.addConstraint(createSPARQLPConstraint(right.filter,
-                                                                   prolog))
-                    right = ReduceGraphPattern(right,prolog)
+                                                                   sparqlModule.prolog))
+                    right = ReduceGraphPattern(right,sparqlModule.prolog)
                 else:
                     if right.filter:
                         #FILTER ...
-                        filter=createSPARQLPConstraint(right.filter,prolog)
-                        right = ReduceGraphPattern(right,prolog)
+                        filter=createSPARQLPConstraint(right.filter,sparqlModule.prolog)
+                        right = ReduceGraphPattern(right,sparqlModule.prolog)
                         right.addConstraint(filter)
                     else:
                     #BGP(..)
-                        right = ReduceGraphPattern(right,prolog)
+                        right = ReduceGraphPattern(right,sparqlModule.prolog)
                     
         else:
             #right.triples is None
@@ -164,12 +166,12 @@ def ReduceToAlgebra(left,right):
                     if isinstance(left,BasicGraphPattern):
                         #BGP(...) FILTER
                         left.addConstraint(createSPARQLPConstraint(right.filter, 
-                                                                   prolog))
+                                                                   sparqlModule.prolog))
                         return left
                     else:
                         pattern=BasicGraphPattern()
                         pattern.addConstraint(createSPARQLPConstraint(right.filter,
-                                                                      prolog))                        
+                                                                      sparqlModule.prolog))
                         if left is None:
                             return pattern 
                         else:
@@ -213,14 +215,13 @@ def ReduceToAlgebra(left,right):
         return Join(left,right)
 
 def RenderSPARQLAlgebra(parsedSPARQL,nsMappings=None):
-    nsMappings = nsMappings and nsMappings or {} 
-    global prolog
-    prolog = parsedSPARQL.prolog
-    if prolog is not None:
-        prolog.DEBUG = False
+    nsMappings = nsMappings and nsMappings or {}
+    sparqlModule.prolog = parsedSPARQL.prolog
+    if sparqlModule.prolog is not None:
+        sparqlModule.prolog.DEBUG = False
     else:
-        prolog = Prolog(None, [])
-        prolog.DEBUG=False
+        sparqlModule.prolog = Prolog(None, [])
+        sparqlModule.prolog.DEBUG=False
     return reduce(ReduceToAlgebra,
                   parsedSPARQL.query.whereClause.parsedGraphPattern.graphPatterns,None)
 
@@ -275,10 +276,10 @@ def TopEvaluate(query,dataset,passedBindings = None,DEBUG=False,exportTree=False
     """
     if not passedBindings:
         passedBindings = {}
-    global prolog
     if query.prolog:
         query.prolog.DEBUG = DEBUG
-    prolog = query.prolog    
+    sparqlModule.prolog = query.prolog
+    prolog = sparqlModule.prolog
     prolog.answerList = []
     prolog.eagerLimit = None
     prolog.extensionFunctions.update(extensionFunctions)

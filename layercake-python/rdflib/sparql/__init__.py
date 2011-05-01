@@ -7,6 +7,8 @@ DESCRIBE=URIRef('http://www.w3.org/TR/rdf-sparql-query/#describe')
 _questChar  = "?"
 Debug = False
 
+prolog = -1
+
 def CastToTerm(node):
     """
     Helper function that casts domlette node in SPARQL results

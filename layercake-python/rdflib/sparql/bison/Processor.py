@@ -32,8 +32,8 @@ class Processor(sparql.Processor):
                     if prefix not in parsedQuery.prolog.prefixBindings:
                         parsedQuery.prolog.prefixBindings[prefix] = nsInst
 
-            global prolog
-            prolog = parsedQuery.prolog
+            from rdflib import sparql as sparqlModule
+            sparqlModule.prolog = parsedQuery.prolog
         except ParseException, e:
             if not isinstance(self.graph.store,SPARQLStore):
                 raise e

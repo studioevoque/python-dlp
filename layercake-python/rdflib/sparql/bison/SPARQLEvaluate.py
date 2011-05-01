@@ -1,6 +1,7 @@
 ### Utilities for evaluating a parsed SPARQL expression using sparql-p
 import rdflib
 from rdflib.sparql import sparqlGraph, sparqlOperators, SPARQLError
+from rdflib import sparql as sparqlModule
 from rdflib.sparql.sparqlOperators import getValue
 from rdflib.sparql.graphPattern import BasicGraphPattern
 from rdflib.sparql.Unbound import Unbound

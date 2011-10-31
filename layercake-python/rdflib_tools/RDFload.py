@@ -1,4 +1,3 @@
-from Ft.Lib import Uri
 from rdflib.store.FOPLRelationalModel.MySQLMassLoader import PLUGIN_MAP
 from rdflib import URIRef, Namespace, BNode, ConjunctiveGraph, RDF, plugin, Literal
 from rdflib.Graph import Graph
@@ -42,6 +41,8 @@ def parseFromDirectory(directory,op,options,extMap,factGraph,uri=None,uriPattern
         assert extension is not None
         assert uriPattern
         entryUri = substitute_uriPattern(uriPattern,fName,extension)
+      else:
+        entryUri = uri
       parseFormat = options.inputFormat
       if extMap:
           if extension and extension in extMap:
@@ -116,8 +117,8 @@ def main():
     store = PLUGIN_MAP[args[0]](identifier=options.id,
       delimited_directory=options.delimited,
       reuseExistingFiles=options.reuse)
-  except Exception:
-    raise
+  except Exception, e:
+    print e
     op.error('You need to provide a database type (MySQL or PostgreSQL).')
 
   store.open(options.connection)
@@ -153,7 +154,6 @@ def main():
   if options.connection:
     if options.delete:
       store.open(options.connection)
-      cursor = store._db.cursor()
       store.destroy(options.connection)
       store.close()
 
@@ -161,7 +161,6 @@ def main():
 
     cursor = store._db.cursor()
 
-    hashFieldType = store.hashFieldType
     if False:
       store.initDenormalizedTables(cursor)
       print >> sys.stderr, "Finished loading the denormalized tables..."

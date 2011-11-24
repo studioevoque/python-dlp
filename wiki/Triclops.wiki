@@ -78,7 +78,7 @@ In order to setup Triclops for use as a proxy SPARQL endpoint, the following con
 
 {{{
 /codemirror = codemirror
-/js               = codemirrorJs
+/js           = codemirrorJs
 /queryMgr   = queryMgr
 }}}
 
@@ -102,7 +102,7 @@ This requires a symbolic link named _codemirror_ to be placed in the _htdocs_ su
 {{{
 $ git clone http://marijnhaverbeke.nl/git/codemirror
 $ cd htdocs/
-$  ln -s ../codemirror
+$ ln -s ../codemirror
 }}}
 
 At this point, the server can be (re-)started and a browser can point to /queryMgr to pull up the query manager

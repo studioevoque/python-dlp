@@ -45,10 +45,10 @@ debugQuery=1
 This variable determines whether or not the MySQL query optimizer should evaluate BGPs in the given triple pattern order to allow it to use statistical data to determine an appropriate join order
 
 {{{
- #Whether or not to allow MySQL to use it's own methods to determine join order
- #This cannot be used in conjunction with DISABLE_SELECTION_ESTIMATION.
- #An absence of this variable is interpreted as being set to false (or 0)
- MYSQL_ORDER=1
+#Whether or not to allow MySQL to use it's own methods to determine join order
+#This cannot be used in conjunction with DISABLE_SELECTION_ESTIMATION.
+#An absence of this variable is interpreted as being set to false (or 0)
+MYSQL_ORDER=1
 }}}
 
 {{{
@@ -57,7 +57,7 @@ NO_BASE_RESOLUTION=1
 
 At this point, the server can be launched as a system daemon via:
 {{{
- paster serve someConfigurationFile.conf --daemon --log=someLogFileName.log --pid-file=somePidFileName.pid
+paster serve someConfigurationFile.conf --daemon --log=someLogFileName.log --pid-file=somePidFileName.pid
 }}}
 
 A running SPARQL service can be stopped with the following command (note the given pid and log file must be the same as the one used to start the daemon):
@@ -74,7 +74,7 @@ For now, see [http://code.google.com/p/python-dlp/source/detail?r=351 log] for c
 
 = SPARQL Query management =
 
-Triclops can be setup for use in managing SPARQL queries and their results against either a local rdflib / layercake dataset or a remote one via the proxy SPARQL endpoint capabilities described in the next secsion.  The following configuration directives need to be added to the section at the top (_composite:main_):
+Triclops can be setup for use in managing SPARQL queries and their results against either a local rdflib / [http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence layercake-python] dataset or a remote one via the proxy SPARQL endpoint capabilities described in the next secsion.  The following configuration directives need to be added to the section at the top (_composite:main_):
 
 {{{
 [composite:main] 

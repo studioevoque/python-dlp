@@ -34,10 +34,12 @@ Below is what should be used to register default namespace bindings:
 
 {{{
 #'|' delimited strings of the form _key_=_val_ where _key_ is a prefix and _val_ is the URI to bind it to
- #Whether or not to output additional (detailed) debugging information relevant
- #to the SPARQL query evaluation process.  An absence of this variable is
- #interpreted as being set to false (or 0)
- debugQuery=1
+nsBindings=dc=http://purl.org/dc/terms/|obo=http://purl.org/obo/owl/obo#
+
+#Whether or not to output additional (detailed) debugging information relevant
+#to the SPARQL query evaluation process.  An absence of this variable is
+#interpreted as being set to false (or 0)
+debugQuery=1
 }}}
 
 This variable determines whether or not the MySQL query optimizer should evaluate BGPs in the given triple pattern order to allow it to use statistical data to determine an appropriate join order

@@ -11,16 +11,16 @@ The package comes with a skeletal configuration file ( SPARQLServer-sample.conf 
 
 {{{
 [DEFAULT]
- #Configuration options for underlying RDFLib store
- store_identifier=..store identifier.
+#Configuration options for underlying RDFLib store
+store_identifier=..store identifier.
 }}}
 
 The store identifier is usually given for a particular dataset. MySQL credentials are placed to use to connect to a particular database (also given). So, this file probably should not be readable by anyone except priviledged users (preferably the same one that launches the server)
 
 {{{
 connection=user=..change me..,password=..change me..,host=..change me..,db=.. change me..
- store=MySQL
- static_files=%(here)s/htdocs
+store=MySQL
+static_files=%(here)s/htdocs
 }}}
 
 The relevant OWL file for a dataset is also given.

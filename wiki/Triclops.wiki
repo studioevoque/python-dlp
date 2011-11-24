@@ -112,7 +112,7 @@ At this point, the server can be (re-)started and a browser can point to /queryM
 
 Using the _[http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence#Generic_SPARQL_Store SPARQL client library as Generic SPARQL Store]_ capability, Triclops can be used as a [http://www.w3.org/TR/rdf-sparql-protocol/ SPARQL protocol for RDF] [http://en.wikipedia.org/wiki/Proxy_server proxy server] to a live SPARQL endpoint in the sense that it simply delegates the evaluation of SPARQL queries to the remote server but handles the rendering, (term-based) browsing of results from the query, query management, and query mediation.  The latter in particular can be achieved via [http://code.google.com/p/fuxi/wiki/TopDownSW query mediation capabilities] over a remote SPARQL service
 
-A remote SPARQL endpoint can be configured with the following entry in the configuration file:
+A remote [http://www.w3.org/TR/sparql11-service-description/#sd-endpoint SPARQL endpoint] can be configured with the following entry in the configuration file:
 {{{
 sparql_proxy = ... SPARQL endpoint URL ...
 }}}

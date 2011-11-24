@@ -1,6 +1,8 @@
 #summary SPARQL server  implemented as a Python library using Python Paste and wsgiutils as a WSGI application
 #labels Featured,Phase-Implementation,Phase-Deploy
 
+<wiki:toc max_depth="1" />
+
 = Introduction =
 
 This wiki describes how Triclops can be configured to be used with the MySQL /  SPARQL-to-SQL implementation.
@@ -70,4 +72,37 @@ For now, see [http://code.google.com/p/python-dlp/source/detail?r=351 log] for c
 
 = Proxy SPARQL Endpoint =
 
-Using the _[http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence#Generic_SPARQL_Store SPARQL client library as Generic SPARQL Store]_ capability, Triclops can be used as a [http://www.w3.org/TR/rdf-sparql-protocol/ SPARQL protocol for RDF] [http://en.wikipedia.org/wiki/Proxy_server proxy server] to a live SPARQL endpoint in the sense that it simply delegates the evaluation of SPARQL queries to the remote server but handles the rendering, (term-based) browsing of results from the query, and query mediation.  The latter in particular can be achieved via [http://code.google.com/p/fuxi/wiki/TopDownSW query mediation capabilities] over a remote SPARQL service
+Using the _[http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence#Generic_SPARQL_Store SPARQL client library as Generic SPARQL Store]_ capability, Triclops can be used as a [http://www.w3.org/TR/rdf-sparql-protocol/ SPARQL protocol for RDF] [http://en.wikipedia.org/wiki/Proxy_server proxy server] to a live SPARQL endpoint in the sense that it simply delegates the evaluation of SPARQL queries to the remote server but handles the rendering, (term-based) browsing of results from the query, query management, and query mediation.  The latter in particular can be achieved via [http://code.google.com/p/fuxi/wiki/TopDownSW query mediation capabilities] over a remote SPARQL service
+
+In order to setup Triclops for use as a proxy SPARQL endpoint, the following configuration directives need to be set in the _[composite:main]_ section:
+
+{{{
+/codemirror = codemirror
+/js               = codemirrorJs
+/queryMgr   = queryMgr
+}}}
+
+The following sections are needed:
+
+{{{
+[app:queryMgr]
+use = egg:Triclops#queryMgr
+
+[app:codemirror]
+use = egg:Paste#static
+document_root = %(here)s/htdocs/codemirror
+
+[app:codemirrorJs]
+use = egg:Paste#static
+document_root = %(here)s/htdocs/codemirror/js
+}}}
+
+This requires a symbolic link named _codemirror_ to be placed in the _htdocs_ subdirectory that points to the [http://codemirror.net/ codemirror] source tree.  This can be done by downloading the codemirror source archive, decompressing it in Triclops working directory and creating such a link.  Alternatively, it can be checked out via __git__:
+
+{{{
+$ git clone http://marijnhaverbeke.nl/git/codemirror
+$ cd htdocs/
+$  ln -s ../codemirror
+}}}
+
+At this point, the server can be (re-)started and a browser can point to /queryMgr to pull up the query manager

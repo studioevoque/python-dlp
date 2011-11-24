@@ -191,6 +191,8 @@ def make_app(global_conf, **app_conf):
     ticketLookup = {}
     return app
     
+def make_query_manager(global_conf,**app_conf):
+    return QueryManager(global_conf)
 
 def make_owlBrowser(global_conf, **app_conf):
     return JOWLBrowser(global_conf)

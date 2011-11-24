@@ -78,7 +78,7 @@ In order to setup Triclops for use as a proxy SPARQL endpoint, the following con
 
 {{{
 /codemirror = codemirror
-/js           = codemirrorJs
+/js         = codemirrorJs
 /queryMgr   = queryMgr
 }}}
 

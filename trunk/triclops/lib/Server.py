@@ -266,6 +266,9 @@ class StoreConnectee(object):
         noFilterEstimation      = global_conf.get('DISABLE_SELECTION_ESTIMATION',False)
         self.proxy              = global_conf.get('sparql_proxy')
         self.bNodeAsURI         = global_conf.get('bNodeAsURI')
+        self.manageQueries      = global_conf.get('manageQueries')
+        self.queryManager       = global_conf.get('queryMgr')
+
         if self.proxy:
             print "A proxy SPARQL server for ", self.proxy
         elif MYSQL_ORDER or noFilterEstimation:
@@ -723,7 +726,295 @@ PROCESS_BROWSER_HTML=\
 
 def killThread(cursor,thread_id):
     cursor.execute("KILL QUERY %s"%(thread_id))
-      
+
+
+class QueryManager(StoreConnectee):
+    def __call__(self, environ, start_response):
+        from QueryManager import QUERY_LIST_HTML, QUERY_EDIT_HTML
+        from amara        import bindery, tree
+        from amara.lib    import U
+        try:
+            from hashlib import md5 as createDigest
+        except:
+            from md5 import new as createDigest
+
+        d = parse_formvars(environ)
+        action  = d.get('action','list')
+        queryId = d.get('query')
+        targetGraph = self.buildGraph(None)
+
+        entries = []
+        if action == 'list':
+            def sortByName(item):
+                fName = os.path.join(self.manageQueries,item)
+                fObj = open(fName)
+                doc = bindery.parse(fObj.read())
+                return U(doc.Query.name)
+            def sortByNo(item):
+                fName = os.path.join(self.manageQueries,item)
+                fObj = open(fName)
+                doc = bindery.parse(fObj.read())
+                return int(doc.xml_select(
+                'count(/*[local-name()="sparql"]/*[local-name()="results"]/*)')) \
+                    if hasattr(doc,'sparql') else 0
+
+            def sortByDate(item):
+                fName = os.path.join(self.manageQueries,item)
+                return os.lstat(fName).st_mtime
+
+            for fN in sorted([_fname
+                              for _fname in os.listdir(self.manageQueries)
+                                if _fname.find('results')==-1],
+                             key=sortByDate if d.get('order')=='date'
+                                            else sortByNo if d.get('order')=='size'
+                                                else sortByName ):
+                fName = os.path.join(self.manageQueries,fN)
+                fObj = open(fName)
+                doc = bindery.parse(fObj.read())
+                _id=createDigest(U(doc.Query.name)).hexdigest()
+                resultFName = os.path.join(self.manageQueries,
+                                           '%s.rq.results.xml'
+                        )%_id
+                entries.append(
+                    '<tr onmouseover="sparql"><td><a href="%s?query=%s&action=edit">%s</a></td><td>%s</td><td>%s</td><td><a href="%s?action=update&query=%s&innerAction=load">%s</a></td></tr>'%
+                    (self.queryManager,
+                     createDigest(U(doc.Query.name)).hexdigest(),
+                     U(doc.Query.name).encode('ascii'),
+                     time.ctime(os.lstat(fName).st_mtime),
+                     time.ctime(os.lstat(resultFName).st_mtime)
+                        if os.path.exists(resultFName) else 'N/A',
+                     self.queryManager,
+                     _id,
+                     int(bindery.parse(resultFName).xml_select('count(/*[local-name()="sparql"]/*[local-name()="results"]/*)'))
+                        if os.path.exists(resultFName) else 'N/A')
+                )
+            rt = QUERY_LIST_HTML.replace('QUERYMGR',self.queryManager)
+            rt = rt%('\n'.join(entries))
+            status = '200 OK'
+            response_headers = [('Content-type','text/html'),
+                                ('Content-Length',
+                                 len(rt))]
+            start_response(status, response_headers)
+            return [rt]
+        elif action == 'add':
+            querytext = d.get('sparql')
+            queryName = d.get('name')
+            print querytext, queryName
+
+            assert querytext is not None and queryName is not None,"Nothing to save"
+
+            querytext.replace('>','&gt;')
+
+            doc = bindery.nodes.entity_base()
+            rootEl = doc.xml_element_factory(None, u'Query')
+            rootEl.xml_attributes[(None,u'name')] = U(queryName)
+            rootEl.xml_append(U(querytext))
+            doc.xml_append(rootEl)
+
+            queryFName = '%s.rq.xml'%(createDigest(queryName).hexdigest())
+            f = open(os.path.join(self.manageQueries,queryFName),'wb')
+            doc.xml_write('xml-indent',stream=f)
+            f.close()
+
+            rt='Added query.  Redirecting..'
+            response_headers = [('Location',self.queryManager),
+                                ('Content-Length',
+                                 len(rt))]
+            start_response('303 See Other', response_headers)
+            return [rt]
+
+        elif action == 'edit':
+            fObj = open(os.path.join(self.manageQueries,'%s.rq.xml')%d.get('query'))
+            doc = bindery.parse(fObj.read())
+            query = U(doc.Query).encode('ascii').replace('<','&lt;')
+            queryName = U(doc.Query.name).encode('ascii')
+
+            rt = QUERY_EDIT_HTML.replace('QUERYMGR',self.queryManager)
+            rt = rt.replace('NAME',queryName)
+            rt = rt.replace('QUERYID',createDigest(queryName).hexdigest())
+            rt = rt.replace('QUERY',query)
+
+            status = '200 OK'
+            response_headers = [('Content-type','text/html'),
+                                ('Content-Length',
+                                 len(rt))]
+            start_response(status, response_headers)
+            return [rt]
+        elif action == 'update':
+            rtFormat          = d.get('resultFormat','xml')
+            givenName         = d.get('name')
+            queryId           = d.get('query')
+            sparql            = d.get('sparql')
+            fName = os.path.join(self.manageQueries,'%s.rq.xml')%d.get('query')
+            resultFName = os.path.join(self.manageQueries,'%s.rq.results.xml')%d.get('query')
+
+            if d.get('innerAction') == 'load':
+                fObj = open(fName)
+                doc  = bindery.parse(fObj.read())
+                if  os.path.exists(resultFName):
+                    f=open(resultFName)
+                    if rtFormat in ['xml','csv'] or not rtFormat:
+
+                        rtDoc = NonvalidatingReader.parseString(f.read(),
+                                                                'tag:nobody@nowhere:2007:meaninglessURI')
+                        stylesheetPath = rtFormat == 'xml' and '/xslt/xml-to-html.xslt' or '/xslt/xml-to-csv.xslt'
+                        imt='application/xml'
+
+                        pi = rtDoc.createProcessingInstruction("xml-stylesheet",
+                                                               "type='text/xml' href='%s'"%stylesheetPath)
+                        #Add a stylesheet instruction to direct browsers how to render the result document
+                        rtDoc.insertBefore(pi, rtDoc.documentElement)
+                        out = StringIO()
+                        PrettyPrint(rtDoc, stream=out)
+                        rt = out.getvalue()
+                    elif rtFormat == 'csv-pure':
+                        imt='text/plain'
+                        rt=self.csvProcessor.run(InputSource.DefaultFactory.fromString(qRT))
+                    f.close()
+                    status = '200 OK'
+                    response_headers = [('Content-type',imt),
+                                        ('Content-Length',
+                                         len(rt))]
+                    start_response(status, response_headers)
+                    return [rt]
+                else:
+                    rt='Query does not have any existing results'
+                    status = '404 Not Found'
+                    response_headers = [('Content-type','text/html'),
+                                        ('Content-Length',
+                                         len(rt))]
+                    start_response(status, response_headers)
+                    return [rt]
+
+            elif d.get('innerAction') == 'execute':
+                resultFName = os.path.join(self.manageQueries,'%s.rq.results.xml')%d.get('query')
+                self.targetGraph = self.buildGraph(default_graph_uri=None)
+                for pref,nsUri in self.nsBindings.items():
+                    self.targetGraph.bind(pref,nsUri)
+
+                origQuery = sparql
+                try:
+                    query=parse(sparql)
+                except Exception, e:
+                    rt = "Malformed SPARQL Query: %s"%repr(e)
+                    status = '400 Bad Request'
+                    response_headers = [('Content-type','text/html'),
+                                        ('Content-Length',
+                                         len(rt))]
+                    start_response(status, response_headers)
+                    return [rt]
+                start = time.time()
+                if self.ignoreBase and hasattr(query,'prolog') and query.prolog:
+                    query.prolog.baseDeclaration=None
+                if self.ignoreQueryDataset and hasattr(query.query,'dataSets') and query.query.dataSets:
+                    print "Ignoring query-specified datasets: ", query.query.dataSets
+                    query.query.dataSets = []
+
+                #Run the actual query
+                rt = self.targetGraph.query(origQuery,
+                                            initNs=self.nsBindings,
+                                            DEBUG=self.debugQuery,
+                                            parsedQuery=query)
+                print "Time to execute SPARQL query: ", time.time() - start
+                qRT = rt.serialize(format='xml')
+                f=open(resultFName,'wb')
+                f.write(qRT)
+                f.close()
+                if rtFormat in ['xml','csv'] or not rtFormat:
+
+                    rtDoc = NonvalidatingReader.parseString(qRT,
+                                                            'tag:nobody@nowhere:2007:meaninglessURI')
+                    stylesheetPath = rtFormat == 'xml' and '/xslt/xml-to-html.xslt' or '/xslt/xml-to-csv.xslt'
+                    imt='application/xml'
+
+                    pi = rtDoc.createProcessingInstruction("xml-stylesheet",
+                                                           "type='text/xml' href='%s'"%stylesheetPath)
+                    #Add a stylesheet instruction to direct browsers how to render the result document
+                    rtDoc.insertBefore(pi, rtDoc.documentElement)
+                    out = StringIO()
+                    PrettyPrint(rtDoc, stream=out)
+                    rt = out.getvalue()
+                elif rtFormat == 'csv-pure':
+                    imt='text/plain'
+                    rt=self.csvProcessor.run(InputSource.DefaultFactory.fromString(qRT))
+                self.targetGraph.close()
+                status = '200 OK'
+                response_headers = [('Content-type',imt),
+                                    ('Content-Length',
+                                     len(rt))]
+                start_response(status, response_headers)
+                return [rt]
+            elif d.get('innerAction') == 'clone':
+                fObj = open(fName)
+                doc = bindery.parse(fObj.read())
+                fObj.close()
+                query = d.get('sparql').replace('<','&lt;')
+                givenName = d.get('name')
+                queryName = U(doc.Query.name).encode('ascii')
+                assert queryName != givenName
+                newQueryId = createDigest(givenName).hexdigest()
+                fName = os.path.join(self.manageQueries,'%s.rq.xml'%newQueryId)
+                f=open(fName,'w')
+                doc = bindery.nodes.entity_base()
+                doc.xml_append(doc.xml_element_factory(None, u'Query'))
+                doc.Query.xml_attributes[(None, u'name')] = U(givenName)
+                doc.Query.xml_append(U(query))
+                doc.xml_write('xml-indent',stream=f)
+                f.close()
+
+                rt = QUERY_EDIT_HTML.replace('QUERYMGR',self.queryManager)
+                rt = rt.replace('NAME',givenName)
+                rt = rt.replace('QUERYID',newQueryId)
+                rt = rt.replace('QUERY',query)
+
+                status = '200 OK'
+                response_headers = [('Content-type','text/html'),
+                                    ('Content-Length',
+                                     len(rt))]
+                start_response(status, response_headers)
+                return [rt]
+            else:
+                fName = os.path.join(self.manageQueries,'%s.rq.xml')%(
+                    createDigest(d.get('name')).hexdigest())
+                fObj = open(fName) if os.path.exists(fName) else open(os.path.join(
+                    self.manageQueries,
+                    '%s.rq.xml')%(d.get('query')))
+                doc = bindery.parse(fObj.read())
+                fObj.close()
+                query = d.get('sparql').replace('<','&lt;')
+                queryName = U(doc.Query.name).encode('ascii')
+
+                if queryName != givenName and givenName is not None:
+                    doc.Query.xml_attributes[(None, u'name')] = U(givenName)
+                    newFName = os.path.join(self.manageQueries,'%s.rq.xml'
+                        )%createDigest(givenName).hexdigest()
+                    fName = os.path.join(self.manageQueries,'%s.rq.xml')%(d.get('query'))
+                    os.rename(fName,newFName)
+                    print "Renamed file: %s -> %s"%(fName,newFName)
+                    f = open(newFName,'w')
+                else:
+                    print "Overwriting file: %s"%(fName)
+                    f = open(fName,'w')
+
+                doc = bindery.nodes.entity_base()
+                doc.xml_append(doc.xml_element_factory(None, u'Query'))
+                doc.Query.xml_attributes[(None, u'name')] = U(givenName)
+                doc.Query.xml_append(U(query))
+                doc.xml_write('xml-indent',stream=f)
+                f.close()
+
+                rt = QUERY_EDIT_HTML.replace('QUERYMGR',self.queryManager)
+                rt = rt.replace('NAME',givenName)
+                rt = rt.replace('QUERYID',queryId)
+                rt = rt.replace('QUERY',query)
+
+                status = '200 OK'
+                response_headers = [('Content-type','text/html'),
+                                    ('Content-Length',
+                                     len(rt))]
+                start_response(status, response_headers)
+                return [rt]
+            
 class ProcessBrowser(StoreConnectee):
     def __call__(self, environ, start_response):
         d = parse_formvars(environ)
@@ -926,7 +1217,8 @@ class WsgiApplication(StoreConnectee):
                 entailmentRepl=''
                 if self.topDownEntailment:
                     entailmentRepl = '<div><em>This server has an <strong><a href="/entailment">active</a></strong> entailment regime!</em></div><br/>'
-                retVal=retVal.replace('ENTAILMENT',entailmentRepl)                
+                retVal=retVal.replace('ENTAILMENT',entailmentRepl)
+
                 retVal=retVal.replace('<!--CancelButton-->',
                                '<input type="button" value="\'Prepare\' Query" onClick="getTicket(\'queryform\')"></input>')
                 response_headers = [('Content-type','text/html'),
@@ -1000,7 +1292,7 @@ class WsgiApplication(StoreConnectee):
         self.targetGraph.close()
         print "Time to execute and seralize SPARQL query: ", time.time() - start
         print "# of bindings: ", rt.noAnswers
-        
+
         if rtFormat in ['xml','csv'] or not rtFormat:
             
             rtDoc = NonvalidatingReader.parseString(qRT,

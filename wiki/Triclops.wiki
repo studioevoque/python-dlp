@@ -27,7 +27,7 @@ The relevant OWL file for a dataset is also given.
 
 {{{
 #This is the path to the OWL file to use for optimizing SPARQL queries
- datastore_owl=.. path to OWL file ..
+datastore_owl=.. path to OWL file ..
 }}}
 
 Below is what should be used to register default namespace bindings:

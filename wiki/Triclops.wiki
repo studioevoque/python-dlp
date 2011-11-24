@@ -72,11 +72,9 @@ This should be run from the working directory of Triclops
 
 For now, see [http://code.google.com/p/python-dlp/source/detail?r=351 log] for commit
 
-= Proxy SPARQL Endpoint =
+= SPARQL Query management =
 
-Using the _[http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence#Generic_SPARQL_Store SPARQL client library as Generic SPARQL Store]_ capability, Triclops can be used as a [http://www.w3.org/TR/rdf-sparql-protocol/ SPARQL protocol for RDF] [http://en.wikipedia.org/wiki/Proxy_server proxy server] to a live SPARQL endpoint in the sense that it simply delegates the evaluation of SPARQL queries to the remote server but handles the rendering, (term-based) browsing of results from the query, query management, and query mediation.  The latter in particular can be achieved via [http://code.google.com/p/fuxi/wiki/TopDownSW query mediation capabilities] over a remote SPARQL service
-
-In order to setup Triclops for use as a proxy SPARQL endpoint, the following configuration directives need to be added to the section at the top (_composite:main_):
+Triclops can be setup for use in managing SPARQL queries and their results against either a local rdflib / layercake dataset or a remote one via the proxy SPARQL endpoint capabilities described in the next secsion.  The following configuration directives need to be added to the section at the top (_composite:main_):
 
 {{{
 [composite:main] 
@@ -109,3 +107,7 @@ $ ln -s ../codemirror
 }}}
 
 At this point, the server can be (re-)started and a browser can point to /queryMgr to pull up the query manager
+
+= Proxy SPARQL Endpoint =
+
+Using the _[http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence#Generic_SPARQL_Store SPARQL client library as Generic SPARQL Store]_ capability, Triclops can be used as a [http://www.w3.org/TR/rdf-sparql-protocol/ SPARQL protocol for RDF] [http://en.wikipedia.org/wiki/Proxy_server proxy server] to a live SPARQL endpoint in the sense that it simply delegates the evaluation of SPARQL queries to the remote server but handles the rendering, (term-based) browsing of results from the query, query management, and query mediation.  The latter in particular can be achieved via [http://code.google.com/p/fuxi/wiki/TopDownSW query mediation capabilities] over a remote SPARQL service

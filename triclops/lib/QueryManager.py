@@ -4,27 +4,28 @@ QUERY_LIST_HTML=\
   <head>
     <title>SPARQL Queries to Manage</title>
     <script
-        src="/codemirror/js/codemirror.js"
+        src="codemirror/js/codemirror.js"
         type="text/javascript">
     </script>
     <style type="text/css">
       .CodeMirror {border-top: 1px solid black; border-bottom: 1px solid black;}
       .activeline {background: #f0fcff !important;}
     </style>
-    <link rel="stylesheet" type="text/css" href="/codemirror/css/docs.css"/>
+    <link rel="stylesheet" type="text/css" href="codemirror/css/docs.css"/>
   </head>
   <body>
-    <h1>SPARQL Queries to Manage</h1>
-    <table width='100%%'>
+    <h2>SPARQL Queries to Manage</h1>
+    <table width='100%%' style='font:8pt arial,sans-serif;'>
         <tr>
           <th width=50%%' align='left'>Query name</th>
           <th align='left'>Query last modification date</th>
-          <th align='left'>Query results</th>
+          <th align='left'>Date last run</th>
+          <th align='left'>Number of results</th>
         </tr>
         %s
     </table>
     <hr />
-    <h1>Add new query</h1>
+    <h2>Add new query</h1>
     <form id="newQueryform" action="QUERYMGR" method="post">
         <input type="hidden" name="action" value="add"/>
         <div>
@@ -45,7 +46,7 @@ SELECT DISTINCT ?Concept where {
           var editor = CodeMirror.fromTextArea('sparql', {
             height: "250px",
             parserfile: "parsesparql.js",
-            stylesheet: "/codemirror/css/sparqlcolors.css",
+            stylesheet: "codemirror/css/sparqlcolors.css",
             path: "js/"
           });
         </script>
@@ -63,17 +64,17 @@ QUERY_EDIT_HTML=\
   <head>
     <title>Editing NAME</title>
     <script
-        src="/codemirror/js/codemirror.js"
+        src="codemirror/js/codemirror.js"
         type="text/javascript">
     </script>
     <style type="text/css">
       .CodeMirror {border-top: 1px solid black; border-bottom: 1px solid black;}
       .activeline {background: #f0fcff !important;}
     </style>
-    <link rel="stylesheet" type="text/css" href="/codemirror/css/docs.css"/>
+    <link rel="stylesheet" type="text/css" href="codemirror/css/docs.css"/>
   </head>
   <body>
-  [<a href="QUERYMGR">Return</a>][<a href="http://codemirror.net/">CodeMirror</a> <a href="http://codemirror.net/1/manual.html#usage">documentation</a>]
+  [<a href="ENDPOINT">Return</a>][<a href="http://codemirror.net/">CodeMirror</a> <a href="http://codemirror.net/1/manual.html#usage">documentation</a>]
     <form id="editQueryform" action="QUERYMGR" method="post">
         <input type="hidden" name="action" value="update"/>
         <input type="hidden" name="query" value="QUERYID"/>
@@ -85,29 +86,34 @@ QUERY_EDIT_HTML=\
         <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
         <textarea id="sparql" name='sparql' cols="120" rows="500">QUERY</textarea>
         </div>
-        <script type="text/javascript">
-          var editor = CodeMirror.fromTextArea('sparql', {
-            lineNumbers: true,
-            height: "250px",
-            parserfile: "parsesparql.js",
-            stylesheet: "/codemirror/css/sparqlcolors.css",
-            path: "js/"
-          });
-        </script>
-        <div>
-          <select name="innerAction">
-            <option value="update" selected="on">Update query</OPTION>
-            <option value="clone" selected="on">Update query (clone)</OPTION>
-            <option value="load" selected="on">Show prior results</OPTION>
-            <option value="execute">Execute query (saving results)</OPTION>
-          </select>
-          <select name="resultFormat">
-            <option value="xml" selected="on">SPARQL XML (rendered as XHTML)</OPTION>
-            <option value="csv">SPARQL XML (rendered as tab delimited)</OPTION>
-            <option value="csv-pure">Tab delimited</OPTION>
-          </select>
-          <input type="submit" value="Go" />
+            <script type="text/javascript">
+              var editor = CodeMirror.fromTextArea('sparql', {
+                lineNumbers: true,
+                autoMatchParens: true,
+                height: "300px",
+                parserfile: "parsesparql.js",
+                stylesheet: "codemirror/css/sparqlcolors.css",
+                path: "js/"
+              });
+            </script>
+            <div>
+              <select name="innerAction">
+                <option value="update" selected="on">Update query</OPTION>
+                <option value="clone" selected="on">Update query (clone)</OPTION>
+                <option value="load" selected="on">Show prior results</OPTION>
+                <option value="execute">Execute query (saving results)</OPTION>
+              </select>
+              <select name="resultFormat">
+                <option value="xml" selected="on">SPARQL XML (rendered as XHTML)</OPTION>
+                <option value="csv">SPARQL XML (rendered as tab delimited)</OPTION>
+                <option value="csv-pure">Tab delimited</OPTION>
+              </select>
+            </div>
+            <div>See: <a href="http://dev.mysql.com/doc/refman/5.1/en/regexp.html">Documentation</a> of MySQL REGEX expressions</div>
         </div>
+        <div>
+            %s
+            <input type="submit" value="Go" />
         </div>
       </form>
   </body>

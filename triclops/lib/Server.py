@@ -6,7 +6,8 @@ This work is licensed under the Creative Commons Attribution-NonCommercial-Share
 To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/2.5/ 
 or send a letter to Creative Commons, 543 Howard Street, 5th Floor, San Francisco, California, 94105, USA.    
 """
-import os, getopt, sys, re, time, urllib, codecs,itertools
+import os, getopt, sys, re, time, urllib, codecs,itertools, rdflib, pyparsing
+from glob import glob
 from rdflib.Graph import Graph,ReadOnlyGraphAggregate,ConjunctiveGraph
 from rdflib import URIRef, store, plugin, RDF, BNode, Literal, RDFS
 from rdflib.Namespace import Namespace
@@ -24,7 +25,22 @@ from Ft.Xml.Domlette import Print, PrettyPrint
 from cStringIO import StringIO
 from rdflib.store.MySQL import ParseConfigurationString
 from paste.request import parse_formvars
-import rdflib
+from rdflib.sparql.Algebra import *
+from rdflib.sparql.graphPattern import BasicGraphPattern
+from QueryManager import QUERY_EDIT_HTML
+
+try:
+    from amara        import bindery, tree
+    from amara.lib    import U
+except:
+    pass
+try:
+    from hashlib import md5 as createDigest
+except:
+    from md5 import new as createDigest
+    
+    
+    
 ticketLookup = {}
 
 SPARQL= Namespace('http://www.topbraidcomposer.org/owl/2006/09/sparql.owl#')
@@ -84,12 +100,26 @@ BROWSER_HTML=\
   </body>
 </body>"""
 
+CODEMIRROR_SETUP=\
+"""
+<script
+    src="codemirror/js/codemirror.js"
+    type="text/javascript">
+</script>
+<style type="text/css">
+  .CodeMirror {border-top: 1px solid black; border-bottom: 1px solid black;}
+  .activeline {background: #f0fcff !important;}
+</style>
+<link rel="stylesheet" type="text/css" href="codemirror/css/docs.css"/>
+"""
+
 SPARQL_FORM=\
 """
 <?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
   <head>
-    <title>SPARQL Query Editor</title>
+    <title>SPARQL Kiosk</title>
+    CODEMIRROR
      <script>
 function submitQuery(formId) {
     document.getElementById(formId).submit();
@@ -107,63 +137,61 @@ function getTicket(formId){
   </head>
   <body>
     <div style="margin-right: 10em">
-      <h2>SPARQL</h2>
-      <p>See: <a href="http://www.w3.org/TR/rdf-sparql-query">SPARQL Query Language for RDF</a></p>
-      <p>See: <a href="/processes" target="_blank">process manager</a> for a list of running queries and links for killing a particular query</p>
+      <h2>Triclops: <a href="http://www.w3.org/TR/rdf-sparql-query">SPARQL</a> Kiosk</h2>
+      <p>The list of (long-)running queries can be <a href="%s/processes" target="_blank">managed</a>.</p>
       ENTAILMENT
-      <table>
-        <thead>
-            <tr><td colspan='2'>Preset namespace bindings</td></tr>
-        </thead>
-        <tbody>BINDINGS</tbody>
-      </table>
       <form id="queryform" action="ENDPOINT" method="post">
         <!--hidden ticket-->
         <div>
-          <select name="resultFormat">
-            <option value="xml" selected="on">SPARQL XML (rendered as XHTML)</OPTION>
-            <option value="csv">SPARQL XML (rendered as tab delimited)</OPTION>
-            <option value="csv-pure">Tab delimited</OPTION>
-          </select>        
         </div>
-        Default Grap IRI: <input type="text" size="80" name="default-graph-uri" id="default-graph-uri" value=""/>
+        <!-- Default Grap IRI: <input type="text" size="80" name="default-graph-uri" id="default-graph-uri" value=""/ -->
         <div>
-          <textarea style="width: 80%" name="query" rows="20" id="querytext">
-BASE &lt;http://www.clevelandclinic.org/heartcenter/ontologies/DataNodes.owl#>
-   PREFIX ptrec: &lt;tag:info@semanticdb.ccf.org,2007:PatientRecordTerms#>
-   PREFIX xsd: &lt;http://www.w3.org/2001/XMLSchema#> 
-   SELECT   ?ccfId ?PROC ?SITE
-   WHERE { ?proc a &lt;tag:info@semanticdb.ccf.org,2007:PatientRecordTerms#SurgicalProcedure-vascular-endovascular%20procedure>.
-           ?proc :contains [ a ptrec:VascularProcedure ; 
-                             ptrec:hasVascularProcedureName ?PROC;
-                             ptrec:hasVascularProcedureSite ?SITE ].
-           ?evt :contains ?proc.
-           ?ptrec :contains ?evt, [ a ptrec:Patient; ptrec:hasCCFID ?ccfId ] }
-          </textarea>
-          <div><input type="button" value="Submit SPARQL" onClick="submitQuery('queryform')" />
-               <!--CancelButton-->
-          </div>
+        
+        <textarea id="query" name="query" cols="120" rows="30">
+#Example query (all classes in dataset)
+SELECT DISTINCT ?Concept where {
+    [] a ?Concept
+}
+        </textarea>
+        </div>
+        <script type="text/javascript">
+          var editor = CodeMirror.fromTextArea('query', {
+            autoMatchParens: true,
+            height: "150px",
+            parserfile: "parsesparql.js",
+            stylesheet: "codemirror/css/sparqlcolors.css",
+            path: "js/"
+          });
+        </script>
+        <select name="resultFormat">
+          <option value="xml" selected="on">SPARQL XML (rendered as XHTML)</OPTION>
+          <option value="csv">SPARQL XML (rendered as tab delimited)</OPTION>
+          <option value="csv-pure">Tab delimited</OPTION>
+        </select>                
+        <div><input type="button" value="Submit SPARQL" onClick="submitQuery('queryform')" />
+           <!--CancelButton-->
+        </div>
         </div>        
       </form>
     </div>
-    <ul>
-      <li>
-        All <a href="/browse?action=classes">Classes</a>
-      </li>
-      <li>
-        <a href="/about">About</a> the triple store
-      </li>
-    </ul>
-    <form id="browseform" action="/browse" method="get">
-      <span style="font-weight:bold">URI: </span> <input name="uri" type="input" size="80"/>
-      <select name="action">
-        <option value="extension">Class extension</OPTION>
-        <option value="extension-size">Class extension size</OPTION>
-        <option value="resource">Browse resource</OPTION>
-      </select>
-      <input type="submit" label="Browse" onClick="submitQuery('browseform')"/>
-    </form>
-    <div style="font-size: 10pt; margin: 0 1.8em 1em 0; text-align: center;">Powered by <a href="http://rdflib.net">rdflib</a> (<em><strong>RDF</strong></em>), <a href="http://pythonpaste.org/">Python Paste</a> (<em><strong>HTTP</strong></em>), and <a href="http://4suite.org">4Suite</a> (<em><strong>XML</strong></em>)</div>
+    <h3>SPARQL Queries to Manage</h3>
+    <table width='100%%' style='font:10pt arial,sans-serif;'>
+        <tr>
+          <th width=50%%' align='left'>Query name</th>
+          <th align='left'>Query last modification date</th>
+          <th align='left'>Date last run</th>
+          <th align='left'>Number of results</th>
+        </tr>
+        QUERIES
+    </table>
+    <hr />          
+    <table style='font:8pt arial,sans-serif;'>
+      <thead>
+          <tr><td colspan='2'>Preset namespace bindings</td></tr>
+      </thead>
+      <tbody>BINDINGS</tbody>
+    </table>    
+    <div style="font-size: 10pt; margin: 0 1.8em 1em 0; text-align: center;">Powered by <a href="http://codemirror.net/">CodeMirror</a:q>, <a href="http://code.google.com/p/python-dlp/wiki/LayerCakePythonDivergence">layercake-python</a> (<em><strong>RDF</strong></em>), <a href="http://pythonpaste.org/">Python Paste</a> (<em><strong>HTTP</strong></em>), and <a href="http://4suite.org">4Suite</a> (<em><strong>XML</strong></em>)</div>
   </body>
 </html>
 """
@@ -207,12 +235,14 @@ def makeTermHTML(server,term,noLink=False,aProp=False,targetGraph=None):
                                                                            qString,getURIPrettyString(term,server.nsBindings))
         else:
             return noLink and '%s'%term or \
-            '<a href="/browse?action=resource&amp;uri=%s">%s</a>'%(urllib.quote(term),
-                                                                   getURIPrettyString(addType(term,targetGraph),server.nsBindings))
+            '<a href="%s?action=resource&amp;uri=%s">%s</a>'%(os.path.join(server.endpoint,'browse'),
+                                                              urllib.quote(term),
+                                                              getURIPrettyString(addType(term,targetGraph),server.nsBindings))
     elif isinstance(term,BNode):
         return noLink and '%s'%term.n3() or \
-        '<a href="/browse?action=resource&amp;uri=%s">%s</a>'%(urllib.quote(term.n3()),
-                                                               addType(term,targetGraph))
+        '<a href="%s?action=resource&amp;uri=%s">%s</a>'%(os.path.join(server.endpoint,'browse'),
+                                                          urllib.quote(term.n3()),
+                                                          addType(term,targetGraph))
     else:
         return term.n3()
 
@@ -372,7 +402,8 @@ class TicketManager(StoreConnectee):
         else:
             #The client is requesting a SPARQL form with the ticket
             #embedded as a hidden parameter
-            retVal=SPARQL_FORM.replace('ENDPOINT',self.endpoint)
+            retVal=SPARQL_FORM.replace('ENDPOINT',self.endpoint).replace('CODEMIRROR',CODEMIRROR_SETUP)
+            retVal=retVal%(self.endpoint)
             entailmentRepl=''
             if self.topDownEntailment:
                 entailmentRepl = '<div><em>This server has an <strong><a href="/entailment">active</a></strong> entailment regime!</em></div><br/>'
@@ -403,7 +434,10 @@ class Browser(StoreConnectee):
                     uri = urllib.quote(c)
                 else:
                     uri = urllib.quote(c)
-                return """<li><span style="font-size:8pt;font-style:italics"><a href="/browse?action=extension&amp;uri=%s">%s</a></span></li>"""%(uri,c)
+                return """<li><span style="font-size:8pt;font-style:italics"><a href="%d?action=extension&amp;uri=%s">%s</a></span></li>"""%(
+                    os.path.join(self.endpoint,'browse'),
+                    uri,
+                    c)
             _l='\n'.join([makeClassLink(klass) for klass in \
                               set(targetGraph.objects(predicate=RDF.type))])
             body = "<h3>Classes</3><ul>%s</ul>"%_l
@@ -421,7 +455,10 @@ class Browser(StoreConnectee):
                     uri = urllib.quote(m)
                 else:
                     uri = urllib.quote(m)
-                return """<li><span style="font-size:8pt;font-style:italics"><a href="/browse?action=resource&amp;uri=%s">%s</a></span></li>"""%(uri,m)
+                return """<li><span style="font-size:8pt;font-style:italics"><a href="%s?action=resource&amp;uri=%s">%s</a></span></li>"""%(
+                    os.path.join(server.endpoint,'browse'),
+                    uri,
+                    m)
             _l='\n'.join([makeMemberLink(member) for member in \
                               set(targetGraph.subjects(predicate=RDF.type,
                                                        object=URIRef(targetClass)))])
@@ -487,11 +524,13 @@ class Browser(StoreConnectee):
             instr="<div style='font-size:8pt'>Clicking on any object of a statement will bring up the resource browser for that URI.  Clicking on a predicate will dispatch a SPARQL query:\n<em>SELECT ?S ?O WHERE { ?S ..predicate..  ?O}</em></div>"
             header1="<tr><th align='middle' colspan='3'>Incoming Statements</th></tr>"
             if self.vizualization == '1':
-                body = """<h3>%s <a href="/browse?action=graph&amp;uri=%s"><img border="0" src="http://www.w3.org/RDF/icons/rdf_flyer.24"/></a></h3>%s<table style='font-size:8pt;font-style:italics' border='1'><tr><th>Subject</th><th>Predicate</th><th>Object</th></tr>%s%s</table>"""%(res,
-                                                                                                                                                                                                                                                                                            urllib.quote(res),
-                                                                                                                                                                                                                                                                                            instr,
-                                                                                                                                                                                                                                                                                            header1,
-                                                                                                                                                                                                                                                                                            '\n'.join(rows))
+                body = """<h3>%s <a href="%s?action=graph&amp;uri=%s"><img border="0" src="http://www.w3.org/RDF/icons/rdf_flyer.24"/></a></h3>%s<table style='font-size:8pt;font-style:italics' border='1'><tr><th>Subject</th><th>Predicate</th><th>Object</th></tr>%s%s</table>"""%(
+                    res,
+                    os.path.join(server.endpoint,'browse'),
+                    urllib.quote(res),
+                    instr,
+                    header1,
+                    '\n'.join(rows))
             else:
                 body = """<h3>%s </h3>%s<table style='font-size:8pt;font-style:italics' border='1'><tr><th>Subject</th><th>Predicate</th><th>Object</th></tr>%s%s</table>"""%(res,
                                                                                                                                                                               instr,
@@ -530,10 +569,11 @@ class Browser(StoreConnectee):
                                                  corner2x, 
                                                  corner1y)
             mapHTML+='</MAP>'         
-            mapHTML+='\n<img src="/browse?action=graphImg&uri=%s" usemap="%s" alt="diagram of RDF" border="0"/>'%\
-                    (d['uri'],
+            mapHTML+='\n<img src="%saction=graphImg&uri=%s" usemap="%s" alt="diagram of RDF" border="0"/>'%\
+                    (self,d['uri'],
                      mkHash(d['uri']))
-            rt=VISUALIZATION_HTML%(mapHTML,"[<a href='/browse?action=resource&uri=%s'>Return</a>]"%
+            rt=VISUALIZATION_HTML%(mapHTML,"[<a href='%s?action=resource&uri=%s'>Return</a>]"%
+                    os.path.join(self.endpoint,'browse'),
                     urllib.quote(d['uri']))
             targetGraph.close()
             response_headers = [('Content-type',' text/html'),('Content-Length',len(rt))]
@@ -621,7 +661,7 @@ def makeGraph(graph,res,server,imageMap=False):
     
     vertex=Node(incrementalIndex(incrementDict,res),
                 label=makeLabel(resTerm,graph,server.nsBindings),
-                URL='/browse?action=graph&uri=%s'%uri,
+                URL='%s?action=graph&uri=%s'%(os.path.join(server.endpoint,'browse'),uri),
                 shape='ellipse')
     dot.add_node(vertex) 
     objs = set()
@@ -636,7 +676,7 @@ def makeGraph(graph,res,server,imageMap=False):
             
             oVertex=Node(incrementalIndex(incrementDict,o),
                          label=makeLabel(o,graph,server.nsBindings),
-                         URL='/browse?action=graph&uri=%s'%oUri,
+                         URL='%s?action=graph&uri=%s'%(os.path.join(server.endpoint,'browse'),oUri),
                          shape=termShape(o))
             dot.add_node(oVertex) 
             arcLabel=normalizeLabel(graph,p,server.nsBindings)
@@ -654,7 +694,7 @@ def makeGraph(graph,res,server,imageMap=False):
             
             inVertex=Node(incrementalIndex(incrementDict,s),
                           label=makeLabel(s,graph,server.nsBindings),
-                          URL='/browse?action=graph&uri=%s'%sUri,
+                          URL='%s?action=graph&uri=%s'%(os.path.join(server.endpoint,'browse'),sUri),
                           shape=termShape(s))
             dot.add_node(inVertex) 
             arcLabel=normalizeLabel(graph,p,server.nsBindings)
@@ -727,75 +767,122 @@ PROCESS_BROWSER_HTML=\
 def killThread(cursor,thread_id):
     cursor.execute("KILL QUERY %s"%(thread_id))
 
+QUERY_LIST_ENTRY=\
+"""
+<tr>
+    <td>
+        <a href="%s?query=%s&action=edit">%s</a>
+    </td>
+    <td>%s</td>
+    <td>%s</td>
+    <td>
+        %s
+    </td>
+</tr>"""
+
+TEMPLATING_AND_RESULT_NAV=\
+"""
+<div>%s</div>
+<hr/>
+<fieldset>
+    <legend>Result navigation template</legend>
+    <div>%s</div>
+    <div>
+        <table border="0">
+            <thead>
+                <tr>
+                    <th>Original IRI text to replace</th>
+                    <th>Replacement text</th>
+                </tr>
+                <tr>
+                    <td><input type='text' name='IdentifierReplaceOrig' size='60'/></td>
+                    <td><input type='text' name='IdentifierReplaceNew' size='60'/></td>
+                </tr>
+            </thead>
+        </table>
+    </div>    
+</fieldset>
+"""
+
+RESULT_NAV=\
+"""
+<select name="outVariable">%s</select>
+<select name="subsequentQueryId">%s</select>
+<input type='text' name='inVar' size='10'/>
+"""
+
+TEMPLATE_VALUE=\
+"""
+<select name="variable">%s</select>
+<input type='text' name='templateValue' size='60'/>
+<select name="valueType">
+    <option value="literal" selected="on">RDF Literal</OPTION>
+    <option value="uri">URI References</OPTION>
+    <option value="qname">QName / curie</OPTION>
+</select>
+"""
 
 class QueryManager(StoreConnectee):
     def __call__(self, environ, start_response):
-        from QueryManager import QUERY_LIST_HTML, QUERY_EDIT_HTML
-        from amara        import bindery, tree
-        from amara.lib    import U
-        try:
-            from hashlib import md5 as createDigest
-        except:
-            from md5 import new as createDigest
-
         d = parse_formvars(environ)
         action  = d.get('action','list')
         queryId = d.get('query')
         targetGraph = self.buildGraph(None)
 
         entries = []
-        if action == 'list':
-            def sortByName(item):
-                fName = os.path.join(self.manageQueries,item)
-                fObj = open(fName)
-                doc = bindery.parse(fObj.read())
-                return U(doc.Query.name)
-            def sortByNo(item):
-                fName = os.path.join(self.manageQueries,item)
-                fObj = open(fName)
-                doc = bindery.parse(fObj.read())
-                return int(doc.xml_select(
-                'count(/*[local-name()="sparql"]/*[local-name()="results"]/*)')) \
-                    if hasattr(doc,'sparql') else 0
+        if action == 'result-navigation':
+            from pprint import pprint;pprint(d)
+            inVar             = d.get('inVar')
+            outVar            = d.get('outVar')
+            subsequentQueryId = d.get('subsequentQueryId')
+            iriStrOrig        = d.get('iriStrOrig')
+            iriStrReplace     = d.get('iriStrReplace')
+            fName             = os.path.join(self.manageQueries,'%s.rq.xml'%subsequentQueryId)
+            doc               = bindery.parse(open('htdocs/xslt/xml-to-html.xslt').read())
+            stylesheetStr = open('htdocs/xslt/xml-to-html-navigable.xslt').read()
+            fallBackLink = '%s?query=9f65856719dc209e6e6e8ecf6eebe059&amp;action=update&amp;innerAction=execute&amp;templateValue={.}&amp;valueType=uri&amp;variable=resource'
+            navLink = '%s?query=%s&amp;action=update&amp;innerAction=execute&amp;templateValue=%s&amp;valueType=uri&amp;variable=%s'
+            replaceNavLink = navLink%(
+                                self.queryManager,
+                                subsequentQueryId,
+                                '{$escapedReplacedUri}',
+                                inVar)
+            nonReplaceNavLink = navLink%(
+                                self.queryManager,
+                                subsequentQueryId,
+                                '{$escapedUri}',
+                                inVar)
 
-            def sortByDate(item):
-                fName = os.path.join(self.manageQueries,item)
-                return os.lstat(fName).st_mtime
+            fallBackLink = fallBackLink%self.queryManager
+            
+            #?REPLACE?, ?REPLACE_URI?, ?NO_REPLACE_URI?, ?GRAPH_NAVIGATE_URI?
+            stylesheetStr = stylesheetStr.replace(
+                '?REPLACE?',
+                'true()' if iriStrOrig else 'false()').replace(
+                    '?REPLACE_URI?',
+                    replaceNavLink).replace(
+                        '?NO_REPLACE_URI?',
+                        nonReplaceNavLink).replace('?GRAPH_NAVIGATE_URI',fallBackLink)
+            stylesheetStr = stylesheetStr.replace('NAV_VAR',outVar if outVar else '')
+            
+            doc = bindery.parse(stylesheetStr)
+            linkTemplate = first(doc.stylesheet.xml_select(
+                '*[@match = "sr:binding/*"]'))
+            link = first(linkTemplate.xml_select('//*[local-name() = "a"]'))
+            linkVal = U(link.href)
+            linkVal = linkVal.replace('.',"$replacedUri)")
+            link.xml_value = linkVal
+            out = StringIO()
+            doc.xml_write('xml-indent',stream=out)
+            rt = out.getvalue().replace("'FROM'","'%s'"%iriStrOrig).replace("'TO'","'%s'"%iriStrReplace)
 
-            for fN in sorted([_fname
-                              for _fname in os.listdir(self.manageQueries)
-                                if _fname.find('results')==-1],
-                             key=sortByDate if d.get('order')=='date'
-                                            else sortByNo if d.get('order')=='size'
-                                                else sortByName ):
-                fName = os.path.join(self.manageQueries,fN)
-                fObj = open(fName)
-                doc = bindery.parse(fObj.read())
-                _id=createDigest(U(doc.Query.name)).hexdigest()
-                resultFName = os.path.join(self.manageQueries,
-                                           '%s.rq.results.xml'
-                        )%_id
-                entries.append(
-                    '<tr onmouseover="sparql"><td><a href="%s?query=%s&action=edit">%s</a></td><td>%s</td><td>%s</td><td><a href="%s?action=update&query=%s&innerAction=load">%s</a></td></tr>'%
-                    (self.queryManager,
-                     createDigest(U(doc.Query.name)).hexdigest(),
-                     U(doc.Query.name).encode('ascii'),
-                     time.ctime(os.lstat(fName).st_mtime),
-                     time.ctime(os.lstat(resultFName).st_mtime)
-                        if os.path.exists(resultFName) else 'N/A',
-                     self.queryManager,
-                     _id,
-                     int(bindery.parse(resultFName).xml_select('count(/*[local-name()="sparql"]/*[local-name()="results"]/*)'))
-                        if os.path.exists(resultFName) else 'N/A')
-                )
-            rt = QUERY_LIST_HTML.replace('QUERYMGR',self.queryManager)
-            rt = rt%('\n'.join(entries))
             status = '200 OK'
-            response_headers = [('Content-type','text/html'),
+            response_headers = [('Content-type','application/xslt+xml'),
                                 ('Content-Length',
                                  len(rt))]
             start_response(status, response_headers)
-            return [rt]
+            return [rt]                    
+            
         elif action == 'add':
             querytext = d.get('sparql')
             queryName = d.get('name')
@@ -830,10 +917,46 @@ class QueryManager(StoreConnectee):
             queryName = U(doc.Query.name).encode('ascii')
 
             rt = QUERY_EDIT_HTML.replace('QUERYMGR',self.queryManager)
+            rt = rt.replace('ENDPOINT',self.endpoint)
             rt = rt.replace('NAME',queryName)
             rt = rt.replace('QUERYID',createDigest(queryName).hexdigest())
             rt = rt.replace('QUERY',query)
-
+            
+            pat           = re.compile("\$\w+\$|\?\w+")
+            terms        = pat.findall(query)
+            queryVarsPat  = re.compile("\?\w+")
+            queryVars     = queryVarsPat.findall(query)            
+            
+            pickList = '\n'.join(['<option value="%s" %s>%s</OPTION>'%(
+                term,
+                'selected="on"' if term.find('$')+1 else '',
+                term)
+                for term in set(terms) ])
+            selectValues1 = []
+            selectValues2 = []
+            for _var in set(queryVars):
+                selectValues1.append((_var,)*2)
+            for _fname in [_fname for _fname in glob(os.path.join(self.manageQueries,'*.rq.xml'))]:
+                try:
+                    entry = (_fname.split('/')[-1].split('.')[0],
+                             U(bindery.parse(open(_fname).read()).Query.name))
+                    selectValues2.append(entry)
+                except Exception, e:
+                    print repr(e)
+                    continue
+                    
+            # <select name="outVariable">%s</select>
+            # <select name="subsequentQueryId">%s</select>
+            # <input type='text' name='inVar' size='10'/>
+            resultNavStr = RESULT_NAV%(
+                '\n'.join(['<option value="%s">%s</OPTION>'%entry
+                    for entry in selectValues1 ]),
+                '\n'.join(['<option value="%s">%s</OPTION>'%entry
+                    for entry in selectValues2 ]))
+            
+            subStr =  TEMPLATING_AND_RESULT_NAV%(TEMPLATE_VALUE%(pickList if terms else ''),resultNavStr)
+            rt = rt%subStr
+            
             status = '200 OK'
             response_headers = [('Content-type','text/html'),
                                 ('Content-Length',
@@ -887,6 +1010,39 @@ class QueryManager(StoreConnectee):
                     return [rt]
 
             elif d.get('innerAction') == 'execute':
+                inVar     = d.get('inVar')
+                outVar    = d.get('outVariable')                
+                variable  = d.get('variable')
+                value     = d.get('templateValue')
+                valueType = d.get('valueType')
+                if variable:
+                    variable = variable  if variable.find('?')+1 or variable.find('$')+1 else '?%s'%variable
+                if self.debugQuery:
+                    from pprint import pprint
+                    pprint(d)
+                    print "Replacing %s with (appropiate version of) %s"%(variable,value)
+                if sparql is None and queryId is not None:
+                    fName = os.path.join(self.manageQueries,'%s.rq.xml')%queryId
+                    fObj = open(fName) if os.path.exists(fName) else open(os.path.join(
+                        self.manageQueries,
+                        '%s.rq.xml')%(d.get('query')))
+                    doc = bindery.parse(fObj.read())
+                    fObj.close()
+                    sparql = U(doc.xml_select('string(/Query/text())')).encode('ascii')
+                    
+                if variable and value:
+                    if valueType=='uri':
+                        sparql = sparql.replace(variable,URIRef(value).n3())
+                    elif valueType == 'qname':
+                        nsDict = dict([(pref,nsUri) for pref,nsUri in self.nsBindings.items()])
+                        prefix,localName = value.split(':')
+                        valueUri = URIRef(nsDict[unicode(prefix)]+localName)
+                        sparql = sparql.replace(variable,valueUri.n3())
+                    else:
+                        sparql = sparql.replace(variable,value)
+                    print "Replaced sparql: (%s for %s)"%(variable,value)
+                    print sparql
+                
                 resultFName = os.path.join(self.manageQueries,'%s.rq.results.xml')%d.get('query')
                 self.targetGraph = self.buildGraph(default_graph_uri=None)
                 for pref,nsUri in self.nsBindings.items():
@@ -896,6 +1052,7 @@ class QueryManager(StoreConnectee):
                 try:
                     query=parse(sparql)
                 except Exception, e:
+                    print sparql
                     rt = "Malformed SPARQL Query: %s"%repr(e)
                     status = '400 Bad Request'
                     response_headers = [('Content-type','text/html'),
@@ -910,6 +1067,9 @@ class QueryManager(StoreConnectee):
                     print "Ignoring query-specified datasets: ", query.query.dataSets
                     query.query.dataSets = []
 
+                if self.debugQuery:
+                    print sparql
+                    
                 #Run the actual query
                 rt = self.targetGraph.query(origQuery,
                                             initNs=self.nsBindings,
@@ -920,13 +1080,26 @@ class QueryManager(StoreConnectee):
                 f=open(resultFName,'wb')
                 f.write(qRT)
                 f.close()
-                if rtFormat in ['xml','csv'] or not rtFormat:
+                if rtFormat in ['xml','csv']:
 
                     rtDoc = NonvalidatingReader.parseString(qRT,
                                                             'tag:nobody@nowhere:2007:meaninglessURI')
                     stylesheetPath = rtFormat == 'xml' and '/xslt/xml-to-html.xslt' or '/xslt/xml-to-csv.xslt'
+                    
+                    if rtFormat == 'xml' and inVar:
+                        fName = os.path.join(self.manageQueries,'%s.rq.xml'%d.get('subsequentQueryId'))
+                        # print(U(bindery.parse(open(fName).read()).Query))
+                        stylesheetPath = '%s?action=result-navigation&amp;inVar=%s&amp;outVar=%s&amp;subsequentQueryId=%s&amp;iriStrOrig=%s&amp;iriStrReplace=%s'%(
+                            self.queryManager,
+                            inVar[1:] if inVar.find('?')+1 else inVar,
+                            outVar[1:] if outVar is not None and outVar.find('?')+1 else '' if outVar is None else outVar,
+                            d.get('subsequentQueryId'),
+                            urllib.quote(d.get('IdentifierReplaceOrig')),
+                            urllib.quote(d.get('IdentifierReplaceNew'))
+                            )
+                    
                     imt='application/xml'
-
+                    print "Embedded stylesheet reference: ", stylesheetPath
                     pi = rtDoc.createProcessingInstruction("xml-stylesheet",
                                                            "type='text/xml' href='%s'"%stylesheetPath)
                     #Add a stylesheet instruction to direct browsers how to render the result document
@@ -974,8 +1147,8 @@ class QueryManager(StoreConnectee):
                 start_response(status, response_headers)
                 return [rt]
             else:
-                fName = os.path.join(self.manageQueries,'%s.rq.xml')%(
-                    createDigest(d.get('name')).hexdigest())
+                givenNameHash = createDigest(givenName).hexdigest()
+                fName = os.path.join(self.manageQueries,'%s.rq.xml')%givenNameHash
                 fObj = open(fName) if os.path.exists(fName) else open(os.path.join(
                     self.manageQueries,
                     '%s.rq.xml')%(d.get('query')))
@@ -983,11 +1156,12 @@ class QueryManager(StoreConnectee):
                 fObj.close()
                 query = d.get('sparql').replace('<','&lt;')
                 queryName = U(doc.Query.name).encode('ascii')
+                
 
                 if queryName != givenName and givenName is not None:
                     doc.Query.xml_attributes[(None, u'name')] = U(givenName)
                     newFName = os.path.join(self.manageQueries,'%s.rq.xml'
-                        )%createDigest(givenName).hexdigest()
+                        )%givenNameHash
                     fName = os.path.join(self.manageQueries,'%s.rq.xml')%(d.get('query'))
                     os.rename(fName,newFName)
                     print "Renamed file: %s -> %s"%(fName,newFName)
@@ -1003,15 +1177,13 @@ class QueryManager(StoreConnectee):
                 doc.xml_write('xml-indent',stream=f)
                 f.close()
 
-                rt = QUERY_EDIT_HTML.replace('QUERYMGR',self.queryManager)
-                rt = rt.replace('NAME',givenName)
-                rt = rt.replace('QUERYID',queryId)
-                rt = rt.replace('QUERY',query)
+                rt = "Redirecting to updated query"
 
-                status = '200 OK'
-                response_headers = [('Content-type','text/html'),
-                                    ('Content-Length',
-                                     len(rt))]
+                response_headers = [('Location','%s?action=edit&query=%s'%(self.queryManager,
+                                                               givenNameHash)),
+                            ('Content-type','text/html'),
+                            ('Content-Length',len(rt))]                        
+                status = '303 See Other'            
                 start_response(status, response_headers)
                 return [rt]
             
@@ -1197,6 +1369,9 @@ class WsgiApplication(StoreConnectee):
         Works for POST & GET requests, taking query and default_graph_uri as parameters for the query 
         """
         d = parse_formvars(environ)
+        action  = d.get('action','list')
+        queryId = d.get('query')        
+        order             = d.get('order')
         query             = d.get('query')
         ticket            = d.get('ticket')
         default_graph_uri = d.get('default-graph-uri')
@@ -1213,10 +1388,66 @@ class WsgiApplication(StoreConnectee):
                 status = '200 OK'
                 bindingsHTML=''.join(['<tr><td>%s</td><td>%s</td></tr>'%(prefix,uri)
                            for prefix,uri in self.nsBindings.items()])
-                retVal=SPARQL_FORM.replace('ENDPOINT',self.endpoint).replace('BINDINGS',bindingsHTML)
+                retVal=SPARQL_FORM.replace('ENDPOINT',self.endpoint).replace(
+                    'BINDINGS',
+                    bindingsHTML)
+                    
+                retVal=retVal.replace('CODEMIRROR',CODEMIRROR_SETUP)
+                retVal=retVal%(self.endpoint)
                 entailmentRepl=''
+                
+                if self.manageQueries:
+                    entries = []
+                    def sortByName(item):
+                        fName = os.path.join(self.manageQueries,item)
+                        fObj = open(fName)
+                        doc = bindery.parse(fObj.read())
+                        return U(doc.Query.name)
+                    def sortByNo(item):
+                        fName = os.path.join(self.manageQueries,item)
+                        fObj = open(fName)
+                        doc = bindery.parse(fObj.read())
+                        return int(doc.xml_select(
+                        'count(/*[local-name()="sparql"]/*[local-name()="results"]/*)')) \
+                            if hasattr(doc,'sparql') else 0
+
+                    def sortByDate(item):
+                        fName = os.path.join(self.manageQueries,item)
+                        return os.lstat(fName).st_mtime
+                    
+                    for fN in sorted([_fname
+                                      for _fname in os.listdir(self.manageQueries)
+                                        if _fname.find('results')==-1],
+                                     key=sortByDate if order=='date'
+                                                    else sortByNo if order=='size'
+                                                        else sortByName ):
+                        fName = os.path.join(self.manageQueries,fN)
+                        fObj = open(fName)
+                        doc = bindery.parse(fObj.read())
+                        _id=createDigest(U(doc.Query.name)).hexdigest()
+                        resultFName = os.path.join(self.manageQueries,
+                                                   '%s.rq.results.xml'
+                                )%_id
+                        entries.append(
+                            QUERY_LIST_ENTRY%
+                            (os.path.join(self.queryManager),
+                             createDigest(U(doc.Query.name)).hexdigest(),
+                             U(doc.Query.name).encode('ascii'),
+                             time.ctime(os.lstat(fName).st_mtime),
+                             time.ctime(os.lstat(resultFName).st_mtime)
+                                if os.path.exists(resultFName) else 'N/A',
+                             '<a href="%s?action=update&query=%s&innerAction=load">%s</a>'%(
+                                self.queryManager,
+                                _id,
+                                int(bindery.parse(resultFName).xml_select(
+                                 'count(/*[local-name()="sparql"]/*[local-name()="results"]/*)'))
+                             ) if os.path.exists(resultFName) else 'N/A')
+                        )
+                    retVal=retVal.replace('QUERIES','\n'.join(entries))
+                
                 if self.topDownEntailment:
-                    entailmentRepl = '<div><em>This server has an <strong><a href="/entailment">active</a></strong> entailment regime!</em></div><br/>'
+                    entailmentRepl = '<div><em>This server has an <strong><a href="%s/entailment">active</a></strong> entailment regime!</em></div><br/>'%(
+                        self.endpoint)
                 retVal=retVal.replace('ENTAILMENT',entailmentRepl)
 
                 retVal=retVal.replace('<!--CancelButton-->',
@@ -1236,8 +1467,6 @@ class WsgiApplication(StoreConnectee):
             self.targetGraph.bind(pref,nsUri)
 
         if not self.proxy and self.topDownEntailment:
-            from rdflib.sparql.Algebra import *
-            from rdflib.sparql.graphPattern import BasicGraphPattern
             from FuXi.SPARQL.BackwardChainingStore import TopDownSPARQLEntailingStore
             topDownStore=rdflib-stable.rdflib.store.BackwardChainingStore.TopDownSPARQLEntailingStore(
                                         self.targetGraph.store,
@@ -1268,7 +1497,17 @@ class WsgiApplication(StoreConnectee):
                 for pref,nsUri in self.nsBindings.items():
                     self.targetGraph.bind(pref,nsUri)
         origQuery = query
-        query=parse(query)
+        try:
+            query=parse(query)
+        except pyparsing.ParseException, e:
+            rt = "Malformed SPARQL Query: %s"%repr(e)
+            status = '400 Bad Request'
+            response_headers = [('Content-type','text/html'),
+                                ('Content-Length',
+                                 len(rt))]
+            start_response(status, response_headers)
+            yield rt
+        
         start = time.time()
         
         if self.ignoreBase and hasattr(query,'prolog') and query.prolog:

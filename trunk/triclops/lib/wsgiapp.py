@@ -9,7 +9,7 @@ from paste.recursive import RecursiveMiddleware
 from paste.urlmap import URLMap
 from paste.exceptions.errormiddleware import ErrorMiddleware
 from beaker.middleware import CacheMiddleware
-from rdflib import RDF, RDFS
+from rdflib import RDF, RDFS, OWL
 from rdflib.OWL import OWLNS
 from Ft.Lib.Uri import OsPathToUri
 
@@ -64,6 +64,10 @@ def setup_dry_config(global_conf,
     if not proxy and global_conf.get('store') == 'MySQL' and dataStoreOWL:
         for dsOwl in dataStoreOWL.split(','):
             dataStoreOntGraph.parse(dsOwl)
+        
+        litProps.update(OWL.literalProperties)
+        litProps.update(RDFS.literalProperties)
+        resProps.update(RDFS.resourceProperties)
         
         for litProp,resProp in dataStoreOntGraph.query(OWL_PROPERTIES_QUERY,
                                                    initNs={u'owl':OWL_NS}):
@@ -192,7 +196,36 @@ def make_app(global_conf, **app_conf):
     return app
     
 def make_query_manager(global_conf,**app_conf):
-    return QueryManager(global_conf)
+    global nsBindings, litProps, resProps, ontGraph, ruleSet, \
+    definingOntology, builtinTemplateGraph, defaultDerivedPreds
+    nsBindings    = {u'owl' :OWLNS,
+                     u'rdf' :RDF.RDFNS,
+                     u'rdfs':RDFS.RDFSNS}
+    litProps = set()
+    resProps = set()
+    ontGraph = Graph()
+    ruleSet = set()
+    builtinTemplateGraph = Graph()
+    definingOntology = Graph()
+    defaultDerivedPreds = []    
+    setup_dry_config(global_conf,
+                     nsBindings,
+                     litProps,
+                     resProps,
+                     ontGraph,
+                     ruleSet,
+                     definingOntology,
+                     builtinTemplateGraph,
+                     defaultDerivedPreds)                
+    return QueryManager(global_conf, 
+                        nsBindings, 
+                        defaultDerivedPreds, 
+                        litProps, 
+                        resProps, 
+                        definingOntology, 
+                        ontGraph,
+                        ruleSet,
+                        builtinTemplateGraph)
 
 def make_owlBrowser(global_conf, **app_conf):
     return JOWLBrowser(global_conf)

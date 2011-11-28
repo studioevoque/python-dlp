@@ -150,10 +150,12 @@ tr.even
   <xsl:template match="sr:binding/*">
     <xsl:choose>
       <xsl:when test="local-name() = 'uri'">
-        <a href="/browse?action=resource&amp;uri={.}"><xsl:value-of select="."/></a>
+        <xsl:value-of select="."/>
+        <!--a href="/browse?action=resource&amp;uri={.}"><xsl:value-of select="."/></a-->
       </xsl:when>
       <xsl:when test="local-name() = 'bnode'">
-        <a href="/browse?action=resource&amp;uri=_:{.}"><xsl:value-of select="."/></a>
+        <xsl:value-of select="."/>
+        <!--a href="/browse?action=resource&amp;uri=_:{.}"><xsl:value-of select="."/></a-->
       </xsl:when>      
       <xsl:otherwise>
         <span class="{local-name()}"><xsl:value-of select="."/></span>

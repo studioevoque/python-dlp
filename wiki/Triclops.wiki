@@ -55,6 +55,12 @@ MYSQL_ORDER=1
 NO_BASE_RESOLUTION=1
 }}}
 
+In addition, a _endpoint_ variable needs to be set to the path of the main SPARQL service:
+
+{{{
+endpoint=/sparql/protocol
+}}}
+
 At this point, the server can be launched as a system daemon via:
 {{{
 paster serve someConfigurationFile.conf --daemon --log=someLogFileName.log --pid-file=somePidFileName.pid
@@ -104,6 +110,18 @@ This requires a symbolic link named _codemirror_ to be placed in the _htdocs_ su
 $ git clone http://marijnhaverbeke.nl/git/codemirror
 $ cd htdocs/
 $ ln -s ../codemirror
+}}}
+
+In addition,  a _manageQueries_ variable needs to be set to the path (relative or absolute) to where the query documents and their results are stored for management.  In the example below, a sub directory in the working copy named queries is used.
+
+{{{
+manageQueries=queries
+}}}
+
+Finally, the _queryMgr_ variable needs to be set:
+
+{{{
+queryMgr = queryMgr
 }}}
 
 At this point, the server can be (re-)started and a browser can point to /queryMgr to pull up the query manager

@@ -118,7 +118,7 @@ from pyparsing import (Regex, Suppress, Combine, Optional, CaselessKeyword,
                        ZeroOrMore, OneOrMore, removeQuotes, quotedString,
                        Empty, Literal, NoMatch, Group, oneOf, Forward,
                        Keyword, ParseExpression, ParseElementEnhance,
-                       ParseException, col, lineno, restOfLine)
+                       ParseException, col, lineno, restOfLine, SkipTo)
 
 import rdflib
 from rdflib.URIRef import URIRef
@@ -849,7 +849,7 @@ if DEBUG:
 Query = (Prologue + (SelectQuery | ConstructQuery |
                      DescribeQuery | AskQuery)).setParseAction(
   refer_component(components.Query.Query))
-Query.ignore('#' + restOfLine)
+Query.ignore('#' + SkipTo("\n"))
 if DEBUG:
     Query.setName('Query')
 

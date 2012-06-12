@@ -64,18 +64,29 @@ class SPARQLResult(QueryResult.QueryResult):
     json  : as JSON
     graph : as an RDFLib Graph - for CONSTRUCT and DESCRIBE queries
     """
-    def __init__(self,result):
-        self.result    = result
-        self.resultDOM = None
-        self.noAnswers = 0
-        self.askAnswer = None
-
+    def __init__(self,result,isAskQuery = None):
+        self.result       = result
+        self.resultDOM    = None
+        self.noAnswers    = 0
+        self.__isAskQuery = isAskQuery
+        self.__askAnswer  = None
+        
     def _parseResults(self):
         if self.resultDOM is None:
             from Ft.Xml.Domlette import NonvalidatingReader
-            self.resultDOM = NonvalidatingReader.parseString(self.result)
-            self.askAnswer=self.resultDOM.xpath('string(/sparql:sparql/sparql:boolean)',
-                                                explicitNss=sparqlNsBindings)
+            self.resultDOM   = NonvalidatingReader.parseString(self.result)
+            self.__askAnswer = self.resultDOM.xpath('string(/sparql:sparql/sparql:boolean)',
+                                                explicitNss=sparqlNsBindings).lower() == 'true'
+
+    def _get_ask_answer(self):
+        assert  self.__isAskQuery
+        if self.__askAnswer is None:
+            self._parseResults()
+            return [self.__askAnswer]
+        else:
+            return [self.__askAnswer]
+
+    askAnswer = property(_get_ask_answer)
 
     def __len__(self):
         raise NotImplementedError("Results are an iterable!")
@@ -83,7 +94,7 @@ class SPARQLResult(QueryResult.QueryResult):
     def __iter__(self):
         """Iterates over the result entries"""
         self._parseResults()
-        if not self.askAnswer:
+        if not self.__isAskQuery:
             for rt,vars in TraverseSPARQLResultDOM(self.resultDOM):
                 self.noAnswers += 1
                 yield rt
@@ -91,8 +102,8 @@ class SPARQLResult(QueryResult.QueryResult):
     def serialize(self,format='xml'):
         if format == 'python':
             self._parseResults()
-            if self.askAnswer:
-                return bool(self.askAnswer=='true')
+            if self.__isAskQuery:#self.askAnswer:
+                return self.__askAnswer
             else:
                 return self
         elif format == 'xml':

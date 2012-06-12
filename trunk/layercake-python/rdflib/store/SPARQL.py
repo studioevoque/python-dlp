@@ -13,7 +13,7 @@ following ways:
 """
 
 __version__ = "1.01"
-__authors__  = u"Ivan Herman, Sergio Fernández, Carlos Tejo Alonso"
+__authors__ = u"Ivan Herman, Sergio Fernández, Carlos Tejo Alonso"
 __license__ = u'W3C® SOFTWARE NOTICE AND LICENSE, http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231'
 __contact__ = 'Ivan Herman, ivan_herman@users.sourceforge.net'
 __date__    = "2008-02-14"
@@ -28,6 +28,7 @@ from rdflib.Graph import Graph
 from rdflib.sparql.Client import TraverseSPARQLResultDOM, SPARQL_NS, sparqlNsBindings
 
 BNODE_IDENT_PATTERN = re.compile('(?P<label>_\:[^\s]+)')
+ASK_QUERY_PATTERN   = re.compile('(ASK|ask).+\{')
 
 class SPARQLStore(SPARQLWrapper,Store):
     """
@@ -42,6 +43,11 @@ class SPARQLStore(SPARQLWrapper,Store):
     def __init__(self,identifier,bNodeAsURI = False):
         super(SPARQLStore, self).__init__(identifier,returnFormat=XML)
         self.bNodeAsURI = bNodeAsURI
+
+    def __repr__(self):
+        return "<A reverse SPARQL proxy for %s%s>"%(
+            self.identifier.n3,
+            ' with special handling of BNode labels in queries ' if self.bNodeAsURI else '')
 
     #Database Management Methods
     def create(self, configuration):
@@ -103,7 +109,8 @@ class SPARQLStore(SPARQLWrapper,Store):
         assert isinstance(queryString,basestring)
         self.setNamespaceBindings(initNs)
         self.setQuery(queryString)
-        return SPARQLResult(self.query().response.read())
+        return SPARQLResult(self.query().response.read(),
+                            bool(ASK_QUERY_PATTERN.search(queryString)))
 
     def triples(self, (subject, predicate, obj), context=None):
         """

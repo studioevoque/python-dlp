@@ -76,7 +76,7 @@ def prepQuery(queryString,ontGraph):
 def main():
     from optparse import OptionParser
     usage = '''usage: %prog [options] \\
-    <DB connection string> <DB table identifier> <SPARQL query string>'''
+    <DB connection string> [<DB table identifier>] <SPARQL query string>'''
     op = OptionParser(usage=usage)
     op.add_option('-s', '--storeKind',
                   metavar='STORE', help='Use this type of DB')
@@ -84,6 +84,8 @@ def main():
       help='Owl file used to help identify literal and resource properties')
     op.add_option('--rdfs', default=None,
       help='RDFS file used to help identify literal and resource properties')
+    op.add_option('--IdIsNone', action='store_true', default=False, help='Whether or not to assume the '+
+                   'store identifier is None in which case the second argument is the query')
     op.add_option('-d', '--debug', action='store_true',
                   help='Enable (store-level) debugging')
     op.add_option('--sparqlDebug', action='store_true',
@@ -148,16 +150,19 @@ def main():
                             initNs=nsBinds,
                             DEBUG=options.sparqlDebug)
     else:
-        if len(args) <2:
+        if len(args) <2 and not options.IdIsNone:
           op.error(
             'You need to provide a connection string ' +
             '\n(of the form "user=...,password=...,db=...,host=..."), ' +
-            '\na table identifier, and a query string.')
+            '\na table identifier (optional), and a query string.')
 
         from rdflib.sparql import Algebra
         Algebra.DAWG_DATASET_COMPLIANCE = False
         if len(args)==3:
             connection, identifier, query = args
+        elif options.IdIsNone:
+            identifier = None
+            connection, query = args
         else:
             connection, identifier = args
         store = plugin.get(options.storeKind, Store)(identifier)
@@ -248,9 +253,10 @@ def main():
                 query=prepQuery(open(options.file).read(),ontGraph)
                 if options.timing:
                     now=time.time()
-                res = dataset.query(query,
+                res = dataset.query('',
                                     initNs=nsBinds,
-                                    DEBUG=options.sparqlDebug)
+                                    DEBUG=options.sparqlDebug,
+                                    parsedQuery=query)
             else:
                 if options.timing:
                     now=time.time()

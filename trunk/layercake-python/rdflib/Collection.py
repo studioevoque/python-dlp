@@ -1,4 +1,4 @@
-from rdflib import RDF, BNode, Literal
+from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.Graph import Graph
 
 class Collection(object):
@@ -55,7 +55,17 @@ class Collection(object):
         >>> print c.n3()
         ( "1"^^<http://www.w3.org/2001/XMLSchema#integer> "2"^^<http://www.w3.org/2001/XMLSchema#integer> "3"^^<http://www.w3.org/2001/XMLSchema#integer> )
         """
-        return "( %s )"%(' '.join([i.n3() for i in self]))
+        def renderTerm(term):
+            try:
+                _representation = self.graph.qname(term)
+                return _representation
+            except:
+                return term.n3()
+
+        return "( %s )"%(' '.join([
+                  renderTerm(i) if isinstance(i,URIRef)
+                                else i.n3()
+                      for i in self]))
 
     def _get_container(self, index):
         """Gets the first, rest holding node at index."""

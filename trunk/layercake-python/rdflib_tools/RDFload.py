@@ -3,9 +3,7 @@ from rdflib import URIRef, Namespace, BNode, ConjunctiveGraph, RDF, plugin, Lite
 from rdflib.Graph import Graph
 from rdflib.store import Store
 
-import sys, os, re
-
-import datetime
+import sys, os, re, datetime
 
 def substitute_uriPattern(string, fName,extension):
     """
@@ -20,7 +18,11 @@ def substitute_uriPattern(string, fName,extension):
         return str(format_dict.get(match.group(1)))
     return re.sub(r'\{(\w+)\}', replace, string)
 
-def parseFromDirectory(directory,op,options,extMap,factGraph,uri=None,uriPattern=None):
+def parseFromDirectory(directory,op,options,extMap,factGraph,uri=None,uriPattern=None,uri4Files=None):
+    if uri4Files:
+        uri4Files = dict([ tuple(entry.split('=')) for entry in uri4Files])
+    else:
+        uri4Files = {}
     try:
       dir = os.walk(directory).next()
     except Exception:
@@ -37,10 +39,13 @@ def parseFromDirectory(directory,op,options,extMap,factGraph,uri=None,uriPattern
           extension = '.'.join(parts[1:])
       else:
         fName,extension = None,None
-      if not uri:
+      fullFName = '.'.join([fName,extension])
+      if not uri and fullFName not in uri4Files:
         assert extension is not None
         assert uriPattern
         entryUri = substitute_uriPattern(uriPattern,fName,extension)
+      elif not uri:
+        entryUri = uri4Files[fullFName]
       else:
         entryUri = uri
       parseFormat = options.inputFormat
@@ -65,7 +70,10 @@ def main():
     help = 'Reuse existing delimited files instead of creating new ones')
   op.add_option('-u', '--uri', default=None,
     help = 'Target GRAPH URI / Name')
-
+  op.add_option('--uri4File',
+      action='append',
+      default = [],
+      help='A list of filename to URIs mappings to use for the target GRAPH uri')
   op.add_option('--uriList',
                 action='append',
                 metavar='URI',
@@ -139,6 +147,7 @@ def main():
                 extMap,
                 factGraph,
                 uri=options.uriList[idx] if options.uriList else None,
+                uri4Files = options.uri4File if options.uri4File else None,
                 uriPattern=options.uriPatternList[idx] if options.uriPatternList else None)
     else:
         parseFromDirectory(args[1],

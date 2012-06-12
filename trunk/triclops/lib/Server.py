@@ -298,6 +298,7 @@ class StoreConnectee(object):
         self.bNodeAsURI         = global_conf.get('bNodeAsURI')
         self.manageQueries      = global_conf.get('manageQueries')
         self.queryManager       = global_conf.get('queryMgr')
+        self.endpointURL        = global_conf.get('endpointURL')
 
         if self.proxy:
             print "A proxy SPARQL server for ", self.proxy
@@ -391,7 +392,7 @@ class TicketManager(StoreConnectee):
         action = d.get('type')
         status = '200 OK'
         from Ft.Lib.Uuid import UuidAsString, GenerateUuid
-        token=UuidAsString(GenerateUuid())        
+        token=UuidAsString(GenerateUuid())
         if action == 'id':
             #The client is requesting a ticket to use for a subsequent 
             #SPARQL query such that it can be aborted using this ticket
@@ -1327,6 +1328,15 @@ class Generator2:
             self.__generator.close()
         self.__callback.cleanup()
 
+SD_FORMATS = ['application/rdf+xml','text/turtle','text/n3','text/plain']
+
+MIME_SERIALIZATIONS = {
+    'application/rdf+xml' : 'pretty-xml',
+    'text/turtle'         : 'turtle',
+    'text/n3'             : 'n3',
+    'text/plain'          : 'ntriples'
+}
+
 class WsgiApplication(StoreConnectee):
     def __init__(self, 
                  global_conf,
@@ -1379,8 +1389,64 @@ class WsgiApplication(StoreConnectee):
         print "## Query ##\n", query, "\n###########"
         print "Default graph uri ", default_graph_uri
         reqMeth = environ.get('REQUEST_METHOD', 'GET')
+
         if reqMeth == 'POST':
             assert query,"POST can only take an encoded query"
+        elif environ.get('HTTP_ACCEPT') in SD_FORMATS:
+            if environ.get('HTTP_ACCEPT') not in SD_FORMATS:
+                status = '415 Unsupported Media Type'
+                rt = 'Unsupported RDF document format'
+                response_headers = [
+                    ('Content-Length', len(rt))
+                ]
+                start_response(status, response_headers)
+                yield rt
+                return
+            else:
+                if self.ignoreQueryDataset:
+                    targetGraph = self.buildGraph(default_graph_uri)
+                else:
+                    targetGraph = self.buildGraph(default_graph_uri=None)
+
+                sdGraph = Graph()
+
+                SD_NS  = Namespace('http://www.w3.org/ns/sparql-service-description#')
+                SCOVO  = Namespace('http://purl.org/NET/scovo#')
+                VOID   = Namespace('http://rdfs.org/ns/void#')
+                FORMAT = Namespace('http://www.w3.org/ns/formats/')
+
+                sdGraph.bind(u'sd',SD_NS)
+                sdGraph.bind(u'scovo',SCOVO)
+                sdGraph.bind(u'void',VOID)
+                sdGraph.bind(u'format',FORMAT)
+
+                service     = BNode()
+                datasetNode = BNode()
+                if self.endpointURL:
+                    sdGraph.add((service,SD_NS.endpoint,URIRef(self.endpointURL)))
+                sdGraph.add((service,RDF.type                       ,SD_NS.Service))
+                sdGraph.add((service,SD_NS.defaultDatasetDescription,datasetNode))
+                sdGraph.add((service,SD_NS.resultFormat,FORMAT['SPARQL_Results_XML']))
+                sdGraph.add((datasetNode,RDF.type,SD_NS.Dataset))
+
+                for graph in targetGraph.store.contexts():
+                    graphNode  = BNode()
+                    graphNode2 = BNode()
+                    sdGraph.add((datasetNode,SD_NS.namedGraph,graphNode))
+                    sdGraph.add((graphNode,SD_NS.name,URIRef(graph.identifier)))
+                    sdGraph.add((graphNode,SD_NS.graph,graphNode2))
+                    sdGraph.add((graphNode2,RDF.type,SD_NS.Graph))
+                    noTriples = Literal(len(graph))
+                    sdGraph.add((graphNode2,VOID.triples,noTriples))
+                doc = sdGraph.serialize(format=MIME_SERIALIZATIONS[environ['HTTP_ACCEPT']])
+                status = '200 OK'
+                response_headers = [
+                                    ('Content-type'  , environ['HTTP_ACCEPT']),
+                                    ('Content-Length', len(doc))
+                                   ]
+                start_response(status, response_headers)
+                yield doc
+                return
         else:
             assert reqMeth == 'GET',"Either POST or GET method!"
             if not query:

@@ -3,7 +3,7 @@
 #ez_setup.use_setuptools()
 from setuptools  import setup
 setup(name="Triclops",
-      version="0.95b",
+      version="0.99a",
       description="A Paste-based SPARQL Server for RDFLib",
       author="Chime Ogbuji",
       author_email="chimezie@gmail.com",

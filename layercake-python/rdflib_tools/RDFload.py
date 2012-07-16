@@ -42,8 +42,8 @@ def parseFromDirectory(directory,op,options,extMap,factGraph,uri=None,uriPattern
       fullFName = '.'.join([fName,extension])
       if not uri and fullFName not in uri4Files:
         assert extension is not None
-        assert uriPattern
-        entryUri = substitute_uriPattern(uriPattern,fName,extension)
+        if uriPattern:
+          entryUri = substitute_uriPattern(uriPattern,fName,extension)
       elif not uri:
         entryUri = uri4Files[fullFName]
       else:
@@ -136,7 +136,6 @@ def main():
     extMap = dict((eMap.split('=') for eMap in options.extensionMap))
 
     multipleDirs = len(args) > 2
-
     if multipleDirs:
         for idx,directory in enumerate(args[1:]):
             print >>sys.stderr,"Parsing from directory %s"%directory
@@ -156,6 +155,7 @@ def main():
                            extMap,
                            factGraph,
                            uri=options.uri,
+                           uri4Files = options.uri4File if options.uri4File else None,
                            uriPattern=options.uriPattern)
   store.dumpRDF('solo')
   store.close()

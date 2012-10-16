@@ -34,6 +34,7 @@ setup(name="Triclops",
       browse = Triclops.wsgiapp:make_browser
       queryMgr = Triclops.wsgiapp:make_query_manager
       ticketManager = Triclops.wsgiapp:make_ticket_manager
+      form = Triclops.wsgiapp:make_form_manager
       """,
       zip_safe=False
 )

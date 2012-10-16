@@ -1337,6 +1337,134 @@ MIME_SERIALIZATIONS = {
     'text/plain'          : 'ntriples'
 }
 
+class FormManager(StoreConnectee):
+    def __init__(self,
+                 global_conf,
+                 nsBindings,
+                 defaultDerivedPreds,
+                 litProps,
+                 resProps,
+                 definingOntology,
+                 ontGraph,
+                 ruleSet,
+                 builtinTemplateGraph):
+        super(FormManager, self).__init__(global_conf,
+            nsBindings,
+            defaultDerivedPreds,
+            litProps,
+            resProps,
+            definingOntology,
+            ontGraph,
+            ruleSet,
+            builtinTemplateGraph)
+        self.targetGraph = None
+
+    def cleanup(self):
+        print "Cleaning up .."
+        print self.targetGraph
+        if self.targetGraph is not None:
+            self.targetGraph.close()
+
+    def __call__(self, environ, start_response):
+        try:
+            result = self.execute(environ, start_response)
+        except:
+            self.cleanup()
+            raise
+        return Generator2(result, self, environ)
+
+    def execute(self, environ, start_response):
+        #A GET with no parameters returns an HTML form for submitting queries
+
+        d = parse_formvars(environ)
+        order             = d.get('order')
+
+        reqMeth = environ.get('REQUEST_METHOD', 'GET')
+        if reqMeth != 'GET':
+            rt = 'SPARQL query form must be retrieved via GET!'
+            status = '405 Method Not Allowed'
+            response_headers = [
+                ('Content-type'  , 'text/plain'),
+                ('Content-Length', len(rt))
+            ]
+            start_response(status, response_headers)
+            yield rt
+            return
+
+        status = '200 OK'
+        bindingsHTML=''.join(['<tr><td>%s</td><td>%s</td></tr>'%(prefix,uri)
+                              for prefix,uri in self.nsBindings.items()])
+        retVal=SPARQL_FORM.replace('ENDPOINT',self.endpoint).replace(
+            'BINDINGS',
+            bindingsHTML)
+
+        retVal=retVal.replace('CODEMIRROR',CODEMIRROR_SETUP)
+        retVal=retVal%(self.endpoint)
+        entailmentRepl=''
+
+        if self.manageQueries:
+            entries = []
+            def sortByName(item):
+                fName = os.path.join(self.manageQueries,item)
+                fObj = open(fName)
+                doc = bindery.parse(fObj.read())
+                return U(doc.Query.name)
+            def sortByNo(item):
+                fName = os.path.join(self.manageQueries,item)
+                fObj = open(fName)
+                doc = bindery.parse(fObj.read())
+                return int(doc.xml_select(
+                    'count(/*[local-name()="sparql"]/*[local-name()="results"]/*)'))\
+                if hasattr(doc,'sparql') else 0
+
+            def sortByDate(item):
+                fName = os.path.join(self.manageQueries,item)
+                return os.lstat(fName).st_mtime
+
+            for fN in sorted([_fname
+                              for _fname in os.listdir(self.manageQueries)
+                              if _fname.find('results')==-1],
+                key=sortByDate if order=='date'
+                else sortByNo if order=='size'
+                else sortByName ):
+                fName = os.path.join(self.manageQueries,fN)
+                fObj = open(fName)
+                doc = bindery.parse(fObj.read())
+                _id=createDigest(U(doc.Query.name)).hexdigest()
+                resultFName = os.path.join(self.manageQueries,
+                    '%s.rq.results.xml'
+                )%_id
+                entries.append(
+                    QUERY_LIST_ENTRY%
+                    (os.path.join(self.queryManager),
+                     createDigest(U(doc.Query.name)).hexdigest(),
+                     U(doc.Query.name).encode('ascii'),
+                     time.ctime(os.lstat(fName).st_mtime),
+                     time.ctime(os.lstat(resultFName).st_mtime)
+                     if os.path.exists(resultFName) else 'N/A',
+                     '<a href="%s?action=update&query=%s&innerAction=load">%s</a>'%(
+                         self.queryManager,
+                         _id,
+                         int(bindery.parse(resultFName).xml_select(
+                             'count(/*[local-name()="sparql"]/*[local-name()="results"]/*)'))
+                         ) if os.path.exists(resultFName) else 'N/A')
+                )
+            retVal=retVal.replace('QUERIES','\n'.join(entries))
+
+        if self.topDownEntailment:
+            entailmentRepl = '<div><em>This server has an <strong><a href="%s/entailment">active</a></strong> entailment regime!</em></div><br/>'%(
+                self.endpoint)
+        retVal=retVal.replace('ENTAILMENT',entailmentRepl)
+
+        retVal=retVal.replace('<!--CancelButton-->',
+            '<input type="button" value="\'Prepare\' Query" onClick="getTicket(\'queryform\')"></input>')
+        response_headers = [('Content-type','text/html'),
+            ('Content-Length',
+             len(retVal))]
+        start_response(status, response_headers)
+        yield retVal
+        return
+
 class WsgiApplication(StoreConnectee):
     def __init__(self, 
                  global_conf,
@@ -1390,140 +1518,62 @@ class WsgiApplication(StoreConnectee):
         print "Default graph uri ", default_graph_uri
         reqMeth = environ.get('REQUEST_METHOD', 'GET')
 
+        requestedFormat = environ.get('HTTP_ACCEPT','application/rdf+xml')
+
         if reqMeth == 'POST':
             assert query,"POST can only take an encoded query"
-        elif environ.get('HTTP_ACCEPT') in SD_FORMATS:
-            if environ.get('HTTP_ACCEPT') not in SD_FORMATS:
-                status = '415 Unsupported Media Type'
-                rt = 'Unsupported RDF document format'
-                response_headers = [
-                    ('Content-Length', len(rt))
-                ]
-                start_response(status, response_headers)
-                yield rt
-                return
+        elif reqMeth == 'GET' and not query:
+            if requestedFormat not in SD_FORMATS:
+                requestedFormat = 'application/rdf+xml'
+            if self.ignoreQueryDataset:
+                targetGraph = self.buildGraph(default_graph_uri)
             else:
-                if self.ignoreQueryDataset:
-                    targetGraph = self.buildGraph(default_graph_uri)
-                else:
-                    targetGraph = self.buildGraph(default_graph_uri=None)
+                targetGraph = self.buildGraph(default_graph_uri=None)
 
-                sdGraph = Graph()
+            sdGraph = Graph()
 
-                SD_NS  = Namespace('http://www.w3.org/ns/sparql-service-description#')
-                SCOVO  = Namespace('http://purl.org/NET/scovo#')
-                VOID   = Namespace('http://rdfs.org/ns/void#')
-                FORMAT = Namespace('http://www.w3.org/ns/formats/')
+            SD_NS  = Namespace('http://www.w3.org/ns/sparql-service-description#')
+            SCOVO  = Namespace('http://purl.org/NET/scovo#')
+            VOID   = Namespace('http://rdfs.org/ns/void#')
+            FORMAT = Namespace('http://www.w3.org/ns/formats/')
 
-                sdGraph.bind(u'sd',SD_NS)
-                sdGraph.bind(u'scovo',SCOVO)
-                sdGraph.bind(u'void',VOID)
-                sdGraph.bind(u'format',FORMAT)
+            sdGraph.bind(u'sd',SD_NS)
+            sdGraph.bind(u'scovo',SCOVO)
+            sdGraph.bind(u'void',VOID)
+            sdGraph.bind(u'format',FORMAT)
 
-                service     = BNode()
-                datasetNode = BNode()
-                if self.endpointURL:
-                    sdGraph.add((service,SD_NS.endpoint,URIRef(self.endpointURL)))
-                sdGraph.add((service,RDF.type                       ,SD_NS.Service))
-                sdGraph.add((service,SD_NS.defaultDatasetDescription,datasetNode))
-                sdGraph.add((service,SD_NS.resultFormat,FORMAT['SPARQL_Results_XML']))
-                sdGraph.add((datasetNode,RDF.type,SD_NS.Dataset))
+            service     = BNode()
+            datasetNode = BNode()
+            if self.endpointURL:
+                sdGraph.add((service,SD_NS.endpoint,URIRef(self.endpointURL)))
+            sdGraph.add((service,SD_NS.supportedLanguage        ,SD_NS.SPARQL10Query))
+            sdGraph.add((service,RDF.type                       ,SD_NS.Service))
+            sdGraph.add((service,SD_NS.defaultDatasetDescription,datasetNode))
+            sdGraph.add((service,SD_NS.resultFormat,FORMAT['SPARQL_Results_XML']))
+            sdGraph.add((datasetNode,RDF.type,SD_NS.Dataset))
 
-                for graph in targetGraph.store.contexts():
-                    graphNode  = BNode()
-                    graphNode2 = BNode()
-                    sdGraph.add((datasetNode,SD_NS.namedGraph,graphNode))
-                    sdGraph.add((graphNode,SD_NS.name,URIRef(graph.identifier)))
-                    sdGraph.add((graphNode,SD_NS.graph,graphNode2))
-                    sdGraph.add((graphNode2,RDF.type,SD_NS.Graph))
-                    noTriples = Literal(len(graph))
-                    sdGraph.add((graphNode2,VOID.triples,noTriples))
-                doc = sdGraph.serialize(format=MIME_SERIALIZATIONS[environ['HTTP_ACCEPT']])
-                status = '200 OK'
-                response_headers = [
-                                    ('Content-type'  , environ['HTTP_ACCEPT']),
-                                    ('Content-Length', len(doc))
-                                   ]
-                start_response(status, response_headers)
-                yield doc
-                return
+            for graph in targetGraph.store.contexts():
+                graphNode  = BNode()
+                graphNode2 = BNode()
+                sdGraph.add((datasetNode,SD_NS.namedGraph,graphNode))
+                sdGraph.add((graphNode,SD_NS.name,URIRef(graph.identifier)))
+                sdGraph.add((graphNode,SD_NS.graph,graphNode2))
+                sdGraph.add((graphNode,RDF.type,SD_NS.NamedGraph))
+                sdGraph.add((graphNode2,RDF.type,SD_NS.Graph))
+                noTriples = Literal(len(graph))
+                sdGraph.add((graphNode2,VOID.triples,noTriples))
+            doc = sdGraph.serialize(
+                format=MIME_SERIALIZATIONS[requestedFormat])
+            status = '200 OK'
+            response_headers = [
+                                ('Content-type'  , requestedFormat),
+                                ('Content-Length', len(doc))
+                               ]
+            start_response(status, response_headers)
+            yield doc
+            return
         else:
             assert reqMeth == 'GET',"Either POST or GET method!"
-            if not query:
-                #A GET with no parameters returns an HTML form for submitting queries
-                status = '200 OK'
-                bindingsHTML=''.join(['<tr><td>%s</td><td>%s</td></tr>'%(prefix,uri)
-                           for prefix,uri in self.nsBindings.items()])
-                retVal=SPARQL_FORM.replace('ENDPOINT',self.endpoint).replace(
-                    'BINDINGS',
-                    bindingsHTML)
-                    
-                retVal=retVal.replace('CODEMIRROR',CODEMIRROR_SETUP)
-                retVal=retVal%(self.endpoint)
-                entailmentRepl=''
-                
-                if self.manageQueries:
-                    entries = []
-                    def sortByName(item):
-                        fName = os.path.join(self.manageQueries,item)
-                        fObj = open(fName)
-                        doc = bindery.parse(fObj.read())
-                        return U(doc.Query.name)
-                    def sortByNo(item):
-                        fName = os.path.join(self.manageQueries,item)
-                        fObj = open(fName)
-                        doc = bindery.parse(fObj.read())
-                        return int(doc.xml_select(
-                        'count(/*[local-name()="sparql"]/*[local-name()="results"]/*)')) \
-                            if hasattr(doc,'sparql') else 0
-
-                    def sortByDate(item):
-                        fName = os.path.join(self.manageQueries,item)
-                        return os.lstat(fName).st_mtime
-                    
-                    for fN in sorted([_fname
-                                      for _fname in os.listdir(self.manageQueries)
-                                        if _fname.find('results')==-1],
-                                     key=sortByDate if order=='date'
-                                                    else sortByNo if order=='size'
-                                                        else sortByName ):
-                        fName = os.path.join(self.manageQueries,fN)
-                        fObj = open(fName)
-                        doc = bindery.parse(fObj.read())
-                        _id=createDigest(U(doc.Query.name)).hexdigest()
-                        resultFName = os.path.join(self.manageQueries,
-                                                   '%s.rq.results.xml'
-                                )%_id
-                        entries.append(
-                            QUERY_LIST_ENTRY%
-                            (os.path.join(self.queryManager),
-                             createDigest(U(doc.Query.name)).hexdigest(),
-                             U(doc.Query.name).encode('ascii'),
-                             time.ctime(os.lstat(fName).st_mtime),
-                             time.ctime(os.lstat(resultFName).st_mtime)
-                                if os.path.exists(resultFName) else 'N/A',
-                             '<a href="%s?action=update&query=%s&innerAction=load">%s</a>'%(
-                                self.queryManager,
-                                _id,
-                                int(bindery.parse(resultFName).xml_select(
-                                 'count(/*[local-name()="sparql"]/*[local-name()="results"]/*)'))
-                             ) if os.path.exists(resultFName) else 'N/A')
-                        )
-                    retVal=retVal.replace('QUERIES','\n'.join(entries))
-                
-                if self.topDownEntailment:
-                    entailmentRepl = '<div><em>This server has an <strong><a href="%s/entailment">active</a></strong> entailment regime!</em></div><br/>'%(
-                        self.endpoint)
-                retVal=retVal.replace('ENTAILMENT',entailmentRepl)
-
-                retVal=retVal.replace('<!--CancelButton-->',
-                               '<input type="button" value="\'Prepare\' Query" onClick="getTicket(\'queryform\')"></input>')
-                response_headers = [('Content-type','text/html'),
-                                    ('Content-Length',
-                                     len(retVal))]
-                start_response(status, response_headers)
-                yield retVal
-                return
         if self.ignoreQueryDataset:
             self.targetGraph = self.buildGraph(default_graph_uri)
         else:

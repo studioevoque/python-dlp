@@ -194,7 +194,39 @@ def make_app(global_conf, **app_conf):
     global ticketLookup
     ticketLookup = {}
     return app
-    
+
+def make_form_manager(global_conf,**app_conf):
+    global nsBindings, litProps, resProps, ontGraph, ruleSet,\
+    definingOntology, builtinTemplateGraph, defaultDerivedPreds
+    nsBindings    = {u'owl' :OWLNS,
+                     u'rdf' :RDF.RDFNS,
+                     u'rdfs':RDFS.RDFSNS}
+    litProps = set()
+    resProps = set()
+    ontGraph = Graph()
+    ruleSet = set()
+    builtinTemplateGraph = Graph()
+    definingOntology = Graph()
+    defaultDerivedPreds = []
+    setup_dry_config(global_conf,
+        nsBindings,
+        litProps,
+        resProps,
+        ontGraph,
+        ruleSet,
+        definingOntology,
+        builtinTemplateGraph,
+        defaultDerivedPreds)
+    return FormManager(global_conf,
+        nsBindings,
+        defaultDerivedPreds,
+        litProps,
+        resProps,
+        definingOntology,
+        ontGraph,
+        ruleSet,
+        builtinTemplateGraph)
+
 def make_query_manager(global_conf,**app_conf):
     global nsBindings, litProps, resProps, ontGraph, ruleSet, \
     definingOntology, builtinTemplateGraph, defaultDerivedPreds

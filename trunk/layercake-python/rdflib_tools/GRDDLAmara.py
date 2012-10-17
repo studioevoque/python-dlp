@@ -43,7 +43,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 import time, sys, re, getopt, urllib2
-from sets import Set
+#from sets import Set
 try:
     from cStringIO import StringIO
 except ImportError:        
@@ -56,6 +56,7 @@ from rdflib.syntax.NamespaceManager import NamespaceManager
 import amara
 from amara.xslt import transform
 from amara.lib.iri import absolutize
+from amara.lib import U
 from Ft.Xml.Xslt import Processor
 from Ft.Xml import InputSource
 
@@ -131,7 +132,8 @@ class Glean(object):
         try:
             if self.DEBUG:
                 print >>sys.stderr, "Parsing XML content WRT baseURI of %s"%(initialBase)
-            self.doc = amara.parse(content,uri)
+            self.doc = amara.parse(content,self.url)
+            self.docSrc = content
             #don't use useXInclude
             #WG consensus is to follow XML Base.  This bottoms out in using
             #the base URI of the root node once the parser has been given
@@ -141,20 +143,21 @@ class Glean(object):
             #source document
             #See: http://4suite.org/docs/CoreManual.xml#base_URIs
             if self.baseURI is None:
-                self.baseURI = self.doc.xpath(u'/*')[0].baseURI
+                self.baseURI = self.doc.xml_select(u'/*')[0].xml_base
                 if self.DEBUG:
                     print >>sys.stderr,\
                      "Adopting the baseURI of the root node: %s"%(self.baseURI)
             
             #Note, if an XHTML Base is embedded, it needs to be respected also
-            for htmlBase in self.doc.xpath(u'/xhtml:html/xhtml:head/xhtml:base/@href',{u'xhtml': XHTML_NS}):
+            for htmlBase in self.doc.xml_select(
+                u'/xhtml:html/xhtml:head/xhtml:base/@href',{u'xhtml': XHTML_NS}):
                 if self.DEBUG:
                     print >>sys.stderr, "Found an XHTML Base: %s"%(htmlBase.value)
-                self.baseURI = htmlBase.value
+                self.baseURI = U(htmlBase)
                         
             #WG consensus is that we should peek into XML content for rdf:RDF
             #at the root, if we find it we need to attempt a parse as RDF/XML
-            if not parsedAsRDF and self.doc.xpath(u'/rdf:RDF',{u'rdf':str(RDF.RDFNS)}):
+            if not parsedAsRDF and self.doc.xml_select(u'/rdf:RDF',{u'rdf':str(RDF.RDFNS)}):
                 try:
                     self.graph.parse(StringIO(content), publicID=self.baseURI)
                 except:
@@ -181,15 +184,17 @@ class Glean(object):
             #accomodate relative urls)
             stylesheetLoc = absolutize(xformURL, self.baseURI)
             lastUri, (content, info) = webget(stylesheetLoc, (XSLT_MT,))
-            result = transform(source, transforms, params=None)
-            transform = InputSource.DefaultFactory.fromString(content,
+            _transform = InputSource.DefaultFactory.fromString(content,
                                                               stylesheetLoc)
+            iSrc = InputSource.DefaultFactory.fromString(self.docSrc,self.url)
             processor = Processor.Processor()
-            processor.appendStylesheet(transform)
+            processor.appendStylesheet(_transform)
             #see: http://www.w3.org/TR/grddl/#stylepi
             #Note, for the XSLT transform, the base URI of the source document
             #is passed in, instead of the base URI of the root node   
-            result = processor.runNode(self.doc, self.url, ignorePis=1)
+            result = processor.run(
+                iSrc,ignorePis=1
+            )
             #get output method / media-type
 #            <!-- Category: top-level-element -->
 #            <xsl:output
@@ -321,10 +326,10 @@ class XMLGlean(Glean):
         """
         super(XMLGlean, self).load(webget)
         if self.doc:
-            attrs = self.doc.xpath(u'/*/@data-view:transformation',
+            attrs = self.doc.xml_select(u'/*/@data-view:transformation',
                                    {u'data-view': GRDDL_NS})
             if attrs:
-                self.transform(attrs[0].value, webget)
+                self.transform(U(attrs[0]), webget)
 
 class XMLNSGlean(Glean):
     """
@@ -355,7 +360,7 @@ class XMLNSGlean(Glean):
         super(XMLNSGlean, self).load(webget)
         self.nsURI = None
         if self.doc:
-            self.nsURI = self.doc.xpath(u'/*')[0].namespaceURI
+            self.nsURI = self.doc.xml_select(u'/*')[0].xml_namespace
 
             #@@DWC: hmm... why is NSDispatchTermination not recursive?
             if not self.nsURI or self.nsURI in NSDispatchTermination or self.nsURI == self.url:
@@ -373,10 +378,10 @@ class XMLNSGlean(Glean):
                 continueRecursion = True
                 #setup a set of processed transforms to avoid infinite
                 #namespace snooping cycles
-                processedNSXForms = Set()
+                processedNSXForms = set()
                 #Recursively find 'new' namespace transformations
                 while continueRecursion:
-                    todoXForms = Set()
+                    todoXForms = set()
                     pat = (URIRef(absolutize(self.nsURI, self.baseURI)), GRDDL_VOCAB.namespaceTransformation, None)
                     for s, p, xform in nsresult.triples(pat):
                         if self.DEBUG:
@@ -416,7 +421,7 @@ class ValidXHTMLGlean(Glean):
             xhtmlNSMap = {u'xhtml': XHTML_NS}
 
             #@@ contains() test isn't quite right
-            links = self.doc.xpath(u"""/xhtml:html[xhtml:head[
+            links = self.doc.xml_select(u"""/xhtml:html[xhtml:head[
                                        contains(@profile, "%s")]]
                                        //xhtml:*[(local-name() = "a"
                                        or local-name() = "link")
@@ -424,7 +429,7 @@ class ValidXHTMLGlean(Glean):
                                        /@href""" % GRDDL_PROFILE,
                                    xhtmlNSMap)
             for href in links:
-                self.transform(href.value, webget)
+                self.transform(U(href), webget)
 
 class XHTMLProfileGlean(Glean):
     """
@@ -443,10 +448,10 @@ class XHTMLProfileGlean(Glean):
         super(XHTMLProfileGlean, self).load(webget)
         self.profiles = []
         if self.doc:
-            profile = self.doc.xpath(u'/xhtml:html/xhtml:head/@profile',
+            profile = self.doc.xml_select(u'/xhtml:html/xhtml:head/@profile',
                                      {u'xhtml':XHTML_NS})
             if profile:
-                self.profiles = profile[0].value.split()
+                self.profiles = U(profile[0]).split()
                 for profile in self.profiles:
                     if profile == GRDDL_PROFILE or profile == self.url:
                         #@@What about if a document is it's own profile?
@@ -459,10 +464,10 @@ class XHTMLProfileGlean(Glean):
                     continueRecursion = True
                     #setup a set of processed transforms to avoid
                     #infinite profile snooping cycles
-                    processedProfileXForms = Set()
+                    processedProfileXForms = set()
                     #Recursively find 'new' namespace transformations
                     while continueRecursion:
-                        todoXForms = Set()
+                        todoXForms = et()
                         if self.DEBUG:
                             print >>sys.stderr, "checking for profileTransformation triples with subject of: ",absolutize(profile, self.baseURI)
                         pat = (URIRef(absolutize(profile, self.baseURI)), GRDDL_VOCAB.profileTransformation, None)

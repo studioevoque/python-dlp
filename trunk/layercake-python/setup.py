@@ -53,6 +53,7 @@ setup(
             'mysql-rdfload = rdflib_tools.RDFload:main',
             'dataset-description = rdflib_tools.RDFload:datasetInfo',
             'sparqler = rdflib_tools.sparqler:main',
+            'rdf-compare = rdflib_tools.GraphIsomorphism:main',
             'sparqlcsv = rdflib_tools.SPARQLResultsCSV:main',
         ],
         'nose.plugins': [

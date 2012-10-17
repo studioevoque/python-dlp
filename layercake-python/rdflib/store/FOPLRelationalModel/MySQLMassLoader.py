@@ -155,7 +155,13 @@ class Loader(SQL):
       self.delimited_directory = delimited_directory
         
       for table in self.tables:
-        table.delimited_file = file(self.delimited_filename(table), mode)
+        import codecs
+        table.delimited_file = codecs.open(
+          self.delimited_filename(table),
+          mode,
+          encoding='utf-8'
+        )
+        #table.delimited_file = file(self.delimited_filename(table), mode)
 
       self.recent = RecentSet(100000)
       self.recent_hits = 0

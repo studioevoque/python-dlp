@@ -22,6 +22,22 @@ class ParsedGroupGraphPattern(object):
         _g=[]
         if triples:
             _g=[GraphPattern(triples=triples)]
+        else:
+            #Takes advantage of pattern transformation:
+            # { } => { ?x1 ?x2 ?x3 }
+            # Where x1, x2, and x3 are freshly generated variable names not used
+            # elsewhere in the query
+            from rdflib.sparql.bison.Resource import Resource
+            from rdflib import Variable, BNode
+            from rdflib.sparql.bison.Triples import PropertyValue
+            _g=[GraphPattern(triples=[Resource(
+                Variable(BNode()),
+                [
+                    PropertyValue(
+                        Variable(BNode()),
+                        [Variable(BNode())])
+                ]
+            )])]
         if graphPatterns:
             _g.extend(graphPatterns)
         self.graphPatterns = _g

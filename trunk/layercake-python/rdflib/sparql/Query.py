@@ -1010,7 +1010,7 @@ class Query :
                                 elif val1 < val2 : return 1
                 return 0
         # get the full Binding sorted
-        fullBinding.sort(_sortBinding)
+        fullBinding = sorted(fullBinding,_sortBinding,reverse=False)
         
         # remember: _processResult turns the expansion results (an array of dictionaries)
         # into an array of tuples in the right, original order

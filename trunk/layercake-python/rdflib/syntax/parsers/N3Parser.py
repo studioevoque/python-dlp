@@ -2140,7 +2140,6 @@ class RDFSink(object):
 
     def makeStatement(self, quadruple, why=None):
         f, p, s, o = quadruple
-
         if hasattr(p, 'formula'):
             raise Exception("Formula used as predicate")
 

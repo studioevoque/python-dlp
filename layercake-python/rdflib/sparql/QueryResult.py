@@ -445,7 +445,22 @@ class SPARQLQueryResult(QueryResult.QueryResult):
                    writer.write_header(allvarsL)
                    writer.write_results_header(self.orderBy,self.distinct)
                    if self.topUnion:
-                       for binding in self.topUnion:
+                       if self.orderBy:
+                           topUnion = []
+                           for _tuple in self.selected:
+                               for _binding in self.topUnion:
+                                   _t = tuple(
+                                       map(
+                                           lambda i:_binding[i],
+                                           filter(lambda i:i in _binding,allvarsL)
+                                       )
+                                   )
+                                   if _t == filter(lambda i:i is not None,_tuple):
+                                       topUnion.append(_binding)
+                                       break
+                       else:
+                           topUnion = [i for i in self.topUnion]
+                       for binding in topUnion:
                            self.noAnswers += 1
                            writer.write_start_result()
                            assert isinstance(binding,dict),repr(binding)                           

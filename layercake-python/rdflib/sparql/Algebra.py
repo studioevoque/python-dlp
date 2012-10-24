@@ -21,7 +21,10 @@ from rdflib.store import Store
 from rdflib import sparql
 from rdflib.sparql.bison.Query import AskQuery, SelectQuery, DescribeQuery, Query, Prolog
 from rdflib.sparql.bison.IRIRef import NamedGraph,RemoteGraph
-from rdflib.sparql.bison.SolutionModifier import ASCENDING_ORDER, ParsedOrderConditionExpression, DESCENDING_ORDER
+from rdflib.sparql.bison.SolutionModifier import ASCENDING_ORDER, \
+                                                 ParsedOrderConditionExpression, \
+                                                 DESCENDING_ORDER, \
+                                                 UNSPECIFIED_ORDER
 from rdflib.sparql import sparqlGraph, sparqlOperators, SPARQLError, Query, DESCRIBE
 from rdflib.sparql.bison.SPARQLEvaluate import unRollTripleItems, _variablesToArray
 from rdflib.sparql.bison.Util import ListRedirect
@@ -408,18 +411,33 @@ def TopEvaluate(query,dataset,passedBindings = None,DEBUG=False,exportTree=False
                         "Support for ORDER BY with anything other than a variable is not supported: %s"%orderCond
                         expr=orderCond.expression
                     orderBy.append(expr)                    
-                    orderAsc.append(orderCond.order==ASCENDING_ORDER)
+                    orderAsc.append(
+                        orderCond.order == ASCENDING_ORDER or
+                        orderCond.order == UNSPECIFIED_ORDER
+                    )
 
-        topUnionBindings=[]
-        selection=result.select(query.query.variables,
-             query.query.distinct,
-             limit,
-             orderBy,
-             orderAsc,
-             offset
-             )
         selectionF = Query._variablesToArray(query.query.variables,"selection")
         vars = result._getAllVariables()
+        if orderAsc and not query.query.variables:
+            #SELECT * ..., variables are extracted in the order they appear
+            _vars = []
+            for _n in walktree(result.top):#, depthfirst = True, leavesOnly = True, optProxies=False):
+                if isinstance(_n.expr,BasicGraphPattern):
+                    for s,p,o,_context in _n.expr.patterns:
+                        for term in [s,p,o]:
+                            if term not in _vars:
+                                _vars.append(term)
+            vars = _vars
+
+        selection=result.select(
+            query.query.variables if query.query.variables else vars,
+            query.query.distinct,
+            limit,
+            orderBy,
+            orderAsc,
+            offset
+        )
+
         if result.parent1 != None and result.parent2 != None :
             answers=reduce(lambda x,y:x+y,
                                     [root.returnResult(selectionF) \

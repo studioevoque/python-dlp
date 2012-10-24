@@ -459,7 +459,7 @@ class SPARQLQueryResult(QueryResult.QueryResult):
                                        topUnion.append(_binding)
                                        break
                        else:
-                           topUnion = [i for i in self.topUnion]
+                           topUnion = self.topUnion
                        for binding in topUnion:
                            self.noAnswers += 1
                            writer.write_start_result()

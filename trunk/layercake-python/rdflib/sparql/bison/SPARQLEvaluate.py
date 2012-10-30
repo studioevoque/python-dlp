@@ -86,7 +86,7 @@ def convertTerm(term,queryProlog):
                 elif queryProlog.baseDeclaration:
                     base=queryProlog.baseDeclaration
                 else:
-                    base=queryProlog.prefixBindings[u'']
+                    base=queryProlog.prefixBindings.get(u'')
                 return URIRef(Resolver().normalize(term.localname,base))
         elif term.prefix == '_':
             #Told BNode See: http://www.w3.org/2001/sw/DataAccess/issues#bnodeRef

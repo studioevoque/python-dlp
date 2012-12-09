@@ -44,6 +44,7 @@ def parseFromDirectory(directory,op,options,extMap,factGraph,uri=None,uriPattern
         assert extension is not None
         if uriPattern:
           entryUri = substitute_uriPattern(uriPattern,fName,extension)
+        else: continue
       elif not uri:
         entryUri = uri4Files[fullFName]
       else:
@@ -147,7 +148,9 @@ def main():
                 factGraph,
                 uri=options.uriList[idx] if options.uriList else None,
                 uri4Files = options.uri4File if options.uri4File else None,
-                uriPattern=options.uriPatternList[idx] if options.uriPatternList else None)
+                uriPattern=options.uriPatternList[idx] if (
+                    options.uriPatternList and len(options.uriPatternList) - 1 >= idx
+                    ) else None)
     else:
         parseFromDirectory(args[1],
                            op,

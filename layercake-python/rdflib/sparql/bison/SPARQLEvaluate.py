@@ -68,7 +68,9 @@ def convertTerm(term,queryProlog):
         else:
             return term
     elif isinstance(term,BNodeRef):
-        return term
+        return term if not hasattr(
+            queryProlog,
+            'toldBNodes') or not queryProlog.toldBNodes else SessionBNode(term)
     elif isinstance(term,BNode):
         from rdflib.sparql.sql.RdfSqlBuilder import RdfSqlBuilder 
         if isinstance(queryProlog,RdfSqlBuilder):

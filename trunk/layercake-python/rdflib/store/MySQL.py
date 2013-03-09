@@ -1227,7 +1227,8 @@ class MySQL(SQL):
         import MySQLdb
         def connect(self, user, passwd, db, port, host):
             return MySQL.MySQLdb.connect(user=user, passwd=passwd, db=db,
-                                         port=int(port), host=host)
+                                         port=int(port), host=host,
+                                         charset='utf8')
     except ImportError:
         def connect(self, user, passwd, db, port, host):
             raise NotImplementedError(

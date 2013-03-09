@@ -7,8 +7,12 @@ from rdflib.Graph import QuotedGraph
 from rdflib.store.MySQL import SQL, MySQL, PostgreSQL
 from rdflib.store import Store
 from rdflib.store.FOPLRelationalModel.QuadSlot import *
+try:
+    from amara.lib.iri import os_path_to_uri
+except ImportError:
+    from warnings import warn;warn(
+        "Need to install Amara: http://xml3k.org/Amara/Install")
 
-from Ft.Lib import Uri
 Any = None    
 
 VALUES_EXPR     = re.compile('.*VALUES (\(.*\))')
@@ -617,23 +621,23 @@ def main():
       dirparts = os.walk(options.directory).next()
       for entry in dirparts[2]:
         graphRef = os.path.join(dirparts[0], entry)
-        factGraph.parse(graphRef, publicID=Uri.OsPathToUri(graphRef),
+        factGraph.parse(graphRef, publicID=os_path_to_uri(graphRef),
                         format = options.format)
 
     for graphRef in options.xml:
-      factGraph.parse(graphRef, publicID=Uri.OsPathToUri(graphRef),
+      factGraph.parse(graphRef, publicID=os_path_to_uri(graphRef),
                       format='xml')
     for graphRef in options.trix:
-      factGraph.parse(graphRef, publicID=Uri.OsPathToUri(graphRef),
+      factGraph.parse(graphRef, publicID=os_path_to_uri(graphRef),
                       format='trix')
     for graphRef in options.n3:
-      factGraph.parse(graphRef, publicID=Uri.OsPathToUri(graphRef),
+      factGraph.parse(graphRef, publicID=os_path_to_uri(graphRef),
                       format='n3')
     for graphRef in options.nt:
-      factGraph.parse(graphRef, publicID=Uri.OsPathToUri(graphRef),
+      factGraph.parse(graphRef, publicID=os_path_to_uri(graphRef),
                       format='nt')
     for graphRef in options.rdfa:
-      factGraph.parse(graphRef, publicID=Uri.OsPathToUri(graphRef),
+      factGraph.parse(graphRef, publicID=os_path_to_uri(graphRef),
                       format='rdfa')
     store.dumpRDF('solo')
   store.close()

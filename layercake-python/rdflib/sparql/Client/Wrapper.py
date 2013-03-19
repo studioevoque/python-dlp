@@ -277,7 +277,13 @@ class SPARQLWrapper :
             request.add_header("Content-Type","application/x-www-form-urlencoded")
             request.add_header("Accept",acceptHeader)
             values = { "query" : self.queryString }
+            for k,v in self._querytext:
+                if k not in values:
+                    values[k] = v
             data = urllib.urlencode(values)
+            if self.debug:
+                print "POSTing (to %s)"%self.baseURI
+                print data
             request.add_data(data)
         else:
             # by GET

@@ -178,9 +178,10 @@ def ReduceToAlgebra(left,right):
                         if left is None:
                             return pattern 
                         else:
-                            right=pattern 
+                            right=pattern
                 else:
-                    raise Exception(right)
+                    return left
+                #     raise Exception(right)
             elif right.nonTripleGraphPattern:
                 if isinstance(right.nonTripleGraphPattern,ParsedGraphGraphPattern):
                     # Join(left,Graph(...))
@@ -1091,7 +1092,7 @@ class GraphExpression(AlgebraExpression):
                 #assert len(targetGraph) == 1
                 targetGraph = targetGraph[0]
             else:
-                targetGraph = Graph(tripleStore.store,graphName)
+                targetGraph = Graph(tripleStore.graph.store,graphName)
             tripleStore = sparqlGraph.SPARQLGraph(targetGraph,
                                                   dSCompliance=\
                                                   DAWG_DATASET_COMPLIANCE)

@@ -37,8 +37,10 @@ class PrettyXMLSerializer(Serializer):
         namespaces = {}
         possible = uniq(store.predicates()) + uniq(store.objects(None, RDF.type))
         for predicate in possible:
-            prefix, namespace, local = nm.compute_qname(predicate)
-            namespaces[prefix] = namespace
+            try:
+                prefix, namespace, local = nm.compute_qname(predicate)
+                namespaces[prefix] = namespace
+            except: pass
         namespaces["rdf"] = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
         writer.push(RDF.RDF)
         writer.namespaces(namespaces.iteritems())
